@@ -1,0 +1,35 @@
+bin/
+obj/
+*.user
+
+# Publish output sitting at the repo root. Regenerable with `dotnet build`, and
+# UltraPolling.exe alone is a 145 MB self-contained bundle -- committing it would
+# bloat the repo permanently.
+/UltraPolling.exe
+/UltraPolling.pdb
+/HidusbfModernGui.exe
+/HidusbfModernGui.dll
+/HidusbfModernGui.pdb
+/HidusbfModernGui.deps.json
+/HidusbfModernGui.runtimeconfig.json
+/System.Diagnostics.EventLog.dll
+/System.ServiceProcess.ServiceController.dll
+/runtimes/
+
+# NOT ignored: DRIVER/**/*.sys. Those are the shipped payload, and
+# SystemManager.IdentifyInstalledBuild() hashes them to identify which driver is
+# installed. Ignoring them would break driver identification.
+
+# Transient handoff files for subagent-driven development. The progress ledger
+# itself (.superpowers/sdd/progress.md) is tracked on purpose: it is the recovery
+# map if this session's context is lost.
+.superpowers/sdd/*.diff
+.superpowers/sdd/*-brief.md
+.superpowers/sdd/*-report.md
+
+# Tool cache, committed by accident. Not project source.
+/HidusbfModernGui/.impeccable/
+
+# Packaging output. Rebuilt by package.ps1; a 150 MB self-contained bundle has no
+# business in git - the same reason UltraPolling.exe is ignored at the root.
+/dist/

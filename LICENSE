@@ -1,0 +1,34 @@
+NOTE ON SCOPE / NOTA DE ALCANCE
+
+This MIT license applies ONLY to UltraPolling's own code: the directories
+HidusbfModernGui/, HidusbfModernGui.Tests/, VerifyState/, query/, the packaging
+scripts and packaging/ texts, and the project documentation under docs/.
+
+It does NOT cover the hidusbf driver: the DRIVER/ directory, the original
+README.ENG.TXT / README.RUS.TXT / README.2kHz-8kHz.ENG.TXT files and
+SweetLow.CER are the work of SweetLow, redistributed here unmodified with
+attribution, and remain his. See https://github.com/LordOfMice/hidusbf
+
+---
+
+MIT License
+
+Copyright (c) 2026 UltraPolling (calizayacristhian96@gmail.com)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

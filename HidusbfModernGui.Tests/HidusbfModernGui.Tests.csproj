@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <!-- Link the pure logic directly so the tests do not pull in WPF. -->
+  <ItemGroup>
+    <Compile Include="..\HidusbfModernGui\PollingCore.cs" Link="PollingCore.cs" />
+    <Compile Include="..\HidusbfModernGui\UsbDeviceModel.cs" Link="UsbDeviceModel.cs" />
+    <Compile Include="..\HidusbfModernGui\HidDeviceLocator.cs" Link="HidDeviceLocator.cs" />
+    <Compile Include="..\HidusbfModernGui\PollingMeter.cs" Link="PollingMeter.cs" />
+    <Compile Include="..\HidusbfModernGui\OpResult.cs" Link="OpResult.cs" />
+    <Compile Include="..\HidusbfModernGui\DualSenseLight.cs" Link="DualSenseLight.cs" />
+    <Compile Include="..\HidusbfModernGui\ColourMath.cs" Link="ColourMath.cs" />
+    <Compile Include="..\HidusbfModernGui\ColourRamp.cs" Link="ColourRamp.cs" />
+    <Compile Include="..\HidusbfModernGui\LightProfile.cs" Link="LightProfile.cs" />
+    <Compile Include="..\HidusbfModernGui\RainbowWalker.cs" Link="RainbowWalker.cs" />
+  </ItemGroup>
+
+</Project>

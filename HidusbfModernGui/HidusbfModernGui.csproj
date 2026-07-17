@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Icon on the .exe itself: Explorer, shortcuts, the UAC elevation prompt. -->
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <!-- The product is UltraPolling; only the project folder is HidusbfModernGui.
+         This names the output UltraPolling.exe without renaming the project. -->
+    <AssemblyName>UltraPolling</AssemblyName>
+    <RootNamespace>HidusbfModernGui</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Also embedded as a Resource so Window.Icon can use it at runtime: the exe
+         icon and the taskbar/alt-tab icon are set through different mechanisms. -->
+    <Resource Include="app.ico" />
+  </ItemGroup>
+
+</Project>

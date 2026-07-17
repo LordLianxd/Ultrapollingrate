@@ -1,0 +1,642 @@
+<Window x:Class="HidusbfModernGui.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:HidusbfModernGui"
+        mc:Ignorable="d"
+        Title="UltraPolling"
+        Icon="app.ico"
+        Height="740" Width="1080"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        FontFamily="{StaticResource UiFont}"
+        WindowStartupLocation="CenterScreen"
+        Loaded="Window_Loaded">
+
+    <Window.Resources>
+        <!-- SVG Icon Geometries. Only the ones a live Path still binds to. -->
+        <Geometry x:Key="CloseIconPath">M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z</Geometry>
+        <Geometry x:Key="MinIconPath">M20,14H4V12H20V14Z</Geometry>
+        <Geometry x:Key="MouseIconPath">M12,2A7,7 0 0,0 5,9V15A7,7 0 0,0 12,22A7,7 0 0,0 19,15V9A7,7 0 0,0 12,2M17,15A5,5 0 0,1 12,20A5,5 0 0,1 7,15V14H17V15M17,12.5H7V9A5,5 0 0,1 11,4.1V11H13V4.1A5,5 0 0,1 17,9V12.5Z</Geometry>
+        <Geometry x:Key="KeyboardIconPath">M19,4H5A2,2 0 0,0 3,6V18A2,2 0 0,0 5,20H19A2,2 0 0,0 21,18V6A2,2 0 0,0 19,4M19,18H5V6H19V18M6,8H8V10H6V8M9,8H11V10H9V8M12,8H14V10H12V8M15,8H17V10H15V8M6,11H8V13H6V11M9,11H11V13H9V11M12,11H14V13H12V11M15,11H17V13H15V11M8,14H16V16H8V14Z</Geometry>
+        <Geometry x:Key="GamepadIconPath">M21,6H3C1.9,6 1,6.9 1,8V16C1,17.1 1.9,18 3,18H21C22.1,18 23,17.1 23,16V8C23,6.9 22.1,6 21,6M6,15H4V13H2V11H4V9H6V11H8V13H6V15M15,11A1.5,1.5 0 1,1 16.5,9.5A1.5,1.5 0 0,1 15,11M19,14A1.5,1.5 0 1,1 20.5,12.5A1.5,1.5 0 0,1 19,14Z</Geometry>
+        <Geometry x:Key="UsbIconPath">M12,2A2,2 0 0,1 14,4V6H15A1,1 0 0,1 16,7V9H18V6H17V4H21V6H20V9C20,10.1 19.1,11 18,11H14V16.18C15.2,16.57 16,17.68 16,19A3,3 0 0,1 13,22A3,3 0 0,1 10,19C10,17.68 10.8,16.57 12,16.18V11H8C6.9,11 6,10.1 6,9V6H5V4H9V6H8V9H10V6A1,1 0 0,1 11,5H12V4A2,2 0 0,1 12,2M13,19A1,1 0 0,0 12,18A1,1 0 0,0 11,19A1,1 0 0,0 12,20A1,1 0 0,0 13,19Z</Geometry>
+        <Geometry x:Key="RefreshIconPath">M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z</Geometry>
+        <Geometry x:Key="HomeIconPath">M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z</Geometry>
+        <Geometry x:Key="SettingsIconPath">M19.14,12.94C19.18,12.63 19.2,12.32 19.2,12C19.2,11.68 19.18,11.37 19.14,11.06L21.32,9.36C21.52,9.2 21.58,8.92 21.45,8.7L19.38,5.1C19.25,4.88 18.98,4.8 18.76,4.89L16.2,5.92C15.67,5.5 15.09,5.17 14.47,4.92L14.08,2.19C14.04,1.96 13.84,1.8 13.6,1.8H9.4C9.16,1.8 8.96,1.96 8.92,2.19L8.53,4.92C7.91,5.17 7.33,5.5 6.8,5.92L4.24,4.89C4.02,4.8 3.75,4.88 3.62,5.1L1.55,8.7C1.42,8.92 1.48,9.2 1.68,9.36L3.86,11.06C3.82,11.37 3.8,11.68 3.8,12C3.8,12.32 3.82,12.63 3.86,12.94L1.68,14.64C1.48,14.8 1.42,15.08 1.55,15.3L3.62,18.9C3.75,19.12 4.02,19.2 4.24,19.11L6.8,18.08C7.33,18.5 7.91,18.83 8.53,19.08L8.92,21.81C8.96,22.04 9.16,22.2 9.4,22.2H13.6C13.84,22.2 14.04,22.04 14.08,21.81L14.47,19.08C15.09,18.83 15.67,18.5 16.2,18.08L18.76,19.11C18.98,19.2 19.25,19.12 19.38,18.9L21.45,15.3C21.58,15.08 21.52,14.8 21.32,14.64L19.14,12.94Z</Geometry>
+
+        <!-- Custom Scrollbar -->
+        <Style x:Key="ScrollBarThumbStyle" TargetType="Thumb">
+            <Setter Property="OverridesDefaultStyle" Value="true"/>
+            <Setter Property="IsTabStop" Value="false"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border CornerRadius="3" Background="{StaticResource TextMutedBrush}" Margin="2,0" Width="6"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="ScrollViewer">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollViewer">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <ScrollContentPresenter Grid.Column="0" Grid.Row="0"/>
+                            <ScrollBar Grid.Column="1" Grid.Row="0" x:Name="PART_VerticalScrollBar" Value="{TemplateBinding VerticalOffset}" Maximum="{TemplateBinding ScrollableHeight}" ViewportSize="{TemplateBinding ViewportHeight}" Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}" Width="8" Background="Transparent" BorderBrush="Transparent">
+                                <ScrollBar.Template>
+                                    <ControlTemplate TargetType="ScrollBar">
+                                        <Grid x:Name="Bg" SnapsToDevicePixels="true">
+                                            <Track x:Name="PART_Track" IsDirectionReversed="true" IsEnabled="{TemplateBinding IsEnabled}">
+                                                <Track.Thumb>
+                                                    <Thumb Style="{StaticResource ScrollBarThumbStyle}"/>
+                                                </Track.Thumb>
+                                            </Track>
+                                        </Grid>
+                                    </ControlTemplate>
+                                </ScrollBar.Template>
+                            </ScrollBar>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- Outer Window Border with soft margins and dropshadow -->
+    <Border Background="{StaticResource BgBrush}" BorderThickness="0" CornerRadius="28">
+        <!-- Main instrument surface inside -->
+        <Border Background="{StaticResource SurfaceBrush}" CornerRadius="24" Margin="16" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+            <Border.Effect>
+                <DropShadowEffect Color="#000000" BlurRadius="25" ShadowDepth="2" Opacity="0.18"/>
+            </Border.Effect>
+            
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="64"/>  <!-- Sidebar Nav -->
+                    <ColumnDefinition Width="*"/>   <!-- Main content pane -->
+                </Grid.ColumnDefinitions>
+
+                <!-- ================= 1. SIDEBAR NAVIGATION ================= -->
+                <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0" Width="64">
+                    <Grid>
+                        <StackPanel VerticalAlignment="Center">
+                            <Button Style="{StaticResource SidebarButton}" Click="DashboardNavBtn_Click" ToolTip="Dispositivos">
+                                <Path Data="{StaticResource HomeIconPath}" Fill="{StaticResource TextDataBrush}" Stretch="Uniform" Width="18" Height="18"/>
+                            </Button>
+                            <Button Style="{StaticResource SidebarButton}" Click="LightNavBtn_Click" ToolTip="Color del mando (PlayStation)">
+                                <Path Data="{StaticResource GamepadIconPath}" Fill="{StaticResource TextLabelBrush}" Stretch="Uniform" Width="18" Height="18"/>
+                            </Button>
+                            <Button Style="{StaticResource SidebarButton}" Click="SettingsNavBtn_Click" ToolTip="Sistema">
+                                <Path Data="{StaticResource SettingsIconPath}" Fill="{StaticResource TextLabelBrush}" Stretch="Uniform" Width="18" Height="18"/>
+                            </Button>
+                            <Button Style="{StaticResource SidebarButton}" Click="RefreshDevicesBtn_Click" ToolTip="Refrescar">
+                                <Path Data="{StaticResource RefreshIconPath}" Fill="{StaticResource TextLabelBrush}" Stretch="Uniform" Width="18" Height="18"/>
+                            </Button>
+                        </StackPanel>
+
+                        <StackPanel VerticalAlignment="Bottom" Margin="0,0,0,16">
+                            <Button Style="{StaticResource SidebarButton}" Click="MinimizeButton_Click" ToolTip="Minimizar">
+                                <Path Data="{StaticResource MinIconPath}" Fill="{StaticResource TextLabelBrush}" Stretch="Uniform" Width="12" Height="12"/>
+                            </Button>
+                            <Button Style="{StaticResource SidebarButton}" Click="CloseButton_Click" ToolTip="Cerrar">
+                                <Path Data="{StaticResource CloseIconPath}" Fill="{StaticResource TextLabelBrush}" Stretch="Uniform" Width="12" Height="12"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- ================= 2. MAIN PANEL CONTENT ================= -->
+                <Grid Grid.Column="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="52"/>  <!-- Header Bar -->
+                        <RowDefinition Height="*"/>   <!-- Dynamic page (TabControl) -->
+                        <RowDefinition Height="30"/>  <!-- Status bar -->
+                    </Grid.RowDefinitions>
+
+                    <!-- Header Bar: a white spectrum animation. The driver/service readout that
+                         used to live here now lives in the System view - the state did not
+                         disappear, it moved. The sticky amber warning in the status bar is still
+                         the channel that tells the user the driver is capped. -->
+                    <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Height="52" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                        <!-- Bars are generated in code-behind: forty of them hand-written here
+                             would be unreadable, and each needs its own duration and phase. -->
+                        <Canvas x:Name="HeaderSpectrum" ClipToBounds="True" Background="Transparent"
+                                IsHitTestVisible="False"/>
+                    </Border>
+
+                    <!-- Content TabControl (Headers hidden) -->
+                    <TabControl Grid.Row="1" x:Name="MainTabControl" Background="Transparent" BorderThickness="0" Padding="0">
+                        <TabControl.Resources>
+                            <Style TargetType="TabItem">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </Style>
+                        </TabControl.Resources>
+
+                        <!-- PAGE 0: DASHBOARD -->
+                        <TabItem Header="Dashboard">
+                            <Grid Margin="24,20,24,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*"/> <!-- Main operations -->
+                                    <ColumnDefinition Width="1*"/> <!-- Monitor & Graph -->
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Left Area -->
+                                <Grid Grid.Column="0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/> <!-- Device list heading -->
+                                        <RowDefinition Height="*"/>    <!-- Devices List -->
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Device list heading -->
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="16,0,0,10">
+                                        <TextBlock Text="DISPOSITIVOS" Style="{StaticResource SectionHeading}"/>
+                                        <TextBlock x:Name="DeviceCountText" Text="0" Style="{StaticResource DataText}"
+                                                   FontSize="11" Foreground="{StaticResource TextLabelBrush}" Margin="10,0,0,0"/>
+                                    </StackPanel>
+
+                                    <!-- Loading indicator. The scan is a PowerShell round trip (~1s), so
+                                         this is a real wait, not a fake one staged to look busy. Three
+                                         dots pulsing in sequence; built in code-behind so the stagger
+                                         lives next to the spectrum's. -->
+                                    <StackPanel x:Name="LoadingIndicator" Grid.Row="1" Orientation="Horizontal"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                Visibility="Collapsed" Panel.ZIndex="10"/>
+
+                                    <!-- Scrollable Devices List -->
+                                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                        <ListBox x:Name="DevicesListBox"
+                                                 Background="Transparent" BorderThickness="0"
+                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                 HorizontalContentAlignment="Stretch"
+                                                 SelectionChanged="DevicesListBox_SelectionChanged">
+                                            <ListBox.ItemContainerStyle>
+                                                <Style TargetType="ListBoxItem">
+                                                    <Setter Property="Padding" Value="0"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="ListBoxItem">
+                                                                <Border x:Name="Row" Background="Transparent"
+                                                                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
+                                                                    <ContentPresenter/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="Row" Property="Background" Value="{StaticResource SurfaceAltBrush}"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsSelected" Value="True">
+                                                                        <Setter TargetName="Row" Property="Background" Value="{StaticResource SurfaceAltBrush}"/>
+                                                                        <Setter TargetName="Row" Property="BorderBrush" Value="{StaticResource TextDataBrush}"/>
+                                                                        <Setter TargetName="Row" Property="BorderThickness" Value="2,0,0,1"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </ListBox.ItemContainerStyle>
+
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="16,12">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <!-- The icon is grey, always. Device type is not a status, so it
+                                                             does not get a colour. IconKind already resolves to one of
+                                                             Mouse / Keyboard / Gamepad / Usb. -->
+                                                        <Path Grid.Column="0" Fill="{StaticResource TextLabelBrush}" Stretch="Uniform"
+                                                              Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,14,0">
+                                                            <Path.Style>
+                                                                <Style TargetType="Path">
+                                                                    <Setter Property="Data" Value="{StaticResource UsbIconPath}"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IconKind}" Value="Mouse">
+                                                                            <Setter Property="Data" Value="{StaticResource MouseIconPath}"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding IconKind}" Value="Keyboard">
+                                                                            <Setter Property="Data" Value="{StaticResource KeyboardIconPath}"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding IconKind}" Value="Gamepad">
+                                                                            <Setter Property="Data" Value="{StaticResource GamepadIconPath}"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Path.Style>
+                                                        </Path>
+
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextDataBrush}" FontSize="13"/>
+                                                            <TextBlock Text="{Binding ChildrenSummary}" Style="{StaticResource FieldLabel}"
+                                                                       TextTrimming="CharacterEllipsis" Margin="0,3,0,0"
+                                                                       ToolTip="{Binding ChildrenSummary}"/>
+                                                        </StackPanel>
+
+                                                        <TextBlock Grid.Column="2" Text="{Binding DisplayRate}" Style="{StaticResource DataText}"
+                                                                   VerticalAlignment="Center" Margin="12,0"/>
+
+                                                        <Ellipse Grid.Column="3" Style="{StaticResource StatusDot}"
+                                                                 Fill="{Binding StatusDot, Converter={StaticResource StatusToBrush}}"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </ScrollViewer>
+                                </Grid>
+
+                                <!-- Detail panel. Was always bound to DevicesListBox.SelectedItem —
+                                     a detail panel disguised as a simulated graph. This is the honest
+                                     version: it shows only what the app can prove. -->
+                                <Grid Grid.Column="1" DataContext="{Binding SelectedItem, ElementName=DevicesListBox}" Margin="24">
+                                    <!-- Empty state: shown until a device is picked. Better than a dash in every field. -->
+                                    <TextBlock Text="Selecciona un dispositivo"
+                                               VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource FieldLabel}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedItem, ElementName=DevicesListBox}" Value="{x:Null}">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+
+                                    <StackPanel>
+                                        <StackPanel.Style>
+                                            <Style TargetType="StackPanel">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedItem, ElementName=DevicesListBox}" Value="{x:Null}">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
+
+                                        <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextDataBrush}" FontSize="15"/>
+
+                                        <!-- MEASURED is the headline, not requested. Writing bInterval to the
+                                             registry reconfigures nothing until the device is re-enumerated, so
+                                             the requested value is a promise, not a fact. Showing it at 46px was
+                                             the app telling the user 8000 Hz while the pad ran at 1000. The big
+                                             number is now what the device is actually doing. -->
+                                        <TextBlock Text="MEDIDA" Style="{StaticResource FieldLabel}" Margin="0,16,0,0"/>
+                                        <TextBlock x:Name="MeasuredText" Text="--" Style="{StaticResource RateDisplay}"/>
+                                        <TextBlock x:Name="MeasuredGapText" Text="--" Style="{StaticResource DataText}"
+                                                   Foreground="{StaticResource TextLabelBrush}" FontSize="15"/>
+
+                                        <!-- Requested drops to a secondary line. The dot compares the two: that
+                                             comparison is the whole product. -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                                            <TextBlock Text="PEDIDA" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Width="70"/>
+                                            <TextBlock Text="{Binding DisplayRate}" Style="{StaticResource DataText}" VerticalAlignment="Center"/>
+                                            <Ellipse x:Name="MeasuredDot" Style="{StaticResource StatusDot}" Margin="10,0,0,0"/>
+                                        </StackPanel>
+                                        <TextBlock x:Name="MatchHintText" Text="" Style="{StaticResource FieldLabel}"
+                                                   Foreground="{StaticResource StatusWarnBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+
+                                        <Rectangle Height="1" Fill="{StaticResource BorderBrush}" Margin="0,22"/>
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="110"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="26"/>
+                                                <RowDefinition Height="26"/>
+                                                <RowDefinition Height="26"/>
+                                                <RowDefinition Height="26"/>
+                                            </Grid.RowDefinitions>
+
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="VELOCIDAD" Style="{StaticResource FieldLabel}"/>
+                                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SpeedText}" Style="{StaticResource DataText}"/>
+
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="bINTERVAL" Style="{StaticResource FieldLabel}"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding BIntervalText}" Style="{StaticResource DataText}"/>
+
+                                            <!-- StatusDot is a whole-device fact (filter + speed + rate), so it is
+                                                 anchored to FILTRO, the row it tracks most closely, not to
+                                                 VELOCIDAD, which it does not describe. -->
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="FILTRO" Style="{StaticResource FieldLabel}"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding FilterText}" Style="{StaticResource DataText}"/>
+                                            <Ellipse   Grid.Row="2" Grid.Column="2" Style="{StaticResource StatusDot}"
+                                                       Fill="{Binding StatusDot, Converter={StaticResource StatusToBrush}}"/>
+
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="INTERVALO" Style="{StaticResource FieldLabel}"/>
+                                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding IntervalModeText}" Style="{StaticResource DataText}"/>
+                                        </Grid>
+
+                                        <TextBlock Text="INSTANCE ID" Style="{StaticResource FieldLabel}" Margin="0,14,0,3"/>
+                                        <TextBlock Text="{Binding InstanceId}" Style="{StaticResource DataText}" FontSize="10"
+                                                   Foreground="{StaticResource TextLabelBrush}" TextWrapping="Wrap"/>
+
+                                        <TextBlock Text="TASA OBJETIVO" Style="{StaticResource FieldLabel}" Margin="0,22,0,6"/>
+                                        <ComboBox x:Name="DetailRateCombo" Width="150" HorizontalAlignment="Left"
+                                                  FontFamily="{StaticResource MonoFont}"
+                                                  SelectionChanged="DetailRateCombo_SelectionChanged"/>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,22,0,0">
+                                            <Button Content="FILTRO" Style="{StaticResource InstrumentButton}"
+                                                    Click="FilterToggle_Click" Margin="0,0,10,0"/>
+                                            <Button Content="REINICIAR" Style="{StaticResource InstrumentButton}"
+                                                    Click="RestartDevice_Click"
+                                                    ToolTip="Reinicio PnP: recarga los drivers, pero el dispositivo no abandona el bus USB. Rapido, y a veces no basta para aplicar la tasa."/>
+                                        </StackPanel>
+
+                                        <!-- The whole operation, not half of it. A PnP restart alone never re-reads
+                                             the endpoint descriptor; a replug alone re-enumerates before hidusbf has
+                                             attached. Only the two chained actually apply the rate - established by
+                                             testing on real hardware, not from theory. -->
+                                        <Button x:Name="ReplugBtn" Content="RECONECTAR (REPLUG)"
+                                                Style="{StaticResource InstrumentButton}"
+                                                HorizontalAlignment="Left" Margin="0,10,0,0"
+                                                Click="ReplugDevice_Click"
+                                                ToolTip="Quita el dispositivo del arbol PnP, espera 2 s, lo re-enumera y despues lo reinicia. Los cuatro pasos encadenados: es lo unico que aplica el overclock al 100%."/>
+                                    </StackPanel>
+                                </Grid>
+                            </Grid>
+                        </TabItem>
+
+                        <!-- PAGE 1: SETTINGS / GLOBAL MODE -->
+                        <TabItem Header="Settings">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="24" MaxWidth="620" HorizontalAlignment="Left">
+
+                                    <TextBlock Text="SERVICIO" Style="{StaticResource SectionHeading}"/>
+                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                            BorderThickness="1" Padding="18" Margin="0,8,0,20">
+                                        <StackPanel>
+                                            <!-- Moved here from the header, which is now the spectrum animation.
+                                                 This is the only place the service state is reported, so it keeps
+                                                 its status dot: the colour still encodes a real fact. -->
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                                <TextBlock Text="ESTADO" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
+                                                <Ellipse x:Name="ServiceStatusDot" Style="{StaticResource StatusDot}" Margin="10,0,6,0"/>
+                                                <TextBlock x:Name="ServiceStatusText" Text="--" Style="{StaticResource DataText}" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <TextBlock Text="Driver hidusbf (lower filter). Requiere Administrador."
+                                                       Style="{StaticResource FieldLabel}" TextWrapping="Wrap"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                                <Button x:Name="InstallServiceBtn" Content="INSTALAR" Style="{StaticResource InstrumentButton}"
+                                                        Click="InstallServiceBtn_Click" Margin="0,0,10,0"/>
+                                                <Button x:Name="UninstallServiceBtn" Content="DESINSTALAR" Style="{StaticResource InstrumentButton}"
+                                                        Click="UninstallServiceBtn_Click" Margin="0,0,10,0"/>
+                                                <Button x:Name="RestartAllBtn" Content="REINICIAR FILTRADOS" Style="{StaticResource InstrumentButton}"
+                                                        Click="RestartAllBtn_Click"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Text="MODO DEL DRIVER" Style="{StaticResource SectionHeading}"/>
+                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                            BorderThickness="1" Padding="18" Margin="0,8,0,20">
+                                        <StackPanel>
+                                            <!-- The dot came with it from the header. Amber here means the driver
+                                                 is capped at 1000 Hz - the single most useful thing this app knows,
+                                                 and now the only place it is stated. -->
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="ACTIVO" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
+                                                <Ellipse x:Name="HeaderModeDot" Style="{StaticResource StatusDot}" Margin="10,0,6,0"/>
+                                                <TextBlock x:Name="DriverModeText" Text="--" Style="{StaticResource DataText}"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <TextBlock Text="El modo lo fija PatchUSBXHCI en el registro, no el archivo .sys instalado."
+                                                       Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                                            <ComboBox x:Name="GlobalModeComboBox" Width="200" HorizontalAlignment="Left"
+                                                      FontFamily="{StaticResource MonoFont}" Margin="0,12,0,0"
+                                                      SelectionChanged="GlobalModeComboBox_SelectionChanged">
+                                                <ComboBoxItem Content="NOPATCH"/>
+                                                <ComboBoxItem Content="1kHz"/>
+                                                <ComboBoxItem Content="2kHz-4kHz"/>
+                                                <ComboBoxItem Content="4kHz-8kHz"/>
+                                            </ComboBox>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Text="LISTA" Style="{StaticResource SectionHeading}"/>
+                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                            BorderThickness="1" Padding="18" Margin="0,8,0,0">
+                                        <StackPanel>
+                                            <CheckBox x:Name="OnlyControllersCheck" Content="Solo controles y gamepads"
+                                                      Foreground="{StaticResource TextDataBrush}" FontSize="12"
+                                                      Checked="Filter_Changed" Unchecked="Filter_Changed"/>
+                                            <CheckBox x:Name="OnlyFilteredCheck" Content="Solo dispositivos con filtro"
+                                                      Foreground="{StaticResource TextDataBrush}" FontSize="12" Margin="0,10,0,0"
+                                                      Checked="Filter_Changed" Unchecked="Filter_Changed"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- PAGE 2: CONTROLLER LIGHT -->
+                        <TabItem Header="Light">
+                            <!-- Two columns AND a scroller. The columns are what make it fit; the
+                                 scroller is the net. Without one, this page has already dropped
+                                 RESTAURAR and the anti-cheat warning off the bottom twice - once
+                                 as a single column, and again the moment the EFECTO card grew two
+                                 rows. Content that overflows must be reachable, not gone. -->
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <Grid Margin="24">
+                                <!-- Empty state. A page of dead sliders would imply the feature is broken
+                                     rather than inapplicable. -->
+                                <StackPanel x:Name="LightEmptyState" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
+                                    <TextBlock Text="Sin mandos de PlayStation conectados" Style="{StaticResource FieldLabel}" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Esta funcion solo aplica a DualSense y DualShock." Style="{StaticResource FieldLabel}"
+                                               Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+                                </StackPanel>
+
+                                <!-- Two columns. As one narrow column this page ran off the bottom of the
+                                     window with no ScrollViewer, so PERFILES, RESTAURAR and the anti-cheat
+                                     warning were unreachable - while half the window sat empty. Colour on
+                                     the left, everything that acts on it on the right. -->
+                                <Grid x:Name="LightPanel">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>  <!-- device picker, spans both -->
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/> <!-- colour: sized by the picker -->
+                                        <ColumnDefinition Width="*"/>    <!-- controls -->
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Row="0" Grid.ColumnSpan="2">
+                                        <TextBlock Text="MANDO" Style="{StaticResource SectionHeading}"/>
+                                        <ComboBox x:Name="PlayStationList" Width="320" HorizontalAlignment="Left" Margin="0,8,0,20"
+                                                  DisplayMemberPath="Name" SelectionChanged="PlayStationList_SelectionChanged"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,20,0">
+                                    <TextBlock Text="COLOR" Style="{StaticResource SectionHeading}"/>
+                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                            BorderThickness="1" Padding="18" Margin="0,8,0,0">
+                                        <StackPanel>
+                                            <!-- Presets first: nobody arrives wanting a specific hex, they arrive
+                                                 wanting "blue". Built in code so each swatch carries its RGB. -->
+                                            <StackPanel x:Name="PresetRow" Orientation="Horizontal" Margin="0,0,0,16"/>
+
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <local:ColourPicker x:Name="Picker" Grid.Column="0"
+                                                                    ColorChanged="Picker_ColorChanged" HorizontalAlignment="Left"/>
+
+                                                <!-- The one place colour is not status: this IS the data. -->
+                                                <Border Grid.Column="1" x:Name="ColourSwatch" Width="72" Height="72"
+                                                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                                        VerticalAlignment="Top" Margin="20,0,0,0"/>
+                                            </Grid>
+
+                                            <TextBlock x:Name="HexText" Text="#0000FF" Style="{StaticResource DataText}" Margin="0,14,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    </StackPanel>
+
+                                    <!-- Right column: everything that acts on the colour. -->
+                                    <StackPanel Grid.Row="1" Grid.Column="1">
+                                    <TextBlock Text="LED DE JUGADOR" Style="{StaticResource SectionHeading}"/>
+                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                            BorderThickness="1" Padding="18" Margin="0,8,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Las 5 luces bajo el touchpad. El patron es simetrico, como en la consola."
+                                                       Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <ComboBox x:Name="PlayerLedList" Width="150" HorizontalAlignment="Left" Margin="0,0,14,0"
+                                                          SelectionChanged="LightCombo_Changed"/>
+                                                <TextBlock Text="BRILLO" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <ComboBox x:Name="BrightnessList" Width="110" HorizontalAlignment="Left"
+                                                          SelectionChanged="LightCombo_Changed"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Text="EFECTO" Style="{StaticResource SectionHeading}" Margin="0,20,0,0"/>
+                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                            BorderThickness="1" Padding="18" Margin="0,8,0,0">
+                                        <StackPanel>
+                                            <!-- One row, not three: this card grew two rows and pushed RESTAURAR
+                                                 and the anti-cheat warning off the bottom of the window. -->
+                                            <StackPanel Orientation="Horizontal">
+                                                <CheckBox x:Name="RainbowCheck" Content="Rainbow" Foreground="{StaticResource TextDataBrush}"
+                                                          FontSize="12" VerticalAlignment="Center" Margin="0,0,14,0"
+                                                          Checked="Rainbow_Toggled" Unchecked="Rainbow_Toggled"/>
+                                                <ComboBox x:Name="RainbowStyleList" Width="118" VerticalAlignment="Center" Margin="0,0,18,0"
+                                                          SelectionChanged="RainbowStyle_Changed"/>
+                                                <TextBlock Text="VELOCIDAD" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <!-- Whole timer ticks per colour, reversed so right = faster. The
+                                                     timer only honours multiples of 15.625ms (measured), so a
+                                                     continuous speed slider would promise rates it cannot keep:
+                                                     the old 30/s default really ran at 21.4/s. Every stop here is
+                                                     a rate the timer actually delivers. -->
+                                                <Slider x:Name="RainbowSpeed" Minimum="1" Maximum="12" Value="3" Width="130"
+                                                        IsDirectionReversed="True" IsSnapToTickEnabled="True" TickFrequency="1"
+                                                        VerticalAlignment="Center" ValueChanged="RainbowSpeed_Changed"/>
+                                                <TextBlock x:Name="RainbowSpeedText" Text="" Style="{StaticResource DataText}"
+                                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                            </StackPanel>
+                                            <TextBlock x:Name="RainbowStyleHint" Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                                            <!-- Said plainly, because a user who thinks the pad stores the effect will think
+                                                 it broke when it stops. -->
+                                            <TextBlock Text="El efecto lo anima UltraPolling. Al cerrar la app el mando se queda en el ultimo color."
+                                                       Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Text="PERFILES" Style="{StaticResource SectionHeading}" Margin="0,20,0,0"/>
+                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                            BorderThickness="1" Padding="18" Margin="0,8,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Un perfil guarda la tasa y la luz. La tasa se escribe pero no se aplica hasta pulsar RECONECTAR."
+                                                       Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <ComboBox x:Name="ProfileList" Width="180" HorizontalAlignment="Left" Margin="0,0,10,0"
+                                                          DisplayMemberPath="Name"/>
+                                                <Button Content="APLICAR" Style="{StaticResource InstrumentButton}" Click="ApplyProfile_Click" Margin="0,0,10,0"/>
+                                                <Button Content="GUARDAR" Style="{StaticResource InstrumentButton}" Click="SaveProfile_Click" Margin="0,0,10,0"/>
+                                                <Button Content="BORRAR" Style="{StaticResource InstrumentButton}" Click="DeleteProfile_Click"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                                <TextBlock Text="NOMBRE" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Width="60"/>
+                                                <TextBox x:Name="ProfileName" Width="180" Background="{StaticResource SurfaceAltBrush}"
+                                                         Foreground="{StaticResource TextDataBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                         BorderThickness="1" Padding="6,4" FontFamily="{StaticResource UiFont}"/>
+                                                <CheckBox x:Name="ProfileIncludesRate" Content="Incluir la tasa actual" Margin="14,0,0,0"
+                                                          Foreground="{StaticResource TextDataBrush}" FontSize="12" VerticalAlignment="Center"
+                                                          IsChecked="True"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- The controller cannot return to its default without being reconnected, so
+                                         this is the only way back for someone who turned the light off. -->
+                                    <Button Content="RESTAURAR" Style="{StaticResource InstrumentButton}"
+                                            HorizontalAlignment="Left" Margin="0,20,0,0"
+                                            Click="RestoreLight_Click"
+                                            ToolTip="Azul y Player 1, lo que Windows le pone por defecto. El mando no puede volver solo."/>
+
+                                    <TextBlock Style="{StaticResource FieldLabel}" Foreground="{StaticResource StatusWarnBrush}"
+                                               TextWrapping="Wrap" Margin="0,16,0,0"
+                                               Text="Cambiar el color escribe en el mando. Cierra UltraPolling antes de jugar online: un proceso sin firmar escribiendo al mando durante una partida se parece a una herramienta de manipulacion de entrada."/>
+                                    </StackPanel>
+                                </Grid>
+                            </Grid>
+                            </ScrollViewer>
+                        </TabItem>
+                    </TabControl>
+
+                    <!-- Status / Log Bar at Bottom -->
+                    <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Height="30">
+                        <Grid Margin="16,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" x:Name="StatusLogText" Text="" Style="{StaticResource DataText}"
+                                       FontSize="11" Foreground="{StaticResource TextLabelBrush}"
+                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+
+                            <!-- Sticky driver warning. Only RefreshStatus() writes this; routine
+                                 scan chatter on StatusLogText cannot overwrite it. Coloured per
+                                 DriverState.HeaderStatus, so the colour still encodes real state
+                                 rather than decorating. Collapsed (no eleventh colour, no space
+                                 taken) when there is nothing to warn about. -->
+                            <TextBlock Grid.Column="1" x:Name="WarningText" Text="" Style="{StaticResource DataText}"
+                                       FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                       MaxWidth="420" Margin="16,0" Visibility="Collapsed"
+                                       ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+
+                            <TextBlock Grid.Column="2" Text="ADMIN" Style="{StaticResource SectionHeading}"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Border>
+    </Border>
+</Window>
