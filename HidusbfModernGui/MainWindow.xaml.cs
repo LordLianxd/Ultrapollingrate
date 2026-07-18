@@ -550,7 +550,7 @@ namespace HidusbfModernGui
             var brightness = (LedBrightness)((ComboBoxItem)BrightnessList.SelectedItem).Tag;
 
             LightIntent intent;
-            if (_rainbowTimer != null && _rainbowTimer.IsEnabled)
+            if (RainbowOn)
             {
                 if (RainbowStyleList.SelectedItem == null) return;
                 var style = (RainbowStyle)((ComboBoxItem)RainbowStyleList.SelectedItem).Tag;
@@ -596,6 +596,11 @@ namespace HidusbfModernGui
             {
                 _updatingLight = false;
             }
+
+            // Outside the _updatingLight guard so PlayerEffect_Changed actually runs: it stops
+            // the effect timer (via UpdateEffectDriver), re-enables PlayerLedList, and - now
+            // that nothing is animating - re-applies the restored static colour/player itself.
+            PlayerEffectList.SelectedIndex = 0;   // Ninguno
 
             UpdateSwatch();
             ApplyLightNow();
@@ -715,7 +720,7 @@ namespace HidusbfModernGui
                 _playerFrameAccumMs += _rainbowTimer!.Interval.TotalMilliseconds;
                 if (_playerFrameAccumMs >= _playerWalker.FrameMs)
                 {
-                    _playerFrameAccumMs = 0;
+                    _playerFrameAccumMs -= _playerWalker.FrameMs;
                     _playerFrameIndex++;
                 }
                 player = (PlayerLeds)_playerWalker.MaskAt(_playerFrameIndex);
@@ -746,7 +751,10 @@ namespace HidusbfModernGui
             // Con un efecto de LED activo, la seleccion fija de Player la maneja el efecto.
             if (PlayerLedList != null) PlayerLedList.IsEnabled = !PlayerEffectOn;
             UpdateEffectDriver();
-            RememberLight();
+            if (!PlayerEffectOn && !RainbowOn)
+                ApplyLightNow();   // vuelve a la seleccion Player fija y persiste
+            else
+                RememberLight();
         }
 
         private double TargetColoursPerSecond => RainbowSpeed.Value;
