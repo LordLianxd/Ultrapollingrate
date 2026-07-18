@@ -522,11 +522,17 @@ namespace HidusbfModernGui
         {
             LeftDeadzoneSlider.Value = _remap.LeftDeadzonePct;
             LeftReachSlider.Value = _remap.LeftReachPct;
-            SetCurveButtonsVisual(LeftCurvePrecisaBtn, LeftCurveNormalBtn, LeftCurveRapidaBtn, _remap.LeftCurve);
+            LeftCurvaturaSlider.Value = _remap.LeftCurvaturePct;
+            SetCurveButtonsVisual(LeftCurvePrecisaBtn, LeftCurveNormalBtn, LeftCurveRapidaBtn, LeftCurvePersonalizadaBtn, _remap.LeftCurve);
+            LeftCurvaturaPanel.Visibility = _remap.LeftCurve == ResponseCurve.Personalizada
+                ? Visibility.Visible : Visibility.Collapsed;
 
             RightDeadzoneSlider.Value = _remap.RightDeadzonePct;
             RightReachSlider.Value = _remap.RightReachPct;
-            SetCurveButtonsVisual(RightCurvePrecisaBtn, RightCurveNormalBtn, RightCurveRapidaBtn, _remap.RightCurve);
+            RightCurvaturaSlider.Value = _remap.RightCurvaturePct;
+            SetCurveButtonsVisual(RightCurvePrecisaBtn, RightCurveNormalBtn, RightCurveRapidaBtn, RightCurvePersonalizadaBtn, _remap.RightCurve);
+            RightCurvaturaPanel.Visibility = _remap.RightCurve == ResponseCurve.Personalizada
+                ? Visibility.Visible : Visibility.Collapsed;
 
             L2PointSlider.Value = _remap.L2PointPct;
             R2PointSlider.Value = _remap.R2PointPct;
@@ -542,6 +548,7 @@ namespace HidusbfModernGui
             // asi que el texto y la curva se refrescan aqui explicitamente en vez de confiar
             // solo en los handlers de arriba.
             UpdateDeadzoneReachText();
+            UpdateCurvaturaText();
             UpdateTriggerText();
             RedrawLeftCurve();
             RedrawRightCurve();
@@ -563,6 +570,17 @@ namespace HidusbfModernGui
             LeftReachText.Text = $"{LeftReachSlider.Value:0}%";
             RightDeadzoneText.Text = $"{RightDeadzoneSlider.Value:0}%";
             RightReachText.Text = $"{RightReachSlider.Value:0}%";
+        }
+
+        // Same null-guard pattern as UpdateDeadzoneReachText: LeftCurvaturaText/RightCurvaturaText
+        // are declared after the sliders they mirror, so a ValueChanged raised mid-parse would
+        // otherwise hit a null reference.
+        private void UpdateCurvaturaText()
+        {
+            if (LeftCurvaturaText == null || RightCurvaturaText == null) return;
+
+            LeftCurvaturaText.Text = $"{LeftCurvaturaSlider.Value:0}%";
+            RightCurvaturaText.Text = $"{RightCurvaturaSlider.Value:0}%";
         }
 
         private void UpdateTriggerText()
@@ -631,7 +649,8 @@ namespace HidusbfModernGui
         private void LeftCurve_Click(object sender, RoutedEventArgs e)
         {
             if (sender is not Button { Tag: ResponseCurve curve }) return;
-            SetCurveButtonsVisual(LeftCurvePrecisaBtn, LeftCurveNormalBtn, LeftCurveRapidaBtn, curve);
+            SetCurveButtonsVisual(LeftCurvePrecisaBtn, LeftCurveNormalBtn, LeftCurveRapidaBtn, LeftCurvePersonalizadaBtn, curve);
+            LeftCurvaturaPanel.Visibility = curve == ResponseCurve.Personalizada ? Visibility.Visible : Visibility.Collapsed;
             if (_updatingRemap) return;
             _remap.LeftCurve = curve;
             RedrawLeftCurve();
@@ -641,22 +660,42 @@ namespace HidusbfModernGui
         private void RightCurve_Click(object sender, RoutedEventArgs e)
         {
             if (sender is not Button { Tag: ResponseCurve curve }) return;
-            SetCurveButtonsVisual(RightCurvePrecisaBtn, RightCurveNormalBtn, RightCurveRapidaBtn, curve);
+            SetCurveButtonsVisual(RightCurvePrecisaBtn, RightCurveNormalBtn, RightCurveRapidaBtn, RightCurvePersonalizadaBtn, curve);
+            RightCurvaturaPanel.Visibility = curve == ResponseCurve.Personalizada ? Visibility.Visible : Visibility.Collapsed;
             if (_updatingRemap) return;
             _remap.RightCurve = curve;
             RedrawRightCurve();
             RememberRemap();
         }
 
+        private void LeftCurvatura_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            UpdateCurvaturaText();
+            if (_updatingRemap) return;
+            _remap.LeftCurvaturePct = (int)Math.Round(LeftCurvaturaSlider.Value);
+            RedrawLeftCurve();
+            RememberRemap();
+        }
+
+        private void RightCurvatura_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            UpdateCurvaturaText();
+            if (_updatingRemap) return;
+            _remap.RightCurvaturePct = (int)Math.Round(RightCurvaturaSlider.Value);
+            RedrawRightCurve();
+            RememberRemap();
+        }
+
         // Resalta el boton de la curva activa reusando BorderBrush (el mismo tono que el
         // hover de InstrumentButton) en vez de inventar un color nuevo.
-        private void SetCurveButtonsVisual(Button precisa, Button normal, Button rapida, ResponseCurve active)
+        private void SetCurveButtonsVisual(Button precisa, Button normal, Button rapida, Button personalizada, ResponseCurve active)
         {
             var selectedBrush = (Brush)FindResource("BorderBrush");
             var idleBrush = (Brush)FindResource("SurfaceAltBrush");
             precisa.Background = active == ResponseCurve.Precisa ? selectedBrush : idleBrush;
             normal.Background = active == ResponseCurve.Normal ? selectedBrush : idleBrush;
             rapida.Background = active == ResponseCurve.Rapida ? selectedBrush : idleBrush;
+            personalizada.Background = active == ResponseCurve.Personalizada ? selectedBrush : idleBrush;
         }
 
         private void ToggleLeftAdvanced(object sender, RoutedEventArgs e)
@@ -698,17 +737,19 @@ namespace HidusbfModernGui
         // Dibuja la curva de respuesta muestreando InputTransform.ApplyStick sobre un stick
         // puramente horizontal (Y=0): la salida en X para cada entrada t en 0..1 es
         // exactamente lo que el usuario siente al empujar el stick en una direccion. Sin
-        // hardware ni mock: es la misma funcion pura que usara el motor.
+        // hardware ni mock: es la misma funcion pura que usara el motor. Se pasa el exponente
+        // ya resuelto (no el enum ResponseCurve) para que un mismo camino cubra tanto los
+        // presets fijos como Personalizada, cuyo exponente sale del % de curvatura elegido.
         private const int CurveSamples = 41;
 
         private static void DrawCurve(System.Windows.Shapes.Polyline line, double innerDeadzone,
-            double outerDeadzone, ResponseCurve curve, double width, double height)
+            double outerDeadzone, double exponent, double width, double height)
         {
             var points = new PointCollection();
             for (int i = 0; i < CurveSamples; i++)
             {
                 double t = i / (double)(CurveSamples - 1);
-                var (x, _) = InputTransform.ApplyStick(new StickInput(t, 0), innerDeadzone, outerDeadzone, curve);
+                var (x, _) = InputTransform.ApplyStick(new StickInput(t, 0), innerDeadzone, outerDeadzone, exponent);
                 points.Add(new Point(t * width, height - (x * height)));
             }
             line.Points = points;
@@ -721,14 +762,14 @@ namespace HidusbfModernGui
         {
             if (LeftCurveLine == null || LeftCurveCanvas == null) return;
             DrawCurve(LeftCurveLine, _remap.LeftInnerDeadzone, _remap.LeftOuterDeadzone,
-                _remap.LeftCurve, LeftCurveCanvas.Width, LeftCurveCanvas.Height);
+                _remap.LeftCurveExponent, LeftCurveCanvas.Width, LeftCurveCanvas.Height);
         }
 
         private void RedrawRightCurve()
         {
             if (RightCurveLine == null || RightCurveCanvas == null) return;
             DrawCurve(RightCurveLine, _remap.RightInnerDeadzone, _remap.RightOuterDeadzone,
-                _remap.RightCurve, RightCurveCanvas.Width, RightCurveCanvas.Height);
+                _remap.RightCurveExponent, RightCurveCanvas.Width, RightCurveCanvas.Height);
         }
 
         // Copia profunda: RemapProfile.Settings no debe compartir instancia con _remap, o
@@ -739,9 +780,11 @@ namespace HidusbfModernGui
             LeftDeadzonePct = s.LeftDeadzonePct,
             LeftReachPct = s.LeftReachPct,
             LeftCurve = s.LeftCurve,
+            LeftCurvaturePct = s.LeftCurvaturePct,
             RightDeadzonePct = s.RightDeadzonePct,
             RightReachPct = s.RightReachPct,
             RightCurve = s.RightCurve,
+            RightCurvaturePct = s.RightCurvaturePct,
             L2PointPct = s.L2PointPct,
             R2PointPct = s.R2PointPct,
             ButtonRemap = new Dictionary<PadButton, PadButton>(s.ButtonRemap),
