@@ -25,6 +25,7 @@ namespace HidusbfModernGui
         public LedBrightness Brightness { get; set; } = LedBrightness.High;
         public RainbowStyle Style { get; set; } = RainbowStyle.Smooth;
         public int RainbowColoursPerSecond { get; set; } = 64;
+        public PlayerLedEffect PlayerEffect { get; set; } = PlayerLedEffect.None;
 
         public LightState ToLightState() => new LightState(R, G, B, Player, Brightness);
 

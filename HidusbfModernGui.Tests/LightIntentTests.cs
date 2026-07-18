@@ -92,4 +92,23 @@ public class LightIntentTests : IDisposable
         Assert.Equal(PlayerLeds.Player3, s.Player);
         Assert.Equal(LedBrightness.Medium, s.Brightness);
     }
+
+    [Fact]
+    public void PlayerEffect_RoundTrips()
+    {
+        var intent = LightIntent.FromStatic(new LightState(1, 2, 3, PlayerLeds.Player1, LedBrightness.High));
+        intent.PlayerEffect = PlayerLedEffect.Twinkle;
+        Assert.True(IntentStore.Save(intent).Success);
+
+        var loaded = IntentStore.Load();
+        Assert.NotNull(loaded);
+        Assert.Equal(PlayerLedEffect.Twinkle, loaded!.PlayerEffect);
+    }
+
+    [Fact]
+    public void PlayerEffect_DefaultsToNone()
+    {
+        var intent = LightIntent.FromStatic(new LightState(0, 0, 0, PlayerLeds.Player1, LedBrightness.High));
+        Assert.Equal(PlayerLedEffect.None, intent.PlayerEffect);
+    }
 }
