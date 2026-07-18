@@ -267,6 +267,10 @@ namespace HidusbfModernGui
         private RainbowWalker? _rainbowWalker;
         private List<LightProfile> _profiles = new List<LightProfile>();
 
+        // Guarda la intencion de luz en disco, agrupando rafagas (arrastrar el picker, girar
+        // el rainbow) en una sola escritura. NUNCA se llama por-tick del rainbow.
+        private DispatcherTimer? _intentSave;
+
         // Populated once. Tag carries the value so handlers read a real value rather than
         // parsing a label back into meaning.
         private void BuildLightControls()
@@ -423,7 +427,40 @@ namespace HidusbfModernGui
 
             var result = DualSenseLight.Apply(model.InstanceId, CurrentLight());
             if (!result.Success) LogStatus($"No se pudo cambiar la luz: {result.Error}");
+            RememberLight();
         }
+
+        // Construye la intencion actual (color fijo o rainbow) y agenda su guardado.
+        private void RememberLight()
+        {
+            if (_updatingLight) return;                 // no persistir cambios programaticos
+            if (PlayerLedList.SelectedItem == null || BrightnessList.SelectedItem == null) return;
+
+            var player = (PlayerLeds)((ComboBoxItem)PlayerLedList.SelectedItem).Tag;
+            var brightness = (LedBrightness)((ComboBoxItem)BrightnessList.SelectedItem).Tag;
+
+            LightIntent intent;
+            if (_rainbowTimer != null && _rainbowTimer.IsEnabled)
+            {
+                var style = (RainbowStyle)((ComboBoxItem)RainbowStyleList.SelectedItem).Tag;
+                intent = LightIntent.FromRainbow(style, (int)RainbowSpeed.Value, player, brightness);
+            }
+            else
+            {
+                intent = LightIntent.FromStatic(CurrentLight());
+            }
+
+            if (_intentSave == null)
+            {
+                _intentSave = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(750) };
+                _intentSave.Tick += (s, e) => { _intentSave!.Stop(); IntentStore.Save(_lastIntent!); };
+            }
+            _lastIntent = intent;
+            _intentSave.Stop();
+            _intentSave.Start();
+        }
+
+        private LightIntent? _lastIntent;
 
         private void RestoreLight_Click(object sender, RoutedEventArgs e)
         {
@@ -448,6 +485,7 @@ namespace HidusbfModernGui
             UpdateSwatch();
             ApplyLightNow();
             LogStatus("Luz restaurada: azul, Player 1.");
+            RememberLight();
         }
 
         // Only PlayStation controllers reach this page. The rest of the app is vendor-neutral;
@@ -511,6 +549,7 @@ namespace HidusbfModernGui
             // No write here: the tick picks it up on its own, and writing too would race it.
             _rainbowWalker = null;
             UpdateRainbowSpeedText();
+            RememberLight();
         }
 
         private void Rainbow_Toggled(object sender, RoutedEventArgs e)
@@ -539,6 +578,7 @@ namespace HidusbfModernGui
             {
                 _rainbowTimer?.Stop();
             }
+            RememberLight();
         }
 
         private void Rainbow_Tick(object? sender, EventArgs e)
@@ -577,6 +617,7 @@ namespace HidusbfModernGui
             if (_rainbowTimer != null)
                 _rainbowTimer.Interval = RainbowWalker.IntervalFor(TicksPerColour);
             UpdateRainbowSpeedText();
+            RememberLight();
         }
 
         // Both numbers are what the timer really delivers, not what was requested - the whole
