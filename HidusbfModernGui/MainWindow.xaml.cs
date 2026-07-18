@@ -16,6 +16,7 @@ namespace HidusbfModernGui
         private List<UsbDeviceModel> _allDevices = new List<UsbDeviceModel>();
         private DriverState _driverState = new DriverState();
         private bool _isInitializing = true;
+        private bool _overclockBusy;
 
         // Mode used to interpret the 31/62 slots. Falls back to NoPatch so the UI
         // shows literal 31Hz/62Hz rather than claiming an overclock we cannot prove.
@@ -52,15 +53,17 @@ namespace HidusbfModernGui
             if (msg == WM_DEVICECHANGE && wParam.ToInt32() == DBT_DEVNODES_CHANGED)
             {
                 // Los cambios en el arbol de dispositivos llegan en rafaga; agrupa antes de
-                // reaccionar. No es el escaneo pesado de PowerShell: solo refresca y reaplica.
+                // reaccionar. Reusa RefreshDevicesList (un escaneo con debounce) para repoblar
+                // la lista y reaplicar la luz al mando que reaparecio.
                 if (_deviceChangeDebounce == null)
                 {
                     _deviceChangeDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
                     _deviceChangeDebounce.Tick += (s, ev) =>
                     {
                         _deviceChangeDebounce!.Stop();
+                        if (_overclockBusy) return;  // no competir con un replug en curso
                         _intentReapplied = false;   // permitir reaplicar al mando reaparecido
-                        RefreshDevicesList();        // repuebla _allDevices y llama ReapplyIntent()
+                        RefreshDevicesList();        // repuebla _allDevices y reaplica la luz
                     };
                 }
                 _deviceChangeDebounce.Stop();
@@ -476,8 +479,11 @@ namespace HidusbfModernGui
             LightIntent intent;
             if (_rainbowTimer != null && _rainbowTimer.IsEnabled)
             {
+                if (RainbowStyleList.SelectedItem == null) return;
                 var style = (RainbowStyle)((ComboBoxItem)RainbowStyleList.SelectedItem).Tag;
+                var lit = CurrentLight();
                 intent = LightIntent.FromRainbow(style, (int)RainbowSpeed.Value, player, brightness);
+                intent.R = lit.R; intent.G = lit.G; intent.B = lit.B;
             }
             else
             {
@@ -777,58 +783,6 @@ namespace HidusbfModernGui
             LogStatus($"Perfil '{p.Name}' borrado. Hay una copia en {ProfileStore.Path}.backup");
         }
 
-        // Shared filter toggle used by the card button and the context menu
-        private void ToggleFilter(UsbDeviceModel model)
-        {
-            bool active = !model.FilterActive;
-            var result = SystemManager.SetFilterActive(model.InstanceId, active);
-            if (result.Success)
-            {
-                model.FilterActive = active;
-                LogStatus($"Filter {(active ? "enabled" : "disabled")} on device: {model.Name}. Restart required.");
-                RefreshDevicesList();
-            }
-            else
-            {
-                ShowError("Filter Failed", result.Error!);
-            }
-        }
-
-        private async Task RestartOne(UsbDeviceModel model)
-        {
-            LogStatus($"Restarting device connection: {model.Name}...");
-            var result = await SystemManager.RestartDevice(model.InstanceId);
-
-            if (result.Success)
-            {
-                LogStatus($"Successfully restarted device: {model.Name}");
-            }
-            else
-            {
-                LogStatus($"Failed to restart {model.Name}: {result.Error}");
-                ShowError("Restart Failed", $"Could not restart '{model.Name}'.\n\n{result.Error}");
-            }
-        }
-
-        // Single place where a rate is written, so the guard rails apply everywhere.
-        private bool ApplyRate(UsbDeviceModel model, int rateValue)
-        {
-            if (model.SelectedRate == rateValue) return true;
-
-            var result = SystemManager.SetDeviceRate(model.InstanceId, model.DriverKey, rateValue, model.BusSpeed);
-            if (result.Success)
-            {
-                model.SelectedRate = rateValue;
-                int? shown = rateValue == 0 ? null : PollingCore.ResolveHighRateSlot(rateValue, ActiveMode, model.BusSpeed) ?? rateValue;
-                LogStatus($"Polling rate set to {(shown == null ? "Default" : shown + " Hz")} for device: {model.Name}. Restart required.");
-                RefreshDevicesList();
-                return true;
-            }
-
-            ShowError("Rate Not Applied", result.Error!);
-            return false;
-        }
-
         // Scan and populate the device list
         private bool _intentReapplied;
 
@@ -1096,60 +1050,13 @@ namespace HidusbfModernGui
             // ApplyOverclock_Click.
         }
 
-        // Event: Toggle filter active switch on the detail panel
-        private void FilterToggle_Click(object sender, RoutedEventArgs e)
-        {
-            if (DevicesListBox.SelectedItem is UsbDeviceModel model) ToggleFilter(model);
-        }
-
-        // Event: Click Restart button on the detail panel
-        private async void RestartDevice_Click(object sender, RoutedEventArgs e)
-        {
-            if (DevicesListBox.SelectedItem is not UsbDeviceModel model) return;
-            if (sender is not Button btn) return;
-
-            btn.IsEnabled = false;
-            await RestartOne(model);
-            btn.IsEnabled = true;
-        }
-
-        // Software replug. Deeper than RestartDevice_Click's PnP restart: it removes
-        // the device from the tree and re-enumerates it, which is what pulling the
-        // cable does, and is what actually makes a new bInterval take effect.
-        private async void ReplugDevice_Click(object sender, RoutedEventArgs e)
-        {
-            if (DevicesListBox.SelectedItem is not UsbDeviceModel model) return;
-
-            LogStatus($"Reconectando {model.Name}: quitar del arbol PnP, 2 s, re-enumerar, reiniciar...");
-
-            // The meter holds the device open, and CM_Query_And_Remove_SubTree is VETOED
-            // when anything does. Left running, the rate detector would break the button
-            // that actually applies the overclock. RefreshDevicesList() below restores
-            // the selection, which restarts the meter.
-            _meter.Stop();
-            _meterTimer?.Stop();
-
-            var result = await SystemManager.ReplugDevice(model.InstanceId);
-
-            if (result.Success)
-            {
-                LogStatus($"{model.Name} reconectado y reiniciado. La tasa deberia estar aplicada ahora.");
-            }
-            else
-            {
-                LogStatus($"Fallo al reconectar {model.Name}: {result.Error}");
-                ShowError("Reconexion fallida", result.Error!);
-            }
-
-            RefreshDevicesList();
-        }
-
         // Un clic = todo el overclock. Encadena lo que antes eran tres botones: activa el
         // filtro, escribe la tasa y hace el replug (lo unico que la aplica de verdad).
-        // Para el medidor antes del replug por la misma razon que ReplugDevice_Click:
+        // Para el medidor antes del replug por la misma razon que el replug de SystemManager:
         // CM_Query_And_Remove_SubTree se veta si algo tiene el dispositivo abierto.
         private async void ApplyOverclock_Click(object sender, RoutedEventArgs e)
         {
+            _overclockBusy = true;
             if (DevicesListBox.SelectedItem is not UsbDeviceModel model)
             {
                 LogStatus("Selecciona un dispositivo primero.");
@@ -1161,15 +1068,15 @@ namespace HidusbfModernGui
                 return;
             }
             int rate = (int)item.Tag;
-
-            ApplyOverclockBtn.IsEnabled = false;
-            ResetOverclockBtn.IsEnabled = false;
             string original = (string)ApplyOverclockBtn.Content;
-            ApplyOverclockBtn.Content = "APLICANDO...";
-            _meter.Stop();
-            _meterTimer?.Stop();
             try
             {
+                ApplyOverclockBtn.IsEnabled = false;
+                ResetOverclockBtn.IsEnabled = false;
+                ApplyOverclockBtn.Content = "APLICANDO...";
+                _meter.Stop();
+                _meterTimer?.Stop();
+
                 var filter = SystemManager.SetFilterActive(model.InstanceId, true);
                 if (!filter.Success) { LogStatus($"No se pudo activar el filtro: {filter.Error}"); return; }
 
@@ -1191,6 +1098,7 @@ namespace HidusbfModernGui
                 ApplyOverclockBtn.IsEnabled = true;
                 ResetOverclockBtn.IsEnabled = true;
                 RefreshDevicesList();   // restaura la seleccion, lo que reinicia el medidor
+                _overclockBusy = false;
             }
         }
 
@@ -1198,6 +1106,7 @@ namespace HidusbfModernGui
         // defecto. Sustituye a la vieja funcion de REINICIAR/quitar filtro manual.
         private async void ResetOverclock_Click(object sender, RoutedEventArgs e)
         {
+            _overclockBusy = true;
             if (DevicesListBox.SelectedItem is not UsbDeviceModel model)
             {
                 LogStatus("Selecciona un dispositivo primero.");
@@ -1221,6 +1130,7 @@ namespace HidusbfModernGui
                 ApplyOverclockBtn.IsEnabled = true;
                 ResetOverclockBtn.IsEnabled = true;
                 RefreshDevicesList();
+                _overclockBusy = false;
             }
         }
 
