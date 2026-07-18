@@ -29,6 +29,7 @@
     <Compile Include="..\HidusbfModernGui\PlayerLedWalker.cs" Link="PlayerLedWalker.cs" />
     <Compile Include="..\HidusbfModernGui\ControllerState.cs" Link="ControllerState.cs" />
     <Compile Include="..\HidusbfModernGui\InputTransform.cs" Link="InputTransform.cs" />
+    <Compile Include="..\HidusbfModernGui\RemapSettings.cs" Link="RemapSettings.cs" />
   </ItemGroup>
 
 </Project>
