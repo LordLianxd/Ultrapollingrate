@@ -796,6 +796,34 @@ namespace HidusbfModernGui
         }
 
         // Scan and populate the device list
+        private bool _intentReapplied;
+
+        // Reaplica la ultima intencion de luz al primer DualSense presente. Se llama una
+        // vez, desde el fin del escaneo (cuando _allDevices ya esta poblada).
+        private void ReapplyIntent()
+        {
+            if (_intentReapplied) return;
+            var intent = IntentStore.Load();
+            if (intent == null) { _intentReapplied = true; return; }
+
+            var pad = _allDevices.FirstOrDefault(DualSenseLight.IsPlayStation);
+            if (pad == null) return;   // sin mando aun; se reintenta al reconectar (Task B4)
+            _intentReapplied = true;
+
+            if (intent.Kind == LightIntentKind.Static)
+            {
+                DualSenseLight.Apply(pad.InstanceId, intent.ToLightState());
+            }
+            else
+            {
+                DualSenseLight.Apply(pad.InstanceId, intent.ToLightState()); // color base + LEDs
+                // El arranque real del rainbow (walker + timer) se hace cuando el usuario
+                // abre la pestana; aqui se deja el mando en un color valido con los LEDs
+                // correctos para no arrancar animacion en segundo plano en el Dashboard.
+            }
+            LogStatus("Color del mando restaurado de la ultima sesion.");
+        }
+
         private void RefreshDevicesList()
         {
             LogStatus("Scanning USB devices...");
@@ -855,6 +883,8 @@ namespace HidusbfModernGui
                     int unknown = _allDevices.Count(d => !d.SpeedKnown);
                     string suffix = unknown > 0 ? $" ({unknown} with unknown bus speed)" : "";
                     LogStatus($"Scan completed. Found {_allDevices.Count} devices{suffix}.");
+
+                    ReapplyIntent();
                 });
             });
         }
