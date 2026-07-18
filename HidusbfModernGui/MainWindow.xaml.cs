@@ -358,6 +358,21 @@ namespace HidusbfModernGui
                 RainbowStyleList.SelectedIndex = 0;
                 UpdateRainbowHint();
 
+                // Reflejar en la UI lo que se restauro al mando (la intencion guardada), para que
+                // no aparezca Player 1/azul cuando el mando ya tiene otro estado. Bajo _updatingLight
+                // para no disparar escrituras; el rainbow se arranca despues, fuera del guard.
+                var saved = IntentStore.Load();
+                if (saved != null)
+                {
+                    Picker.SelectedColor = Color.FromRgb(saved.R, saved.G, saved.B);
+                    UpdateSwatch();
+                    SelectComboByTag(PlayerLedList, saved.Player);
+                    SelectComboByTag(BrightnessList, saved.Brightness);
+                    SelectComboByTag(RainbowStyleList, saved.Style);
+                    RainbowSpeed.Value = Math.Clamp(saved.RainbowColoursPerSecond,
+                        (int)RainbowWalker.MinColoursPerSecond, (int)RainbowWalker.MaxColoursPerSecond);
+                }
+
                 // Presets cover the common case in one click. "Apagado" belongs here: turning the
                 // light off is a preference, not an error state.
                 foreach (var (name, r, g, b) in new (string, byte, byte, byte)[]
@@ -391,6 +406,25 @@ namespace HidusbfModernGui
             finally
             {
                 _updatingLight = false;
+            }
+
+            // Si lo guardado era un rainbow, reanudar la animacion ahora que los controles existen.
+            // Marcar el check dispara Rainbow_Toggled, que arranca el timer con el estilo/velocidad
+            // que acabamos de fijar arriba.
+            var savedIntent = IntentStore.Load();
+            if (savedIntent?.Kind == LightIntentKind.Rainbow && RainbowCheck.IsChecked != true)
+            {
+                RainbowCheck.IsChecked = true;
+            }
+        }
+
+        // Selecciona en un ComboBox el item cuyo Tag es igual a value (los items se construyen
+        // con Tag = el enum). Sin match, deja la seleccion actual.
+        private static void SelectComboByTag(ComboBox combo, object value)
+        {
+            foreach (ComboBoxItem item in combo.Items)
+            {
+                if (Equals(item.Tag, value)) { combo.SelectedItem = item; return; }
             }
         }
 
