@@ -66,53 +66,57 @@ namespace HidusbfModernGui.Tests
             Assert.Equal(ColourRamp.For(RainbowStyle.Balanced)[0], new RainbowWalker(RainbowStyle.Balanced).Step());
         }
 
-        // Windows delivers timer ticks on a 15.625ms cadence and no finer - measured against a
-        // real DispatcherTimer, and timeBeginPeriod(1) does not move it. So an interval must be
-        // a whole number of ticks, or it rounds up and the walk runs slower than the UI claims.
-        [Theory]
-        [InlineData(1, 15.625)]
-        [InlineData(2, 31.25)]
-        [InlineData(3, 46.875)]
-        [InlineData(12, 187.5)]
-        public void IntervalFor_IsAWholeNumberOfTimerTicks(int ticksPerColour, double expectedMs)
-        {
-            Assert.Equal(expectedMs, RainbowWalker.IntervalFor(ticksPerColour).TotalMilliseconds, 3);
-        }
-
-        // Measured: n=1 delivers 64/s, n=2 delivers 32/s, n=3 delivers 21.3/s. These are the
-        // numbers the UI shows the user, so they must be the numbers the timer actually keeps.
-        [Theory]
-        [InlineData(1, 64.0)]
-        [InlineData(2, 32.0)]
-        [InlineData(3, 21.33)]
-        [InlineData(12, 5.33)]
-        public void ColoursPerSecond_MatchesWhatTheTimerDelivers(int ticksPerColour, double expected)
-        {
-            Assert.Equal(expected, RainbowWalker.ColoursPerSecond(ticksPerColour), 2);
-        }
-
-        // Feeds DispatcherTimer.Interval, which throws on zero or negative - inside a tick, that
-        // takes the app down. The slider cannot produce these, but a profile or a later edit could.
-        [Theory]
-        [InlineData(0)]
-        [InlineData(-5)]
-        [InlineData(999)]
-        public void IntervalFor_OutOfRange_IsClampedToSomethingUsable(int ticksPerColour)
-        {
-            var interval = RainbowWalker.IntervalFor(ticksPerColour);
-            Assert.InRange(interval.TotalMilliseconds, 15.625, 187.5);
-        }
-
-        // The cycle time is an OUTPUT: it falls out of the ramp length and the real rate.
-        // Smooth has 681 colours, so at n=1 (64/s) a lap is 10.6s.
         [Fact]
-        public void CycleSeconds_FallsOutOfTheRampLengthAndTheRealRate()
+        public void SpeedPlan_AtOrBelow64_ShowsEveryColour_OneColourPerTick()
         {
-            var walker = new RainbowWalker(RainbowStyle.Smooth);
-            int count = ColourRamp.For(RainbowStyle.Smooth).Count;
+            var (intervalMs, perTick) = RainbowWalker.SpeedPlan(32);
+            Assert.Equal(1.0, perTick, 3);
+            Assert.True(intervalMs >= 15.625);              // interval is a whole-tick multiple
+            Assert.True(RainbowWalker.ShowsEveryColour(32));
+        }
 
-            Assert.Equal(count / 64.0, walker.CycleSeconds(1), 2);
-            Assert.Equal(count / 32.0, walker.CycleSeconds(2), 2);
+        [Fact]
+        public void SpeedPlan_Above64_FiresEveryTick_AdvancesMultipleColours()
+        {
+            var (intervalMs, perTick) = RainbowWalker.SpeedPlan(180);
+            Assert.Equal(15.625, intervalMs, 3);            // fastest the timer allows
+            Assert.True(perTick > 2.5 && perTick < 3.0);    // 180/64 ~= 2.81
+            Assert.False(RainbowWalker.ShowsEveryColour(180));
+        }
+
+        [Fact]
+        public void SpeedPlan_Clamps()
+        {
+            Assert.Equal(RainbowWalker.SpeedPlan(5).coloursPerTick,   RainbowWalker.SpeedPlan(1).coloursPerTick,   3);
+            Assert.Equal(RainbowWalker.SpeedPlan(180).coloursPerTick, RainbowWalker.SpeedPlan(999).coloursPerTick, 3);
+        }
+
+        [Fact]
+        public void ActualColoursPerSecond_MatchesTarget_WhenTargetIsAWholeTickRate()
+        {
+            // 64/s is exactly one colour per 15.625ms tick.
+            Assert.Equal(64.0, RainbowWalker.ActualColoursPerSecond(64), 0);
+            Assert.Equal(180.0, RainbowWalker.ActualColoursPerSecond(180), 0);
+        }
+
+        [Fact]
+        public void Advance_Fractional_AccumulatesAcrossTicks()
+        {
+            var w = new RainbowWalker(RainbowStyle.Smooth);
+            var first = w.Advance(0.5);          // returns ramp[0], pos -> 0.5
+            var second = w.Advance(0.5);         // still ramp[0], pos -> 1.0
+            var third = w.Advance(0.5);          // ramp[1], pos -> 1.5
+            Assert.Equal(first, second);         // half-steps do not skip
+            Assert.NotEqual(second, third);
+        }
+
+        [Fact]
+        public void Advance_One_MatchesStep()
+        {
+            var a = new RainbowWalker(RainbowStyle.Vivid);
+            var b = new RainbowWalker(RainbowStyle.Vivid);
+            for (int i = 0; i < 10; i++)
+                Assert.Equal(a.Step(), b.Advance(1.0));
         }
     }
 }
