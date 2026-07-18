@@ -524,6 +524,9 @@
                                                 <TextBlock Text="BRILLO" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                 <ComboBox x:Name="BrightnessList" Width="110" HorizontalAlignment="Left"
                                                           SelectionChanged="LightCombo_Changed"/>
+                                                <TextBlock Text="EFECTO" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="14,0,8,0"/>
+                                                <ComboBox x:Name="PlayerEffectList" Width="120" HorizontalAlignment="Left"
+                                                          SelectionChanged="PlayerEffect_Changed"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>

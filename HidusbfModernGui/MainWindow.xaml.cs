@@ -314,6 +314,17 @@ namespace HidusbfModernGui
         private RainbowWalker? _rainbowWalker;
         private List<LightProfile> _profiles = new List<LightProfile>();
 
+        private PlayerLedWalker? _playerWalker;
+        private double _playerFrameAccumMs;   // acumula ms para avanzar el frame del efecto de LED
+        private int _playerFrameIndex;
+
+        private bool RainbowOn => RainbowCheck.IsChecked == true;
+
+        private PlayerLedEffect CurrentPlayerEffect =>
+            PlayerEffectList?.SelectedItem is ComboBoxItem it ? (PlayerLedEffect)it.Tag : PlayerLedEffect.None;
+
+        private bool PlayerEffectOn => CurrentPlayerEffect != PlayerLedEffect.None;
+
         // Guarda la intencion de luz en disco, agrupando rafagas (arrastrar el picker, girar
         // el rainbow) en una sola escritura. NUNCA se llama por-tick del rainbow.
         private DispatcherTimer? _intentSave;
@@ -367,6 +378,15 @@ namespace HidusbfModernGui
                 // smoothness.
                 RainbowStyleList.SelectedIndex = 0;
                 UpdateRainbowHint();
+
+                foreach (var (label, value) in new (string, PlayerLedEffect)[]
+                         {
+                             ("Ninguno", PlayerLedEffect.None),
+                             ("Carga", PlayerLedEffect.Charge),
+                             ("Estrellas", PlayerLedEffect.Twinkle),
+                         })
+                    PlayerEffectList.Items.Add(new ComboBoxItem { Content = label, Tag = value });
+                PlayerEffectList.SelectedIndex = 0;
 
                 // Reflejar en la UI lo que se restauro al mando (la intencion guardada), para que
                 // no aparezca Player 1/azul cuando el mando ya tiene otro estado. Bajo _updatingLight
@@ -447,7 +467,7 @@ namespace HidusbfModernGui
                 _updatingLight = true;
 
                 // A preset click is touching a colour too: the last thing you touched
-                // wins, same rule as Picker_ColorChanged. Left unticked, Rainbow_Tick
+                // wins, same rule as Picker_ColorChanged. Left unticked, Effect_Tick
                 // would overwrite this within one tick (15.6-187.5 ms) and the click
                 // would do nothing.
                 // RainbowCheck is not guarded by _updatingLight (its own handler does not
@@ -632,70 +652,90 @@ namespace HidusbfModernGui
             // Each style has its own ramp, so the walker is dropped and the tick rebuilds it.
             // No write here: the tick picks it up on its own, and writing too would race it.
             _rainbowWalker = null;
+            UpdateEffectDriver();
             UpdateRainbowSpeedText();
             RememberLight();
         }
 
-        private void Rainbow_Toggled(object sender, RoutedEventArgs e)
+        // Un solo motor: corre mientras haya rainbow y/o efecto de LED. El intervalo va al ritmo
+        // del rainbow si esta activo (hasta 64/s); si solo hay efecto de LED, al ritmo del efecto.
+        // El frame del efecto de LED avanza por acumulador de ms, asi su cadencia es independiente
+        // de un rainbow mas rapido.
+        private void UpdateEffectDriver()
         {
-            if (RainbowCheck.IsChecked == true)
-            {
-                _rainbowWalker = new RainbowWalker(CurrentRainbowStyle);
+            bool any = RainbowOn || PlayerEffectOn;
+            if (!any) { _rainbowTimer?.Stop(); return; }
 
-                // Render priority, not the default Background. Background sits below Render
-                // and Input, so UI work starved the tick - and the old time-driven colour
-                // answered a late tick by jumping (measured: 1 dropped tick doubled the step,
-                // 3 made it 7). The walker cannot jump, but a starved tick still costs speed,
-                // so the priority still matters.
-                //
-                // Speed is colours/second: up to 64/s the timer fires once per colour; above that
-                // it fires at the 15.625 ms floor and advances several colours per tick. Apply()
-                // measures 1.0 ms against that floor, so writes stay at ~64/s (~6% of one core)
-                // even at full speed - the extra speed comes from bigger steps, not more writes.
-                _rainbowTimer ??= new DispatcherTimer(DispatcherPriority.Render);
-                _rainbowTimer.Interval = RainbowWalker.IntervalFor(TargetColoursPerSecond);
-                _rainbowTimer.Tick -= Rainbow_Tick;
-                _rainbowTimer.Tick += Rainbow_Tick;
-                _rainbowTimer.Start();
-                LogStatus("Rainbow activo. Se detiene al cerrar la app.");
+            _rainbowTimer ??= new DispatcherTimer(DispatcherPriority.Render);
+            _rainbowTimer.Tick -= Effect_Tick;
+            _rainbowTimer.Tick += Effect_Tick;
+            _rainbowTimer.Interval = RainbowOn
+                ? RainbowWalker.IntervalFor(TargetColoursPerSecond)
+                : TimeSpan.FromMilliseconds(PlayerLedWalker.FrameMsFor(CurrentPlayerEffect));
+
+            if (RainbowOn) _rainbowWalker ??= new RainbowWalker(CurrentRainbowStyle);
+            if (PlayerEffectOn) _playerWalker ??= new PlayerLedWalker(CurrentPlayerEffect);
+            _rainbowTimer.Start();
+        }
+
+        private void Effect_Tick(object? sender, EventArgs e)
+        {
+            if (PlayStationList.SelectedItem is not UsbDeviceModel model) return;
+            if (PlayerLedList.SelectedItem == null || BrightnessList.SelectedItem == null) return;
+
+            byte r, g, b;
+            if (RainbowOn)
+            {
+                _rainbowWalker ??= new RainbowWalker(CurrentRainbowStyle);
+                (r, g, b) = _rainbowWalker.Advance(RainbowWalker.SpeedPlan(TargetColoursPerSecond).coloursPerTick);
+                _updatingLight = true;
+                try { Picker.SelectedColor = System.Windows.Media.Color.FromRgb(r, g, b); UpdateSwatch(); }
+                finally { _updatingLight = false; }
             }
             else
             {
-                _rainbowTimer?.Stop();
+                var c = Picker.SelectedColor; r = c.R; g = c.G; b = c.B;
             }
-            // Con el rainbow activo el color lo maneja el efecto: deshabilitar todo el apartado
-            // COLOR para que no se pueda editar. El selector sigue mostrando el color animado
-            // (solo lectura) porque IsEnabled=false no bloquea los cambios por codigo del tick.
-            if (ColorSection != null) ColorSection.IsEnabled = RainbowCheck.IsChecked != true;
+
+            PlayerLeds player;
+            if (PlayerEffectOn)
+            {
+                _playerWalker ??= new PlayerLedWalker(CurrentPlayerEffect);
+                _playerFrameAccumMs += _rainbowTimer!.Interval.TotalMilliseconds;
+                if (_playerFrameAccumMs >= _playerWalker.FrameMs)
+                {
+                    _playerFrameAccumMs = 0;
+                    _playerFrameIndex++;
+                }
+                player = (PlayerLeds)_playerWalker.MaskAt(_playerFrameIndex);
+            }
+            else
+            {
+                player = (PlayerLeds)((ComboBoxItem)PlayerLedList.SelectedItem).Tag;
+            }
+
+            var brightness = (LedBrightness)((ComboBoxItem)BrightnessList.SelectedItem).Tag;
+            DualSenseLight.Apply(model.InstanceId, new LightState(r, g, b, player, brightness));
+        }
+
+        private void Rainbow_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (RainbowOn) _rainbowWalker = new RainbowWalker(CurrentRainbowStyle);
+            // Con el rainbow activo el color lo maneja el efecto: deshabilitar el apartado COLOR.
+            if (ColorSection != null) ColorSection.IsEnabled = !RainbowOn;
+            UpdateEffectDriver();
+            LogStatus(RainbowOn ? "Rainbow activo." : "Rainbow desactivado.");
             RememberLight();
         }
 
-        private void Rainbow_Tick(object? sender, EventArgs e)
+        private void PlayerEffect_Changed(object sender, SelectionChangedEventArgs e)
         {
-            if (PlayStationList.SelectedItem is not UsbDeviceModel model) return;
-
-            // Rebuilt lazily because a style change drops it: each style has its own ramp.
-            _rainbowWalker ??= new RainbowWalker(CurrentRainbowStyle);
-
-            // No clock, no elapsed time, no time-based catch-up. Each tick advances by SpeedPlan's
-            // colours-per-tick (1 at or below 64/s; a fractional value >1 above it).
-            var (r, g, b) = _rainbowWalker.Advance(RainbowWalker.SpeedPlan(TargetColoursPerSecond).coloursPerTick);
-
-            // The picker follows the effect so the UI shows what the pad is doing. _updatingLight
-            // stops that from bouncing back through Picker_ColorChanged and killing the effect on
-            // its first tick.
-            _updatingLight = true;
-            try
-            {
-                Picker.SelectedColor = Color.FromRgb(r, g, b);
-                UpdateSwatch();
-            }
-            finally { _updatingLight = false; }
-
-            var state = new LightState(r, g, b,
-                (PlayerLeds)((ComboBoxItem)PlayerLedList.SelectedItem).Tag,
-                (LedBrightness)((ComboBoxItem)BrightnessList.SelectedItem).Tag);
-            DualSenseLight.Apply(model.InstanceId, state);
+            if (_updatingLight) return;
+            if (PlayerEffectOn) { _playerWalker = new PlayerLedWalker(CurrentPlayerEffect); _playerFrameIndex = 0; _playerFrameAccumMs = 0; }
+            // Con un efecto de LED activo, la seleccion fija de Player la maneja el efecto.
+            if (PlayerLedList != null) PlayerLedList.IsEnabled = !PlayerEffectOn;
+            UpdateEffectDriver();
+            RememberLight();
         }
 
         private double TargetColoursPerSecond => RainbowSpeed.Value;
@@ -704,8 +744,7 @@ namespace HidusbfModernGui
         // longer a speed term inside the tick that would pick the change up on its own.
         private void RainbowSpeed_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (_rainbowTimer != null)
-                _rainbowTimer.Interval = RainbowWalker.IntervalFor(TargetColoursPerSecond);
+            UpdateEffectDriver();
             UpdateRainbowSpeedText();
             RememberLight();
         }
