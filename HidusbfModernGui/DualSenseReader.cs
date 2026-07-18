@@ -101,7 +101,12 @@ namespace HidusbfModernGui
                 return OpResult.Fail("No se pudo abrir el DualSense (otra app podria tenerlo en exclusiva).");
 
             _stream = stream;
-            _stream.ReadTimeout = 2000;   // so the loop can notice _running=false and exit
+            // Short on purpose: the read loop only notices _running=false went false once
+            // the current Read() call returns, so this timeout is also the ceiling on how
+            // long Stop()'s Join() blocks (previously up to 2000ms - long enough to read as
+            // a UI freeze when Stop() ran on the UI thread). The pad streams at up to ~8kHz,
+            // so a 150ms window without a single report basically only happens at shutdown.
+            _stream.ReadTimeout = 150;
             DevicePath = dev.DevicePath;
             Interlocked.Exchange(ref _reports, 0);
             Connected = true;

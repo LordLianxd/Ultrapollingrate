@@ -44,10 +44,26 @@ namespace HidusbfModernGui
         }
 
         // Nunca cerrar la app con el fisico todavia oculto: si el spike sigue activo,
-        // detenerlo (muestra el fisico, quita el virtual) antes de salir.
+        // detenerlo (muestra el fisico, quita el virtual) antes de salir. Se hace en el
+        // hilo de UI, en linea (no via StopSpike()/Task.Run): la app ya se esta cerrando,
+        // asi que un revert sincrono de ~1-2s aqui no es el freeze que se reporto (ese
+        // ocurria al hacer clic en PROBAR/DETENER durante uso normal); esperar aqui a un
+        // Task.Run en cambio arriesgaria deadlock, porque StopSpike() toca controles de
+        // UI despues de su await y esta llamada no puede hacer await (OnClosing no es async).
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
-            if (_spikeRunning) { try { StopSpike(); } catch { } }
+            if (_spikeRunning)
+            {
+                if (_spikeTimer != null)
+                {
+                    _spikeTimer.Stop();
+                    _spikeTimer.Tick -= SpikeTick;
+                    _spikeTimer = null;
+                }
+                _spikeRunning = false;
+                try { RevertSpikeDevices(); } catch { }
+                CleanupSpike();
+            }
             base.OnClosing(e);
         }
 
@@ -77,6 +93,11 @@ namespace HidusbfModernGui
                     {
                         _deviceChangeDebounce!.Stop();
                         if (_overclockBusy) return;  // no competir con un replug en curso
+                        // El propio spike provoca este WM_DEVICECHANGE (HidHide reinicia el
+                        // devnode del DualSense al ocultarlo/mostrarlo). Sin este guard, ese
+                        // replug propio dispara un RefreshDevicesList() (~1s de PowerShell) que
+                        // compite por el hilo de UI con el propio Start/StopSpike.
+                        if (_spikeBusy) return;
                         _intentReapplied = false;   // permitir reaplicar al mando reaparecido
                         RefreshDevicesList();        // repuebla _allDevices y reaplica la luz
                     };
@@ -379,48 +400,59 @@ namespace HidusbfModernGui
         private int _spikeTick;
         private string? _spikeHideError;
 
-        private void SpikeToggle_Click(object sender, RoutedEventArgs e)
+        // True while Start/StopSpike's background thread is doing the heavy device work
+        // (HidHide hide/revert, which includes a PnP devnode remove+re-enumerate). That
+        // restart raises our own WM_DEVICECHANGE, which the debounced handler above would
+        // otherwise answer with a ~1s RefreshDevicesList() PowerShell scan; this guard
+        // (mirrors _overclockBusy) skips that self-inflicted rescan.
+        private volatile bool _spikeBusy;
+
+        private async void SpikeToggle_Click(object sender, RoutedEventArgs e)
         {
-            if (_spikeRunning) StopSpike();
-            else StartSpike();
+            if (_spikeRunning) await StopSpike();
+            else await StartSpike();
         }
 
-        private void StartSpike()
+        // Everything that can block for a while - ViGEm connect, opening the HID device,
+        // and HidHide's hide (which best-effort restarts the DualSense's devnode, a slow
+        // PnP remove+re-enumerate) - runs on a background thread via StartSpikeDevices() so
+        // the UI thread never stalls for it. Object construction and the exe path are read
+        // here on the UI thread (cheap, no device I/O); everything after 'await' resumes on
+        // the UI thread automatically (WPF's SynchronizationContext), which is why the
+        // DispatcherTimer and every *.Text/*.Content assignment below are safe as written.
+        private async Task StartSpike()
         {
+            SpikeToggleBtn.IsEnabled = false;
+            SpikeStatusText.Text = "Aplicando...";
+
             _spikeVirtual = new VirtualPad();
             _spikeReader = new DualSenseReader();
             _spikeHidHide = new HidHideControl();
-
-            // Orden de seguridad al arrancar: el virtual PRIMERO (para que el juego nunca
-            // se quede sin ningun mando), luego el lector, y solo al final ocultar.
-            var v = _spikeVirtual.Connect();
-            if (!v.Success)
-            {
-                SpikeStatusText.Text = "Error creando el DS4 virtual: " + v.Error;
-                CleanupSpike();
-                return;
-            }
-
-            var r = _spikeReader.Start();
-            if (!r.Success)
-            {
-                SpikeStatusText.Text = "Error leyendo el DualSense: " + r.Error;
-                _spikeVirtual.Disconnect();
-                CleanupSpike();
-                return;
-            }
-
-            // Ocultar es best-effort: si falla, el fisico simplemente queda VISIBLE (el
-            // estado seguro) y el spike igual prueba lector + virtual. Se muestra el error.
             string exe = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName
                          ?? System.Reflection.Assembly.GetExecutingAssembly().Location;
-            var h = _spikeHidHide.HideDualSense(exe, _spikeReader.DevicePath ?? "");
-            _spikeHideError = h.Success ? null : h.Error;
 
+            _spikeBusy = true;
+            var result = await Task.Run(() => StartSpikeDevices(exe));
+            _spikeBusy = false;
+
+            if (!result.Success)
+            {
+                SpikeStatusText.Text = result.FailedStage == "virtual"
+                    ? "Error creando el DS4 virtual: " + result.Error
+                    : "Error leyendo el DualSense: " + result.Error;
+                CleanupSpike();
+                SpikeToggleBtn.IsEnabled = true;
+                return;
+            }
+
+            _spikeHideError = result.HideError;
             _spikeRunning = true;
             _spikeTick = 0;
             SpikeToggleBtn.Content = "DETENER PASSTHROUGH (spike)";
 
+            // El DispatcherTimer se crea/arranca en el hilo de UI (no es seguro entre
+            // hilos; construirlo desde el hilo de fondo lo asociaria a un dispatcher ad-hoc
+            // de ese hilo, que nunca bombea, y el passthrough nunca avanzaria).
             _spikeTimer = new DispatcherTimer(DispatcherPriority.Render)
             {
                 Interval = TimeSpan.FromMilliseconds(8)
@@ -428,6 +460,29 @@ namespace HidusbfModernGui
             _spikeTimer.Tick += SpikeTick;
             _spikeTimer.Start();
             UpdateSpikeStatus();
+            SpikeToggleBtn.IsEnabled = true;
+        }
+
+        // Trabajo puro de dispositivo (ViGEm/HID/HidHide), sin tocar ningun control de UI,
+        // para que sea seguro ejecutarlo en el hilo de fondo que arma StartSpike().
+        private (bool Success, string? FailedStage, string? Error, string? HideError) StartSpikeDevices(string exe)
+        {
+            // Orden de seguridad al arrancar: el virtual PRIMERO (para que el juego nunca
+            // se quede sin ningun mando), luego el lector, y solo al final ocultar.
+            var v = _spikeVirtual!.Connect();
+            if (!v.Success) return (false, "virtual", v.Error, null);
+
+            var r = _spikeReader!.Start();
+            if (!r.Success)
+            {
+                _spikeVirtual.Disconnect();
+                return (false, "reader", r.Error, null);
+            }
+
+            // Ocultar es best-effort: si falla, el fisico simplemente queda VISIBLE (el
+            // estado seguro) y el spike igual prueba lector + virtual. Se muestra el error.
+            var h = _spikeHidHide!.HideDualSense(exe, _spikeReader.DevicePath ?? "");
+            return (true, null, null, h.Success ? null : h.Error);
         }
 
         private void SpikeTick(object? sender, EventArgs e)
@@ -449,8 +504,31 @@ namespace HidusbfModernGui
             SpikeStatusText.Text = $"{fisico} / {virt} / {reportes}{extra}";
         }
 
-        private void StopSpike()
+        // Trabajo puro de dispositivo (sin tocar ningun control de UI): revierte HidHide
+        // (incluye su propio restart de devnode, lento), para el lector (Join sobre el
+        // hilo lector) y desconecta el virtual. Orden de seguridad: MOSTRAR el fisico
+        // primero, luego parar el lector y desconectar el virtual, para que nunca haya una
+        // ventana sin ningun mando. Seguro de llamar desde el hilo de UI (OnClosing, donde
+        // la app ya se esta cerrando y bloquear brevemente no es el freeze reportado) o
+        // desde un hilo de fondo (StopSpike, via Task.Run, para no bloquear la UI en uso
+        // normal).
+        private string? RevertSpikeDevices()
         {
+            string? revertErr = null;
+            try { revertErr = _spikeHidHide?.Revert().Error; }
+            catch (Exception ex) { revertErr = ex.Message; }
+            try { _spikeReader?.Stop(); } catch { }
+            try { _spikeVirtual?.Disconnect(); } catch { }
+            return revertErr;
+        }
+
+        private async Task StopSpike()
+        {
+            SpikeToggleBtn.IsEnabled = false;
+            SpikeStatusText.Text = "Deteniendo...";
+
+            // El timer del passthrough vive y muere en el hilo de UI; pararlo aqui, antes
+            // del trabajo pesado de fondo, deja de empujar reportes al virtual de inmediato.
             if (_spikeTimer != null)
             {
                 _spikeTimer.Stop();
@@ -459,20 +537,16 @@ namespace HidusbfModernGui
             }
             _spikeRunning = false;
 
-            // Orden de seguridad al detener: MOSTRAR el fisico primero (revert de HidHide),
-            // luego parar el lector y desconectar el virtual. Asi nunca queda una ventana
-            // sin ningun mando.
-            string? revertErr = null;
-            try { revertErr = _spikeHidHide?.Revert().Error; }
-            catch (Exception ex) { revertErr = ex.Message; }
-            try { _spikeReader?.Stop(); } catch { }
-            try { _spikeVirtual?.Disconnect(); } catch { }
+            _spikeBusy = true;
+            string? revertErr = await Task.Run(() => RevertSpikeDevices());
+            _spikeBusy = false;
 
             SpikeToggleBtn.Content = "PROBAR PASSTHROUGH (spike)";
             SpikeStatusText.Text = revertErr == null
                 ? "Detenido. El fisico volvio; el juego ve tu DualSense nativo."
                 : $"Detenido (revert parcial: {revertErr}). Revisa joy.cpl.";
             CleanupSpike();
+            SpikeToggleBtn.IsEnabled = true;
         }
 
         private void CleanupSpike()
