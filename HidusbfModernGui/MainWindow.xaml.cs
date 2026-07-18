@@ -35,6 +35,40 @@ namespace HidusbfModernGui
             _isInitializing = false;
         }
 
+        private const int WM_DEVICECHANGE = 0x0219;
+        private const int DBT_DEVNODES_CHANGED = 0x0007;
+        private DispatcherTimer? _deviceChangeDebounce;
+
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            var src = System.Windows.Interop.HwndSource.FromHwnd(
+                new System.Windows.Interop.WindowInteropHelper(this).Handle);
+            src?.AddHook(WndProc);
+        }
+
+        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (msg == WM_DEVICECHANGE && wParam.ToInt32() == DBT_DEVNODES_CHANGED)
+            {
+                // Los cambios en el arbol de dispositivos llegan en rafaga; agrupa antes de
+                // reaccionar. No es el escaneo pesado de PowerShell: solo refresca y reaplica.
+                if (_deviceChangeDebounce == null)
+                {
+                    _deviceChangeDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+                    _deviceChangeDebounce.Tick += (s, ev) =>
+                    {
+                        _deviceChangeDebounce!.Stop();
+                        _intentReapplied = false;   // permitir reaplicar al mando reaparecido
+                        RefreshDevicesList();        // repuebla _allDevices y llama ReapplyIntent()
+                    };
+                }
+                _deviceChangeDebounce.Stop();
+                _deviceChangeDebounce.Start();
+            }
+            return IntPtr.Zero;
+        }
+
         private readonly PollingMeter _meter = new PollingMeter();
         private DispatcherTimer? _meterTimer;
         private readonly List<System.Windows.Shapes.Rectangle> _bars = new List<System.Windows.Shapes.Rectangle>();
