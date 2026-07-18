@@ -555,12 +555,217 @@
                                                     </StackPanel>
 
                                                     <Grid Margin="0,16,0,0">
-                                                        <!-- Contenedores vacios; Task 4 los llena con los controles del remapeador. -->
-                                                        <Grid x:Name="TabSticks"/>
-                                                        <Grid x:Name="TabGatillos" Visibility="Collapsed"/>
-                                                        <Grid x:Name="TabTouchpad" Visibility="Collapsed"/>
-                                                        <Grid x:Name="TabBotones" Visibility="Collapsed"/>
+                                                        <!-- Los cuatro contenedores alternan por visibilidad (ShowStickTab etc.);
+                                                             cada uno edita _remap y persiste via el debounce/CARGAR/GUARDAR de abajo. -->
+                                                        <Grid x:Name="TabSticks">
+                                                            <StackPanel>
+
+                                                                <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                        BorderThickness="1" Padding="18" Margin="0,0,0,16">
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="STICK IZQUIERDO" Style="{StaticResource SectionHeading}"/>
+
+                                                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                                                            <TextBlock Text="ZONA MUERTA" Style="{StaticResource FieldLabel}"
+                                                                                       VerticalAlignment="Center" Width="100"/>
+                                                                            <Slider x:Name="LeftDeadzoneSlider" Minimum="0" Maximum="30" Value="0" Width="160"
+                                                                                    IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
+                                                                                    ValueChanged="LeftDeadzone_Changed"/>
+                                                                            <TextBlock x:Name="LeftDeadzoneText" Text="0%" Style="{StaticResource DataText}"
+                                                                                       VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                                        </StackPanel>
+
+                                                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                                                            <TextBlock Text="RESPUESTA" Style="{StaticResource FieldLabel}"
+                                                                                       VerticalAlignment="Center" Width="100"/>
+                                                                            <Button x:Name="LeftCurvePrecisaBtn" Content="PRECISA" Style="{StaticResource InstrumentButton}"
+                                                                                    Tag="{x:Static local:ResponseCurve.Precisa}" Click="LeftCurve_Click" Margin="0,0,8,0"/>
+                                                                            <Button x:Name="LeftCurveNormalBtn" Content="NORMAL" Style="{StaticResource InstrumentButton}"
+                                                                                    Tag="{x:Static local:ResponseCurve.Normal}" Click="LeftCurve_Click" Margin="0,0,8,0"/>
+                                                                            <Button x:Name="LeftCurveRapidaBtn" Content="RAPIDA" Style="{StaticResource InstrumentButton}"
+                                                                                    Tag="{x:Static local:ResponseCurve.Rapida}" Click="LeftCurve_Click"/>
+                                                                        </StackPanel>
+
+                                                                        <TextBlock Text="CURVA (entrada -&gt; salida)" Style="{StaticResource FieldLabel}" Margin="0,14,0,6"/>
+                                                                        <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                                BorderThickness="1" Width="220" Height="100" HorizontalAlignment="Left">
+                                                                            <Canvas x:Name="LeftCurveCanvas" Width="220" Height="100" ClipToBounds="True">
+                                                                                <Polyline x:Name="LeftCurveLine" Stroke="{StaticResource TextDataBrush}" StrokeThickness="1.5"/>
+                                                                            </Canvas>
+                                                                        </Border>
+
+                                                                        <Button x:Name="LeftAdvancedToggle" Content="AVANZADO" Style="{StaticResource InstrumentButton}"
+                                                                                HorizontalAlignment="Left" Margin="0,14,0,0" Click="ToggleLeftAdvanced"/>
+                                                                        <StackPanel x:Name="LeftAdvancedPanel" Visibility="Collapsed" Margin="0,10,0,0">
+                                                                            <StackPanel Orientation="Horizontal">
+                                                                                <TextBlock Text="ALCANCE" Style="{StaticResource FieldLabel}"
+                                                                                           VerticalAlignment="Center" Width="100"/>
+                                                                                <Slider x:Name="LeftReachSlider" Minimum="70" Maximum="100" Value="100" Width="160"
+                                                                                        IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
+                                                                                        ValueChanged="LeftReach_Changed"/>
+                                                                                <TextBlock x:Name="LeftReachText" Text="100%" Style="{StaticResource DataText}"
+                                                                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                                            </StackPanel>
+                                                                        </StackPanel>
+                                                                    </StackPanel>
+                                                                </Border>
+
+                                                                <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                        BorderThickness="1" Padding="18">
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="STICK DERECHO" Style="{StaticResource SectionHeading}"/>
+
+                                                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                                                            <TextBlock Text="ZONA MUERTA" Style="{StaticResource FieldLabel}"
+                                                                                       VerticalAlignment="Center" Width="100"/>
+                                                                            <Slider x:Name="RightDeadzoneSlider" Minimum="0" Maximum="30" Value="0" Width="160"
+                                                                                    IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
+                                                                                    ValueChanged="RightDeadzone_Changed"/>
+                                                                            <TextBlock x:Name="RightDeadzoneText" Text="0%" Style="{StaticResource DataText}"
+                                                                                       VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                                        </StackPanel>
+
+                                                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                                                            <TextBlock Text="RESPUESTA" Style="{StaticResource FieldLabel}"
+                                                                                       VerticalAlignment="Center" Width="100"/>
+                                                                            <Button x:Name="RightCurvePrecisaBtn" Content="PRECISA" Style="{StaticResource InstrumentButton}"
+                                                                                    Tag="{x:Static local:ResponseCurve.Precisa}" Click="RightCurve_Click" Margin="0,0,8,0"/>
+                                                                            <Button x:Name="RightCurveNormalBtn" Content="NORMAL" Style="{StaticResource InstrumentButton}"
+                                                                                    Tag="{x:Static local:ResponseCurve.Normal}" Click="RightCurve_Click" Margin="0,0,8,0"/>
+                                                                            <Button x:Name="RightCurveRapidaBtn" Content="RAPIDA" Style="{StaticResource InstrumentButton}"
+                                                                                    Tag="{x:Static local:ResponseCurve.Rapida}" Click="RightCurve_Click"/>
+                                                                        </StackPanel>
+
+                                                                        <TextBlock Text="CURVA (entrada -&gt; salida)" Style="{StaticResource FieldLabel}" Margin="0,14,0,6"/>
+                                                                        <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                                BorderThickness="1" Width="220" Height="100" HorizontalAlignment="Left">
+                                                                            <Canvas x:Name="RightCurveCanvas" Width="220" Height="100" ClipToBounds="True">
+                                                                                <Polyline x:Name="RightCurveLine" Stroke="{StaticResource TextDataBrush}" StrokeThickness="1.5"/>
+                                                                            </Canvas>
+                                                                        </Border>
+
+                                                                        <Button x:Name="RightAdvancedToggle" Content="AVANZADO" Style="{StaticResource InstrumentButton}"
+                                                                                HorizontalAlignment="Left" Margin="0,14,0,0" Click="ToggleRightAdvanced"/>
+                                                                        <StackPanel x:Name="RightAdvancedPanel" Visibility="Collapsed" Margin="0,10,0,0">
+                                                                            <StackPanel Orientation="Horizontal">
+                                                                                <TextBlock Text="ALCANCE" Style="{StaticResource FieldLabel}"
+                                                                                           VerticalAlignment="Center" Width="100"/>
+                                                                                <Slider x:Name="RightReachSlider" Minimum="70" Maximum="100" Value="100" Width="160"
+                                                                                        IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
+                                                                                        ValueChanged="RightReach_Changed"/>
+                                                                                <TextBlock x:Name="RightReachText" Text="100%" Style="{StaticResource DataText}"
+                                                                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                                            </StackPanel>
+                                                                        </StackPanel>
+                                                                    </StackPanel>
+                                                                </Border>
+
+                                                            </StackPanel>
+                                                        </Grid>
+                                                        <Grid x:Name="TabGatillos" Visibility="Collapsed">
+                                                            <StackPanel>
+
+                                                                <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                        BorderThickness="1" Padding="18" Margin="0,0,0,16">
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="L2 - PUNTO DE DISPARO" Style="{StaticResource SectionHeading}"/>
+                                                                        <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,6,0,12"
+                                                                                   Text="Hair trigger: por debajo del punto no se activa; en el punto o mas, se activa a fondo de inmediato. En 0% el gatillo queda progresivo, sin efecto."/>
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <Slider x:Name="L2PointSlider" Minimum="0" Maximum="100" Value="0" Width="220"
+                                                                                    IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
+                                                                                    ValueChanged="L2Point_Changed"/>
+                                                                            <TextBlock x:Name="L2PointText" Text="0%" Style="{StaticResource DataText}"
+                                                                                       VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                                        </StackPanel>
+                                                                        <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                                BorderThickness="1" Height="10" Width="220" HorizontalAlignment="Left" Margin="0,10,0,0">
+                                                                            <Rectangle x:Name="L2PointBar" Fill="{StaticResource TextDataBrush}"
+                                                                                       HorizontalAlignment="Left" Width="0"/>
+                                                                        </Border>
+                                                                    </StackPanel>
+                                                                </Border>
+
+                                                                <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                        BorderThickness="1" Padding="18">
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="R2 - PUNTO DE DISPARO" Style="{StaticResource SectionHeading}"/>
+                                                                        <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,6,0,12"
+                                                                                   Text="Mismo hair trigger que L2, para el gatillo derecho."/>
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <Slider x:Name="R2PointSlider" Minimum="0" Maximum="100" Value="0" Width="220"
+                                                                                    IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
+                                                                                    ValueChanged="R2Point_Changed"/>
+                                                                            <TextBlock x:Name="R2PointText" Text="0%" Style="{StaticResource DataText}"
+                                                                                       VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                                        </StackPanel>
+                                                                        <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                                BorderThickness="1" Height="10" Width="220" HorizontalAlignment="Left" Margin="0,10,0,0">
+                                                                            <Rectangle x:Name="R2PointBar" Fill="{StaticResource TextDataBrush}"
+                                                                                       HorizontalAlignment="Left" Width="0"/>
+                                                                        </Border>
+                                                                    </StackPanel>
+                                                                </Border>
+
+                                                            </StackPanel>
+                                                        </Grid>
+                                                        <Grid x:Name="TabTouchpad" Visibility="Collapsed">
+                                                            <StackPanel>
+                                                                <TextBlock Text="ZONAS DEL TOUCHPAD" Style="{StaticResource SectionHeading}"/>
+                                                                <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,6,0,12"
+                                                                           Text="Un toque en cada cuadrante del touchpad puede enviar un boton. Ninguno lo deja sin efecto."/>
+                                                                <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                        BorderThickness="1" Padding="18">
+                                                                    <Grid x:Name="TouchZoneGrid">
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="*"/>
+                                                                            <ColumnDefinition Width="*"/>
+                                                                        </Grid.ColumnDefinitions>
+                                                                        <Grid.RowDefinitions>
+                                                                            <RowDefinition/>
+                                                                            <RowDefinition/>
+                                                                        </Grid.RowDefinitions>
+                                                                        <!-- Las 4 celdas (label + ComboBox por zona) las llena BuildTouchZoneCombos(). -->
+                                                                    </Grid>
+                                                                </Border>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                        <Grid x:Name="TabBotones" Visibility="Collapsed">
+                                                            <StackPanel>
+                                                                <TextBlock Text="REMAPEO DE BOTONES" Style="{StaticResource SectionHeading}"/>
+                                                                <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,6,0,12"
+                                                                           Text="Cada boton de origen envia el boton de destino elegido. Dejalo igual para no remapearlo."/>
+                                                                <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                        BorderThickness="1" Padding="18">
+                                                                    <StackPanel x:Name="BotonRows">
+                                                                        <!-- Una fila (label + ComboBox) por boton remapeable; las llena BuildButtonRemapRows(). -->
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </StackPanel>
+                                                        </Grid>
                                                     </Grid>
+
+                                                    <TextBlock Text="PERFILES DEL REMAPEO" Style="{StaticResource SectionHeading}" Margin="0,20,0,0"/>
+                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                            BorderThickness="1" Padding="18" Margin="0,8,0,0">
+                                                        <StackPanel>
+                                                            <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,0,0,12"
+                                                                       Text="Un perfil guarda sticks, gatillos, botones y touchpad. Por ahora solo se edita y se guarda: todavia no hay motor que lo aplique a un juego."/>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <ComboBox x:Name="RemapProfileList" Width="180" HorizontalAlignment="Left" Margin="0,0,10,0"
+                                                                          DisplayMemberPath="Name"/>
+                                                                <Button Content="CARGAR" Style="{StaticResource InstrumentButton}" Click="LoadRemapProfile_Click" Margin="0,0,10,0"/>
+                                                                <Button Content="GUARDAR" Style="{StaticResource InstrumentButton}" Click="SaveRemapProfile_Click" Margin="0,0,10,0"/>
+                                                                <Button Content="BORRAR" Style="{StaticResource InstrumentButton}" Click="DeleteRemapProfile_Click"/>
+                                                            </StackPanel>
+                                                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                                                <TextBlock Text="NOMBRE" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Width="60"/>
+                                                                <TextBox x:Name="RemapProfileName" Width="180" Background="{StaticResource SurfaceAltBrush}"
+                                                                         Foreground="{StaticResource TextDataBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                         BorderThickness="1" Padding="6,4" FontFamily="{StaticResource UiFont}"/>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </Border>
                                                 </StackPanel>
                                             </Grid>
                                         </ScrollViewer>

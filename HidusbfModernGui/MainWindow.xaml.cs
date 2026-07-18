@@ -33,6 +33,7 @@ namespace HidusbfModernGui
             BuildLoadingIndicator();
             RefreshStatus();
             RefreshDevicesList();
+            BuildRemapControls();
             _isInitializing = false;
         }
 
@@ -315,8 +316,8 @@ namespace HidusbfModernGui
         }
 
         // Pestanas propias del configurador (Sticks/Gatillos/Touchpad/Botones), mismo
-        // patron de visibilidad que ShowConfigPanel/ShowLucesPanel. Los cuatro
-        // contenedores estan vacios hasta Task 4; esto solo alterna cual se ve.
+        // patron de visibilidad que ShowConfigPanel/ShowLucesPanel. Los controles reales
+        // de cada contenedor (Task 4) editan _remap; esto solo alterna cual se ve.
         private void ShowStickTab(object sender, RoutedEventArgs e)
         {
             TabSticks.Visibility = Visibility.Visible;
@@ -347,6 +348,511 @@ namespace HidusbfModernGui
             TabGatillos.Visibility = Visibility.Collapsed;
             TabTouchpad.Visibility = Visibility.Collapsed;
             TabBotones.Visibility = Visibility.Visible;
+        }
+
+        // ===== Configurador del mando: edita _remap y persiste via perfiles (Task 4) =====
+        //
+        // No hay motor de E/S todavia (Fase 2 del plan del remapeador, pendiente de hardware),
+        // asi que estos controles solo editan RemapSettings en memoria y lo guardan/cargan.
+        // Nada de esto llega a un juego hoy.
+
+        // El estado que edita toda la pestana STICKS/GATILLOS/BOTONES/TOUCHPAD.
+        private RemapSettings _remap = new();
+
+        // Igual que _updatingLight: true mientras el codigo (CARGAR, o el build inicial)
+        // mueve los controles, para que esos cambios programaticos no se interpreten como
+        // una edicion del usuario ni disparen el guardado debounced.
+        private bool _updatingRemap;
+
+        private bool _remapControlsBuilt;
+        private List<RemapProfile> _remapProfiles = new();
+        private readonly List<(PadButton Source, ComboBox Combo)> _buttonRemapRows = new();
+        private readonly List<(TouchZone Zone, ComboBox Combo)> _touchZoneRows = new();
+
+        // Nombre reservado bajo el que se autoguarda el ultimo estado (distinto de los
+        // perfiles con nombre que el usuario ve en RemapProfileList), para que cerrar y
+        // reabrir la app mantenga el ajuste activo sin que el usuario tenga que pulsar
+        // GUARDAR primero. Vive en el mismo remap-profiles.json que RemapProfileStore ya
+        // maneja - no hace falta un almacen nuevo para esto.
+        private const string LastUsedProfileName = "__ultimo_usado__";
+
+        // Botones de destino disponibles en todo remapeo (botones + zonas de touchpad).
+        // Ninguno primero: es la opcion neutra para una zona de touchpad sin asignar.
+        private static readonly (string Label, PadButton Value)[] RemapTargets =
+        {
+            ("Ninguno", PadButton.None),
+            ("Cruz", PadButton.Cross),
+            ("Circulo", PadButton.Circle),
+            ("Cuadrado", PadButton.Square),
+            ("Triangulo", PadButton.Triangle),
+            ("Cruceta arriba", PadButton.DpadUp),
+            ("Cruceta abajo", PadButton.DpadDown),
+            ("Cruceta izquierda", PadButton.DpadLeft),
+            ("Cruceta derecha", PadButton.DpadRight),
+            ("L1", PadButton.L1),
+            ("R1", PadButton.R1),
+            ("L2", PadButton.L2),
+            ("R2", PadButton.R2),
+            ("L3", PadButton.L3),
+            ("R3", PadButton.R3),
+            ("Compartir", PadButton.Share),
+            ("Opciones", PadButton.Options),
+            ("PS", PadButton.PS),
+            ("Touchpad (click)", PadButton.TouchpadClick),
+        };
+
+        // Botones de origen remapeables (excluye PS y el click del touchpad, que no son
+        // fuente de remapeo aqui).
+        private static readonly (string Label, PadButton Value)[] RemappableButtons =
+        {
+            ("Cruz", PadButton.Cross),
+            ("Circulo", PadButton.Circle),
+            ("Cuadrado", PadButton.Square),
+            ("Triangulo", PadButton.Triangle),
+            ("Cruceta arriba", PadButton.DpadUp),
+            ("Cruceta abajo", PadButton.DpadDown),
+            ("Cruceta izquierda", PadButton.DpadLeft),
+            ("Cruceta derecha", PadButton.DpadRight),
+            ("L1", PadButton.L1),
+            ("R1", PadButton.R1),
+            ("L2", PadButton.L2),
+            ("R2", PadButton.R2),
+            ("L3", PadButton.L3),
+            ("R3", PadButton.R3),
+            ("Compartir", PadButton.Share),
+            ("Opciones", PadButton.Options),
+        };
+
+        private static readonly (string Label, TouchZone Value)[] TouchZones =
+        {
+            ("Arriba izquierda", TouchZone.ArribaIzq),
+            ("Arriba derecha", TouchZone.ArribaDer),
+            ("Abajo izquierda", TouchZone.AbajoIzq),
+            ("Abajo derecha", TouchZone.AbajoDer),
+        };
+
+        // Construye las filas dinamicas (Botones/Touchpad), carga el ultimo estado
+        // guardado (si hay) y refleja todo en los controles. Se llama una vez desde
+        // Window_Loaded; idempotente por si algo mas la vuelve a llamar.
+        private void BuildRemapControls()
+        {
+            if (_remapControlsBuilt) return;
+            _remapControlsBuilt = true;
+
+            BuildButtonRemapRows();
+            BuildTouchZoneCombos();
+
+            _remapProfiles = RemapProfileStore.Load();
+            var last = _remapProfiles.FirstOrDefault(p => p.Name == LastUsedProfileName);
+            if (last != null) _remap = CloneRemapSettings(last.Settings);
+
+            try
+            {
+                _updatingRemap = true;
+                ApplyRemapSettingsToControls();
+            }
+            finally
+            {
+                _updatingRemap = false;
+            }
+
+            RefreshRemapProfileList();
+        }
+
+        private void BuildButtonRemapRows()
+        {
+            BotonRows.Children.Clear();
+            _buttonRemapRows.Clear();
+
+            foreach (var (label, source) in RemappableButtons)
+            {
+                var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+                row.Children.Add(new TextBlock
+                {
+                    Text = label,
+                    Style = (Style)FindResource("FieldLabel"),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Width = 140
+                });
+
+                var combo = new ComboBox { Width = 170, Tag = source };
+                foreach (var (targetLabel, targetValue) in RemapTargets)
+                    combo.Items.Add(new ComboBoxItem { Content = targetLabel, Tag = targetValue });
+                combo.SelectionChanged += ButtonRemapCombo_Changed;
+                row.Children.Add(combo);
+
+                BotonRows.Children.Add(row);
+                _buttonRemapRows.Add((source, combo));
+            }
+        }
+
+        private void BuildTouchZoneCombos()
+        {
+            TouchZoneGrid.Children.Clear();
+            _touchZoneRows.Clear();
+
+            for (int i = 0; i < TouchZones.Length; i++)
+            {
+                var (label, zone) = TouchZones[i];
+                var cell = new StackPanel { Margin = new Thickness(10) };
+                cell.Children.Add(new TextBlock
+                {
+                    Text = label,
+                    Style = (Style)FindResource("FieldLabel"),
+                    Margin = new Thickness(0, 0, 0, 6)
+                });
+
+                var combo = new ComboBox { Width = 160, Tag = zone };
+                foreach (var (targetLabel, targetValue) in RemapTargets)
+                    combo.Items.Add(new ComboBoxItem { Content = targetLabel, Tag = targetValue });
+                combo.SelectionChanged += TouchZoneCombo_Changed;
+                cell.Children.Add(combo);
+
+                Grid.SetRow(cell, i / 2);
+                Grid.SetColumn(cell, i % 2);
+                TouchZoneGrid.Children.Add(cell);
+                _touchZoneRows.Add((zone, combo));
+            }
+        }
+
+        // Refleja _remap entero en los controles. Usado al construir la UI y tras CARGAR.
+        // Bajo _updatingRemap para que ninguno de los ValueChanged/SelectionChanged que
+        // dispara escriba de vuelta en _remap ni programe un guardado.
+        private void ApplyRemapSettingsToControls()
+        {
+            LeftDeadzoneSlider.Value = _remap.LeftDeadzonePct;
+            LeftReachSlider.Value = _remap.LeftReachPct;
+            SetCurveButtonsVisual(LeftCurvePrecisaBtn, LeftCurveNormalBtn, LeftCurveRapidaBtn, _remap.LeftCurve);
+
+            RightDeadzoneSlider.Value = _remap.RightDeadzonePct;
+            RightReachSlider.Value = _remap.RightReachPct;
+            SetCurveButtonsVisual(RightCurvePrecisaBtn, RightCurveNormalBtn, RightCurveRapidaBtn, _remap.RightCurve);
+
+            L2PointSlider.Value = _remap.L2PointPct;
+            R2PointSlider.Value = _remap.R2PointPct;
+
+            foreach (var (source, combo) in _buttonRemapRows)
+                SelectComboByTag(combo, _remap.ButtonRemap.TryGetValue(source, out var target) ? target : source);
+
+            foreach (var (zone, combo) in _touchZoneRows)
+                SelectComboByTag(combo, _remap.TouchZoneMap.TryGetValue(zone, out var target) ? target : PadButton.None);
+
+            // Slider.ValueChanged y ComboBox.SelectionChanged no se disparan cuando el valor
+            // asignado es igual al que ya tenian (p.ej. cargar un perfil identico al actual),
+            // asi que el texto y la curva se refrescan aqui explicitamente en vez de confiar
+            // solo en los handlers de arriba.
+            UpdateDeadzoneReachText();
+            UpdateTriggerText();
+            RedrawLeftCurve();
+            RedrawRightCurve();
+        }
+
+        // Null-guarded like UpdateSwatch/UpdateRainbowHint/UpdatePlayerSpeedText: a Slider
+        // whose XAML Value differs from the RangeBase default (0) raises ValueChanged the
+        // moment InitializeComponent assigns its Minimum/Maximum/Value, while later-declared
+        // siblings in the same XAML tree (e.g. the "STICK DERECHO" fields, from a change on
+        // the left stick's slider) do not exist yet. Without this guard that is a
+        // NullReferenceException at startup, not just a theoretical race - LeftReachSlider's
+        // Value="100" hit it on first launch.
+        private void UpdateDeadzoneReachText()
+        {
+            if (LeftDeadzoneText == null || LeftReachText == null ||
+                RightDeadzoneText == null || RightReachText == null) return;
+
+            LeftDeadzoneText.Text = $"{LeftDeadzoneSlider.Value:0}%";
+            LeftReachText.Text = $"{LeftReachSlider.Value:0}%";
+            RightDeadzoneText.Text = $"{RightDeadzoneSlider.Value:0}%";
+            RightReachText.Text = $"{RightReachSlider.Value:0}%";
+        }
+
+        private void UpdateTriggerText()
+        {
+            if (L2PointText == null || R2PointText == null ||
+                L2PointBar == null || R2PointBar == null) return;
+
+            L2PointText.Text = $"{L2PointSlider.Value:0}%";
+            R2PointText.Text = $"{R2PointSlider.Value:0}%";
+            L2PointBar.Width = 220 * (L2PointSlider.Value / 100.0);
+            R2PointBar.Width = 220 * (R2PointSlider.Value / 100.0);
+        }
+
+        private void LeftDeadzone_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            UpdateDeadzoneReachText();
+            if (_updatingRemap) return;
+            _remap.LeftDeadzonePct = (int)Math.Round(LeftDeadzoneSlider.Value);
+            RedrawLeftCurve();
+            RememberRemap();
+        }
+
+        private void LeftReach_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            UpdateDeadzoneReachText();
+            if (_updatingRemap) return;
+            _remap.LeftReachPct = (int)Math.Round(LeftReachSlider.Value);
+            RedrawLeftCurve();
+            RememberRemap();
+        }
+
+        private void RightDeadzone_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            UpdateDeadzoneReachText();
+            if (_updatingRemap) return;
+            _remap.RightDeadzonePct = (int)Math.Round(RightDeadzoneSlider.Value);
+            RedrawRightCurve();
+            RememberRemap();
+        }
+
+        private void RightReach_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            UpdateDeadzoneReachText();
+            if (_updatingRemap) return;
+            _remap.RightReachPct = (int)Math.Round(RightReachSlider.Value);
+            RedrawRightCurve();
+            RememberRemap();
+        }
+
+        private void L2Point_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            UpdateTriggerText();
+            if (_updatingRemap) return;
+            _remap.L2PointPct = (int)Math.Round(L2PointSlider.Value);
+            RememberRemap();
+        }
+
+        private void R2Point_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            UpdateTriggerText();
+            if (_updatingRemap) return;
+            _remap.R2PointPct = (int)Math.Round(R2PointSlider.Value);
+            RememberRemap();
+        }
+
+        private void LeftCurve_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button { Tag: ResponseCurve curve }) return;
+            SetCurveButtonsVisual(LeftCurvePrecisaBtn, LeftCurveNormalBtn, LeftCurveRapidaBtn, curve);
+            if (_updatingRemap) return;
+            _remap.LeftCurve = curve;
+            RedrawLeftCurve();
+            RememberRemap();
+        }
+
+        private void RightCurve_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button { Tag: ResponseCurve curve }) return;
+            SetCurveButtonsVisual(RightCurvePrecisaBtn, RightCurveNormalBtn, RightCurveRapidaBtn, curve);
+            if (_updatingRemap) return;
+            _remap.RightCurve = curve;
+            RedrawRightCurve();
+            RememberRemap();
+        }
+
+        // Resalta el boton de la curva activa reusando BorderBrush (el mismo tono que el
+        // hover de InstrumentButton) en vez de inventar un color nuevo.
+        private void SetCurveButtonsVisual(Button precisa, Button normal, Button rapida, ResponseCurve active)
+        {
+            var selectedBrush = (Brush)FindResource("BorderBrush");
+            var idleBrush = (Brush)FindResource("SurfaceAltBrush");
+            precisa.Background = active == ResponseCurve.Precisa ? selectedBrush : idleBrush;
+            normal.Background = active == ResponseCurve.Normal ? selectedBrush : idleBrush;
+            rapida.Background = active == ResponseCurve.Rapida ? selectedBrush : idleBrush;
+        }
+
+        private void ToggleLeftAdvanced(object sender, RoutedEventArgs e)
+        {
+            LeftAdvancedPanel.Visibility = LeftAdvancedPanel.Visibility == Visibility.Visible
+                ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        private void ToggleRightAdvanced(object sender, RoutedEventArgs e)
+        {
+            RightAdvancedPanel.Visibility = RightAdvancedPanel.Visibility == Visibility.Visible
+                ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        private void ButtonRemapCombo_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_updatingRemap) return;
+            if (sender is not ComboBox { Tag: PadButton source, SelectedItem: ComboBoxItem item }) return;
+
+            var target = (PadButton)item.Tag;
+            if (target == source) _remap.ButtonRemap.Remove(source);   // identidad: no se guarda
+            else _remap.ButtonRemap[source] = target;
+
+            RememberRemap();
+        }
+
+        private void TouchZoneCombo_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_updatingRemap) return;
+            if (sender is not ComboBox { Tag: TouchZone zone, SelectedItem: ComboBoxItem item }) return;
+
+            var target = (PadButton)item.Tag;
+            if (target == PadButton.None) _remap.TouchZoneMap.Remove(zone);   // sin asignar
+            else _remap.TouchZoneMap[zone] = target;
+
+            RememberRemap();
+        }
+
+        // Dibuja la curva de respuesta muestreando InputTransform.ApplyStick sobre un stick
+        // puramente horizontal (Y=0): la salida en X para cada entrada t en 0..1 es
+        // exactamente lo que el usuario siente al empujar el stick en una direccion. Sin
+        // hardware ni mock: es la misma funcion pura que usara el motor.
+        private const int CurveSamples = 41;
+
+        private static void DrawCurve(System.Windows.Shapes.Polyline line, double innerDeadzone,
+            double outerDeadzone, ResponseCurve curve, double width, double height)
+        {
+            var points = new PointCollection();
+            for (int i = 0; i < CurveSamples; i++)
+            {
+                double t = i / (double)(CurveSamples - 1);
+                var (x, _) = InputTransform.ApplyStick(new StickInput(t, 0), innerDeadzone, outerDeadzone, curve);
+                points.Add(new Point(t * width, height - (x * height)));
+            }
+            line.Points = points;
+        }
+
+        // Same XAML-parse-time hazard as UpdateDeadzoneReachText: LeftCurveCanvas is declared
+        // after LeftDeadzoneSlider in the tree, so a ValueChanged raised while parsing the
+        // deadzone slider would otherwise hit it before it exists.
+        private void RedrawLeftCurve()
+        {
+            if (LeftCurveLine == null || LeftCurveCanvas == null) return;
+            DrawCurve(LeftCurveLine, _remap.LeftInnerDeadzone, _remap.LeftOuterDeadzone,
+                _remap.LeftCurve, LeftCurveCanvas.Width, LeftCurveCanvas.Height);
+        }
+
+        private void RedrawRightCurve()
+        {
+            if (RightCurveLine == null || RightCurveCanvas == null) return;
+            DrawCurve(RightCurveLine, _remap.RightInnerDeadzone, _remap.RightOuterDeadzone,
+                _remap.RightCurve, RightCurveCanvas.Width, RightCurveCanvas.Height);
+        }
+
+        // Copia profunda: RemapProfile.Settings no debe compartir instancia con _remap, o
+        // seguir editando despues de GUARDAR reescribiria en silencio el perfil ya guardado
+        // (y CARGAR luego mutaria el propio perfil guardado al editar).
+        private static RemapSettings CloneRemapSettings(RemapSettings s) => new RemapSettings
+        {
+            LeftDeadzonePct = s.LeftDeadzonePct,
+            LeftReachPct = s.LeftReachPct,
+            LeftCurve = s.LeftCurve,
+            RightDeadzonePct = s.RightDeadzonePct,
+            RightReachPct = s.RightReachPct,
+            RightCurve = s.RightCurve,
+            L2PointPct = s.L2PointPct,
+            R2PointPct = s.R2PointPct,
+            ButtonRemap = new Dictionary<PadButton, PadButton>(s.ButtonRemap),
+            TouchZoneMap = new Dictionary<TouchZone, PadButton>(s.TouchZoneMap),
+        };
+
+        private void RefreshRemapProfileList()
+        {
+            RemapProfileList.ItemsSource = null;
+            var visible = _remapProfiles.Where(p => p.Name != LastUsedProfileName).ToList();
+            RemapProfileList.ItemsSource = visible;
+            // Igual que LoadProfiles() (luz): sin esto, CARGAR/BORRAR justo despues de GUARDAR
+            // no encuentran nada seleccionado y no hacen nada, en silencio.
+            if (visible.Count > 0) RemapProfileList.SelectedIndex = 0;
+        }
+
+        // Guarda el estado activo bajo el nombre reservado, agrupando rafagas de arrastre
+        // (igual que RememberLight/_intentSave para la luz) en una sola escritura a disco.
+        private DispatcherTimer? _remapSave;
+
+        private void RememberRemap()
+        {
+            if (_updatingRemap) return;
+
+            _remapSave ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(750) };
+            _remapSave.Stop();
+            _remapSave.Tick -= RemapSave_Tick;
+            _remapSave.Tick += RemapSave_Tick;
+            _remapSave.Start();
+        }
+
+        private void RemapSave_Tick(object? sender, EventArgs e)
+        {
+            _remapSave!.Stop();
+            PersistLastUsedRemap();
+        }
+
+        // Guardado silencioso: si falla (disco lleno, permisos) no interrumpe con un
+        // MessageBox cada 750 ms - igual que el autoguardado de LightIntent.
+        private void PersistLastUsedRemap()
+        {
+            _remapProfiles.RemoveAll(x => x.Name == LastUsedProfileName);
+            _remapProfiles.Add(new RemapProfile { Name = LastUsedProfileName, Settings = CloneRemapSettings(_remap) });
+            RemapProfileStore.Save(_remapProfiles);
+        }
+
+        private void SaveRemapProfile_Click(object sender, RoutedEventArgs e)
+        {
+            string name = RemapProfileName.Text.Trim();
+            if (string.IsNullOrEmpty(name))
+            {
+                LogStatus("Ponle un nombre al perfil del remapeo primero.");
+                return;
+            }
+            if (string.Equals(name, LastUsedProfileName, StringComparison.OrdinalIgnoreCase))
+            {
+                LogStatus("Ese nombre esta reservado. Elige otro.");
+                return;
+            }
+
+            _remapProfiles.RemoveAll(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
+            _remapProfiles.Add(new RemapProfile { Name = name, Settings = CloneRemapSettings(_remap) });
+
+            var result = RemapProfileStore.Save(_remapProfiles);
+            if (!result.Success) { ShowError("Perfil no guardado", result.Error!); return; }
+
+            RefreshRemapProfileList();
+            LogStatus($"Perfil de remapeo '{name}' guardado.");
+
+            // Tambien al instante como "ultimo usado": si el guardado llega a menos de 750 ms
+            // de la ultima edicion, no depende de que el debounce alcance a disparar solo.
+            PersistLastUsedRemap();
+        }
+
+        private void LoadRemapProfile_Click(object sender, RoutedEventArgs e)
+        {
+            if (RemapProfileList.SelectedItem is not RemapProfile p)
+            {
+                LogStatus("Selecciona un perfil de remapeo.");
+                return;
+            }
+
+            try
+            {
+                _updatingRemap = true;
+                _remap = CloneRemapSettings(p.Settings);
+                ApplyRemapSettingsToControls();
+            }
+            finally
+            {
+                _updatingRemap = false;
+            }
+
+            LogStatus($"Perfil de remapeo '{p.Name}' cargado.");
+            PersistLastUsedRemap();   // el recien cargado pasa a ser el "ultimo usado"
+        }
+
+        private void DeleteRemapProfile_Click(object sender, RoutedEventArgs e)
+        {
+            if (RemapProfileList.SelectedItem is not RemapProfile p)
+            {
+                LogStatus("Selecciona un perfil de remapeo.");
+                return;
+            }
+
+            _remapProfiles.RemoveAll(x => x.Name == p.Name);
+            var result = RemapProfileStore.Save(_remapProfiles);
+            if (!result.Success) { ShowError("Perfil no borrado", result.Error!); return; }
+
+            RefreshRemapProfileList();
+            LogStatus($"Perfil de remapeo '{p.Name}' borrado. Hay una copia en {RemapProfileStore.Path}.backup");
         }
 
         // Collapses a slider drag into one write. Without it, dragging fires a HID write per
