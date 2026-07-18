@@ -461,8 +461,110 @@
                                 </StackPanel>
 
                                 <Grid Grid.Row="1">
-                                    <!-- Configurador del mando: shell vacio por ahora; una tarea posterior lo llena. -->
-                                    <Grid x:Name="ConfigPanel"/>
+                                    <!-- Configurador del mando: diagrama estilizado a la izquierda, panel
+                                         con pestanas propias a la derecha. Los controles reales (Task 4)
+                                         llenan los cuatro contenedores vacios de abajo. -->
+                                    <Grid x:Name="ConfigPanel">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                            <Grid Margin="24">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Diagrama del mando: representacion estilizada y propia, no
+                                                     un DualSense fotorrealista. Las formas llevan x:Name para
+                                                     que una tarea posterior (motor + Fase 2) las resalte con el
+                                                     estado en vivo del mando; aqui no hay logica, solo el dibujo. -->
+                                                <Border Grid.Column="0" Width="280" Height="360"
+                                                        Background="{StaticResource SurfaceBrush}"
+                                                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                                        CornerRadius="28" VerticalAlignment="Top" Margin="0,0,24,0">
+                                                    <Canvas x:Name="DiagBody" Width="240" Height="320" Margin="20">
+
+                                                        <!-- Touchpad -->
+                                                        <Rectangle x:Name="DiagTouchpad" Canvas.Left="50" Canvas.Top="6"
+                                                                   Width="140" Height="52" RadiusX="6" RadiusY="6"
+                                                                   Fill="{StaticResource SurfaceAltBrush}"
+                                                                   Stroke="{StaticResource BorderBrush}" StrokeThickness="1"/>
+
+                                                        <!-- Insinuacion de hombros/gatillos (L1-L2, R1-R2) -->
+                                                        <Rectangle x:Name="DiagL1" Canvas.Left="2" Canvas.Top="66"
+                                                                   Width="50" Height="10"
+                                                                   Fill="{StaticResource SurfaceAltBrush}"
+                                                                   Stroke="{StaticResource BorderBrush}" StrokeThickness="1"/>
+                                                        <Rectangle x:Name="DiagR1" Canvas.Left="188" Canvas.Top="66"
+                                                                   Width="50" Height="10"
+                                                                   Fill="{StaticResource SurfaceAltBrush}"
+                                                                   Stroke="{StaticResource BorderBrush}" StrokeThickness="1"/>
+
+                                                        <!-- Cruceta (d-pad) -->
+                                                        <Grid x:Name="DiagDpad" Canvas.Left="28" Canvas.Top="118" Width="54" Height="54">
+                                                            <Rectangle Width="54" Height="18" VerticalAlignment="Center"
+                                                                       Fill="{StaticResource SurfaceAltBrush}"
+                                                                       Stroke="{StaticResource BorderBrush}" StrokeThickness="1"/>
+                                                            <Rectangle Width="18" Height="54" HorizontalAlignment="Center"
+                                                                       Fill="{StaticResource SurfaceAltBrush}"
+                                                                       Stroke="{StaticResource BorderBrush}" StrokeThickness="1"/>
+                                                        </Grid>
+
+                                                        <!-- Botones de cara: Triangulo, Circulo, Equis, Cuadrado -->
+                                                        <Ellipse x:Name="DiagButtonTriangle" Canvas.Left="176" Canvas.Top="96"
+                                                                 Width="26" Height="26" Fill="{StaticResource SurfaceAltBrush}"
+                                                                 Stroke="{StaticResource BorderBrush}" StrokeThickness="1"/>
+                                                        <Ellipse x:Name="DiagButtonCircle" Canvas.Left="202" Canvas.Top="122"
+                                                                 Width="26" Height="26" Fill="{StaticResource SurfaceAltBrush}"
+                                                                 Stroke="{StaticResource BorderBrush}" StrokeThickness="1"/>
+                                                        <Ellipse x:Name="DiagButtonCross" Canvas.Left="176" Canvas.Top="148"
+                                                                 Width="26" Height="26" Fill="{StaticResource SurfaceAltBrush}"
+                                                                 Stroke="{StaticResource BorderBrush}" StrokeThickness="1"/>
+                                                        <Ellipse x:Name="DiagButtonSquare" Canvas.Left="150" Canvas.Top="122"
+                                                                 Width="26" Height="26" Fill="{StaticResource SurfaceAltBrush}"
+                                                                 Stroke="{StaticResource BorderBrush}" StrokeThickness="1"/>
+
+                                                        <!-- Sticks -->
+                                                        <Ellipse x:Name="DiagLeftStick" Canvas.Left="38" Canvas.Top="196"
+                                                                 Width="56" Height="56" Fill="{StaticResource SurfaceAltBrush}"
+                                                                 Stroke="{StaticResource TextLabelBrush}" StrokeThickness="1.5"/>
+                                                        <Ellipse x:Name="DiagRightStick" Canvas.Left="146" Canvas.Top="226"
+                                                                 Width="56" Height="56" Fill="{StaticResource SurfaceAltBrush}"
+                                                                 Stroke="{StaticResource TextLabelBrush}" StrokeThickness="1.5"/>
+                                                    </Canvas>
+                                                </Border>
+
+                                                <!-- Panel derecho: aviso anticheat honesto + pestanas propias. -->
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="CONFIGURAR EL MANDO" Style="{StaticResource SectionHeading}"/>
+
+                                                    <Border Background="{StaticResource SurfaceBrush}"
+                                                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                                            Padding="14" Margin="0,8,0,20">
+                                                        <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap"
+                                                                   Text="El mando virtual (ViGEm) y HidHide son detectables por anticheat de nucleo (Ricochet, Vanguard, EAC, BattlEye) aunque no hagas trampa: algunos banean solo por la presencia de ViGEm. Ideal para un jugador o juegos sin anticheat; jugar online es bajo tu propio riesgo por el mecanismo, no por la intencion. Sin garantias, los baneos van por oleadas. No hay macros, emulacion de teclado o raton, ni auto-aim: esto solo reconfigura el mando."/>
+                                                    </Border>
+
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Button x:Name="StickTabBtn" Content="STICKS" Style="{StaticResource InstrumentButton}"
+                                                                Click="ShowStickTab" Margin="0,0,8,0"/>
+                                                        <Button x:Name="GatilloTabBtn" Content="GATILLOS" Style="{StaticResource InstrumentButton}"
+                                                                Click="ShowGatilloTab" Margin="0,0,8,0"/>
+                                                        <Button x:Name="TouchpadTabBtn" Content="TOUCHPAD" Style="{StaticResource InstrumentButton}"
+                                                                Click="ShowTouchpadTab" Margin="0,0,8,0"/>
+                                                        <Button x:Name="BotonTabBtn" Content="BOTONES" Style="{StaticResource InstrumentButton}"
+                                                                Click="ShowBotonTab"/>
+                                                    </StackPanel>
+
+                                                    <Grid Margin="0,16,0,0">
+                                                        <!-- Contenedores vacios; Task 4 los llena con los controles del remapeador. -->
+                                                        <Grid x:Name="TabSticks"/>
+                                                        <Grid x:Name="TabGatillos" Visibility="Collapsed"/>
+                                                        <Grid x:Name="TabTouchpad" Visibility="Collapsed"/>
+                                                        <Grid x:Name="TabBotones" Visibility="Collapsed"/>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Grid>
+                                        </ScrollViewer>
+                                    </Grid>
 
                                     <Grid x:Name="LucesPanel" Visibility="Collapsed">
                                     <!-- Two columns AND a scroller. The columns are what make it fit; the

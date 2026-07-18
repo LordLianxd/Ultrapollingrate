@@ -314,6 +314,41 @@ namespace HidusbfModernGui
             RefreshPlayStationDevices();   // igual que hoy al entrar a la luz
         }
 
+        // Pestanas propias del configurador (Sticks/Gatillos/Touchpad/Botones), mismo
+        // patron de visibilidad que ShowConfigPanel/ShowLucesPanel. Los cuatro
+        // contenedores estan vacios hasta Task 4; esto solo alterna cual se ve.
+        private void ShowStickTab(object sender, RoutedEventArgs e)
+        {
+            TabSticks.Visibility = Visibility.Visible;
+            TabGatillos.Visibility = Visibility.Collapsed;
+            TabTouchpad.Visibility = Visibility.Collapsed;
+            TabBotones.Visibility = Visibility.Collapsed;
+        }
+
+        private void ShowGatilloTab(object sender, RoutedEventArgs e)
+        {
+            TabSticks.Visibility = Visibility.Collapsed;
+            TabGatillos.Visibility = Visibility.Visible;
+            TabTouchpad.Visibility = Visibility.Collapsed;
+            TabBotones.Visibility = Visibility.Collapsed;
+        }
+
+        private void ShowTouchpadTab(object sender, RoutedEventArgs e)
+        {
+            TabSticks.Visibility = Visibility.Collapsed;
+            TabGatillos.Visibility = Visibility.Collapsed;
+            TabTouchpad.Visibility = Visibility.Visible;
+            TabBotones.Visibility = Visibility.Collapsed;
+        }
+
+        private void ShowBotonTab(object sender, RoutedEventArgs e)
+        {
+            TabSticks.Visibility = Visibility.Collapsed;
+            TabGatillos.Visibility = Visibility.Collapsed;
+            TabTouchpad.Visibility = Visibility.Collapsed;
+            TabBotones.Visibility = Visibility.Visible;
+        }
+
         // Collapses a slider drag into one write. Without it, dragging fires a HID write per
         // pixel of travel - hundreds a second at the device.
         private DispatcherTimer? _lightDebounce;
