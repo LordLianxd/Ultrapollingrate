@@ -9,6 +9,13 @@ namespace HidusbfModernGui
         // entre inner y outer + curva de respuesta. Entrada y salida en -1..1.
         public static (double X, double Y) ApplyStick(StickInput s, double innerDeadzone,
                                                        double outerDeadzone, ResponseCurve curve)
+            => ApplyStick(s, innerDeadzone, outerDeadzone, PresetExponent(curve));
+
+        // Misma logica que la sobrecarga por enum, pero con el exponente de la curva pasado
+        // directamente. Esto permite tanto los presets (Precisa/Normal/Rapida) como la curva
+        // Personalizada, cuyo exponente sale del % de curvatura elegido por el usuario.
+        public static (double X, double Y) ApplyStick(StickInput s, double innerDeadzone,
+                                                       double outerDeadzone, double exponent)
         {
             double mag = Math.Sqrt(s.X * s.X + s.Y * s.Y);
             if (mag <= innerDeadzone || mag <= 0.0) return (0.0, 0.0);
@@ -17,20 +24,27 @@ namespace HidusbfModernGui
             // Reescala [inner, outer] -> [0, 1].
             double t = (mag - innerDeadzone) / (outer - innerDeadzone);
             t = Math.Clamp(t, 0.0, 1.0);
-            t = ApplyCurve(t, curve);
+            t = Math.Pow(t, exponent);
 
             double ux = s.X / mag, uy = s.Y / mag;   // direccion unitaria (preserva el angulo)
             return (ux * t, uy * t);
         }
 
-        // Curva de respuesta como exponente sobre la magnitud normalizada. >1 = mas control
-        // fino cerca del centro (Precisa); <1 = mas agresivo (Rapida); 1 = lineal (Normal).
-        private static double ApplyCurve(double t, ResponseCurve curve) => curve switch
+        // Exponente fijo de cada preset. >1 = mas control fino cerca del centro (Precisa);
+        // <1 = mas agresivo (Rapida); 1 = lineal (Normal). Personalizada no tiene exponente
+        // propio aqui: su valor sale de CurvatureExponent segun el % elegido por el usuario,
+        // asi que este metodo le da 1.0 (lineal) como neutro por si se usa sin ese contexto.
+        public static double PresetExponent(ResponseCurve curve) => curve switch
         {
-            ResponseCurve.Precisa => Math.Pow(t, 1.8),
-            ResponseCurve.Rapida  => Math.Pow(t, 0.6),
-            _                     => t,
+            ResponseCurve.Precisa => 1.8,
+            ResponseCurve.Rapida  => 0.6,
+            _                     => 1.0,   // Normal, Personalizada (ver RemapSettings.LeftCurveExponent)
         };
+
+        // Convierte el % de curvatura (0..100) de la curva Personalizada en un exponente:
+        // 0% = 2.0 (mas preciso cerca del centro), 50% = 1.0 (lineal), 100% = 0.5 (mas agresivo).
+        public static double CurvatureExponent(int curvaturePct)
+            => Math.Pow(2.0, (50 - Math.Clamp(curvaturePct, 0, 100)) / 50.0);
 
         // Hair trigger: por debajo del punto = 0; en el punto o mas = a fondo (1.0) de inmediato,
         // con point==0 como passthrough lineal (sin efecto hair-trigger).

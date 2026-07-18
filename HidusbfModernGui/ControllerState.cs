@@ -5,7 +5,7 @@ namespace HidusbfModernGui
     // a esto, y el nucleo de transformacion trabaja solo con esto.
     public readonly record struct StickInput(double X, double Y);   // -1..1
 
-    public enum ResponseCurve { Precisa, Normal, Rapida }
+    public enum ResponseCurve { Precisa, Normal, Rapida, Personalizada }
 
     // Cuadrante del touchpad tocado (None = sin toque). El remapeo asigna un boton por zona.
     public enum TouchZone { None, ArribaIzq, ArribaDer, AbajoIzq, AbajoDer }

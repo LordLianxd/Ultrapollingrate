@@ -29,4 +29,25 @@ public class RemapSettingsTests
         Assert.Equal(0.30, s.LeftInnerDeadzone, 3);   // tope 30%
         Assert.Equal(0.70, s.LeftOuterDeadzone, 3);   // piso 70%
     }
+
+    [Fact]
+    public void LeftCurvaturePct_DefaultsTo50()
+    {
+        var s = new RemapSettings();
+        Assert.Equal(50, s.LeftCurvaturePct);
+    }
+
+    [Fact]
+    public void LeftCurveExponent_PersonalizadaUsesCurvature()
+    {
+        var s = new RemapSettings { LeftCurve = ResponseCurve.Personalizada, LeftCurvaturePct = 0 };
+        Assert.Equal(2.0, s.LeftCurveExponent, 3);
+    }
+
+    [Fact]
+    public void LeftCurveExponent_NormalPresetIsLinear()
+    {
+        var s = new RemapSettings { LeftCurve = ResponseCurve.Normal };
+        Assert.Equal(1.0, s.LeftCurveExponent, 3);
+    }
 }

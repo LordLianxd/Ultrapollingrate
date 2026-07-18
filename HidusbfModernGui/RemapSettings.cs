@@ -12,10 +12,12 @@ namespace HidusbfModernGui
         public int LeftDeadzonePct { get; set; } = 0;    // 0..30
         public int LeftReachPct { get; set; } = 100;     // 70..100 (avanzado)
         public ResponseCurve LeftCurve { get; set; } = ResponseCurve.Normal;
+        public int LeftCurvaturePct { get; set; } = 50;  // 0..100, solo aplica con LeftCurve=Personalizada
         // Sticks (derecho)
         public int RightDeadzonePct { get; set; } = 0;
         public int RightReachPct { get; set; } = 100;
         public ResponseCurve RightCurve { get; set; } = ResponseCurve.Normal;
+        public int RightCurvaturePct { get; set; } = 50; // 0..100, solo aplica con RightCurve=Personalizada
         // Gatillos
         public int L2PointPct { get; set; } = 0;         // 0..100
         public int R2PointPct { get; set; } = 0;
@@ -29,5 +31,14 @@ namespace HidusbfModernGui
         public double RightOuterDeadzone => Math.Clamp(RightReachPct, 70, 100) / 100.0;
         public double L2Point => Math.Clamp(L2PointPct, 0, 100) / 100.0;
         public double R2Point => Math.Clamp(R2PointPct, 0, 100) / 100.0;
+
+        // Exponente efectivo de la curva de respuesta: si el usuario eligio Personalizada,
+        // sale de su % de curvatura; si no, es el exponente fijo del preset elegido.
+        public double LeftCurveExponent => LeftCurve == ResponseCurve.Personalizada
+            ? InputTransform.CurvatureExponent(LeftCurvaturePct)
+            : InputTransform.PresetExponent(LeftCurve);
+        public double RightCurveExponent => RightCurve == ResponseCurve.Personalizada
+            ? InputTransform.CurvatureExponent(RightCurvaturePct)
+            : InputTransform.PresetExponent(RightCurve);
     }
 }
