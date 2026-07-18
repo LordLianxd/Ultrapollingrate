@@ -527,6 +527,12 @@
                                                 <TextBlock Text="EFECTO" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="14,0,8,0"/>
                                                 <ComboBox x:Name="PlayerEffectList" Width="120" HorizontalAlignment="Left"
                                                           SelectionChanged="PlayerEffect_Changed"/>
+                                                <TextBlock Text="VELOCIDAD" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="14,0,8,0"/>
+                                                <Slider x:Name="PlayerSpeed" Minimum="2" Maximum="20" Value="6" Width="110"
+                                                        IsSnapToTickEnabled="True" TickFrequency="1"
+                                                        VerticalAlignment="Center" ValueChanged="PlayerSpeed_Changed"/>
+                                                <TextBlock x:Name="PlayerSpeedText" Text="" Style="{StaticResource DataText}"
+                                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>

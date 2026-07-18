@@ -325,6 +325,15 @@ namespace HidusbfModernGui
 
         private bool PlayerEffectOn => CurrentPlayerEffect != PlayerLedEffect.None;
 
+        // Velocidad del efecto de LED en frames/segundo (la barra VELOCIDAD del apartado del mando).
+        private double PlayerEffectFps => PlayerSpeed?.Value ?? 6;
+
+        private void UpdatePlayerSpeedText()
+        {
+            if (PlayerSpeedText == null || PlayerSpeed == null) return;
+            PlayerSpeedText.Text = $"{PlayerSpeed.Value:0}/s";
+        }
+
         // Guarda la intencion de luz en disco, agrupando rafagas (arrastrar el picker, girar
         // el rainbow) en una sola escritura. NUNCA se llama por-tick del rainbow.
         private DispatcherTimer? _intentSave;
@@ -384,6 +393,7 @@ namespace HidusbfModernGui
                              ("Ninguno", PlayerLedEffect.None),
                              ("Carga", PlayerLedEffect.Charge),
                              ("Estrellas", PlayerLedEffect.Twinkle),
+                             ("Respiracion", PlayerLedEffect.Breathe),
                          })
                     PlayerEffectList.Items.Add(new ComboBoxItem { Content = label, Tag = value });
                 PlayerEffectList.SelectedIndex = 0;
@@ -403,6 +413,8 @@ namespace HidusbfModernGui
                         (int)RainbowWalker.MinColoursPerSecond, (int)RainbowWalker.MaxColoursPerSecond);
                     SelectComboByTag(PlayerEffectList, saved.PlayerEffect);
                     PlayerLedList.IsEnabled = saved.PlayerEffect == PlayerLedEffect.None;
+                    PlayerSpeed.Value = Math.Clamp(saved.PlayerEffectFps, 2, 20);
+                    PlayerSpeed.IsEnabled = saved.PlayerEffect != PlayerLedEffect.None;
                 }
 
                 // Presets cover the common case in one click. "Apagado" belongs here: turning the
@@ -455,6 +467,8 @@ namespace HidusbfModernGui
                 _playerFrameIndex = 0; _playerFrameAccumMs = 0;
                 UpdateEffectDriver();
             }
+
+            UpdatePlayerSpeedText();
         }
 
         // Selecciona en un ComboBox el item cuyo Tag es igual a value (los items se construyen
@@ -564,6 +578,7 @@ namespace HidusbfModernGui
             }
 
             intent.PlayerEffect = CurrentPlayerEffect;
+            intent.PlayerEffectFps = (int)Math.Round(PlayerEffectFps);
 
             if (_intentSave == null)
             {
@@ -687,7 +702,7 @@ namespace HidusbfModernGui
             _rainbowTimer.Tick += Effect_Tick;
             _rainbowTimer.Interval = RainbowOn
                 ? RainbowWalker.IntervalFor(TargetColoursPerSecond)
-                : TimeSpan.FromMilliseconds(PlayerLedWalker.FrameMsFor(CurrentPlayerEffect));
+                : TimeSpan.FromMilliseconds(1000.0 / PlayerEffectFps);
 
             if (RainbowOn) _rainbowWalker ??= new RainbowWalker(CurrentRainbowStyle);
             if (PlayerEffectOn) _playerWalker ??= new PlayerLedWalker(CurrentPlayerEffect);
@@ -717,12 +732,9 @@ namespace HidusbfModernGui
             if (PlayerEffectOn)
             {
                 _playerWalker ??= new PlayerLedWalker(CurrentPlayerEffect);
+                double frameMs = 1000.0 / PlayerEffectFps;
                 _playerFrameAccumMs += _rainbowTimer!.Interval.TotalMilliseconds;
-                if (_playerFrameAccumMs >= _playerWalker.FrameMs)
-                {
-                    _playerFrameAccumMs -= _playerWalker.FrameMs;
-                    _playerFrameIndex++;
-                }
+                if (_playerFrameAccumMs >= frameMs) { _playerFrameAccumMs -= frameMs; _playerFrameIndex++; }
                 player = (PlayerLeds)_playerWalker.MaskAt(_playerFrameIndex);
             }
             else
@@ -744,12 +756,21 @@ namespace HidusbfModernGui
             RememberLight();
         }
 
+        private void PlayerSpeed_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_rainbowTimer != null && !RainbowOn && PlayerEffectOn)
+                _rainbowTimer.Interval = TimeSpan.FromMilliseconds(1000.0 / PlayerEffectFps);
+            UpdatePlayerSpeedText();
+            if (!_updatingLight) RememberLight();
+        }
+
         private void PlayerEffect_Changed(object sender, SelectionChangedEventArgs e)
         {
             if (_updatingLight) return;
             if (PlayerEffectOn) { _playerWalker = new PlayerLedWalker(CurrentPlayerEffect); _playerFrameIndex = 0; _playerFrameAccumMs = 0; }
             // Con un efecto de LED activo, la seleccion fija de Player la maneja el efecto.
             if (PlayerLedList != null) PlayerLedList.IsEnabled = !PlayerEffectOn;
+            if (PlayerSpeed != null) PlayerSpeed.IsEnabled = PlayerEffectOn;
             UpdateEffectDriver();
             if (!PlayerEffectOn && !RainbowOn)
                 ApplyLightNow();   // vuelve a la seleccion Player fija y persiste
