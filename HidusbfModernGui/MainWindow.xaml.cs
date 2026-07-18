@@ -986,12 +986,9 @@ namespace HidusbfModernGui
 
         private void DetailRateCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (DevicesListBox.SelectedItem is not UsbDeviceModel model) return;
-            if (DetailRateCombo.SelectedItem is not ComboBoxItem item) return;
-
-            int rate = (int)item.Tag;
-            if (model.SelectedRate == rate) return;
-            if (!ApplyRate(model, rate)) PopulateRateCombo(model);
+            // La tasa se aplica al pulsar APLICAR CAMBIOS, no al elegirla en la lista.
+            // Este handler se deja vacio a proposito; el valor se lee del combo en
+            // ApplyOverclock_Click.
         }
 
         // Event: Toggle filter active switch on the detail panel
@@ -1018,7 +1015,6 @@ namespace HidusbfModernGui
         {
             if (DevicesListBox.SelectedItem is not UsbDeviceModel model) return;
 
-            ReplugBtn.IsEnabled = false;
             LogStatus($"Reconectando {model.Name}: quitar del arbol PnP, 2 s, re-enumerar, reiniciar...");
 
             // The meter holds the device open, and CM_Query_And_Remove_SubTree is VETOED
@@ -1040,8 +1036,87 @@ namespace HidusbfModernGui
                 ShowError("Reconexion fallida", result.Error!);
             }
 
-            ReplugBtn.IsEnabled = true;
             RefreshDevicesList();
+        }
+
+        // Un clic = todo el overclock. Encadena lo que antes eran tres botones: activa el
+        // filtro, escribe la tasa y hace el replug (lo unico que la aplica de verdad).
+        // Para el medidor antes del replug por la misma razon que ReplugDevice_Click:
+        // CM_Query_And_Remove_SubTree se veta si algo tiene el dispositivo abierto.
+        private async void ApplyOverclock_Click(object sender, RoutedEventArgs e)
+        {
+            if (DevicesListBox.SelectedItem is not UsbDeviceModel model)
+            {
+                LogStatus("Selecciona un dispositivo primero.");
+                return;
+            }
+            if (DetailRateCombo.SelectedItem is not ComboBoxItem item)
+            {
+                LogStatus("Elige una TASA OBJETIVO.");
+                return;
+            }
+            int rate = (int)item.Tag;
+
+            ApplyOverclockBtn.IsEnabled = false;
+            ResetOverclockBtn.IsEnabled = false;
+            string original = (string)ApplyOverclockBtn.Content;
+            ApplyOverclockBtn.Content = "APLICANDO...";
+            _meter.Stop();
+            _meterTimer?.Stop();
+            try
+            {
+                var filter = SystemManager.SetFilterActive(model.InstanceId, true);
+                if (!filter.Success) { LogStatus($"No se pudo activar el filtro: {filter.Error}"); return; }
+
+                var rateRes = SystemManager.SetDeviceRate(model.InstanceId, model.DriverKey, rate, model.BusSpeed);
+                if (!rateRes.Success) { LogStatus($"No se pudo escribir la tasa: {rateRes.Error}"); return; }
+
+                var replug = await SystemManager.ReplugDevice(model.InstanceId);
+                if (!replug.Success)
+                {
+                    LogStatus($"Reconexion fallida: {replug.Error}");
+                    ShowError("Reconexion fallida", replug.Error!);
+                    return;
+                }
+                LogStatus($"Overclock aplicado: {rate} Hz. Mueve el dispositivo para ver la tasa medida.");
+            }
+            finally
+            {
+                ApplyOverclockBtn.Content = original;
+                ApplyOverclockBtn.IsEnabled = true;
+                ResetOverclockBtn.IsEnabled = true;
+                RefreshDevicesList();   // restaura la seleccion, lo que reinicia el medidor
+            }
+        }
+
+        // Emergencia: quita el filtro y reconecta, dejando el dispositivo en su estado por
+        // defecto. Sustituye a la vieja funcion de REINICIAR/quitar filtro manual.
+        private async void ResetOverclock_Click(object sender, RoutedEventArgs e)
+        {
+            if (DevicesListBox.SelectedItem is not UsbDeviceModel model)
+            {
+                LogStatus("Selecciona un dispositivo primero.");
+                return;
+            }
+            ApplyOverclockBtn.IsEnabled = false;
+            ResetOverclockBtn.IsEnabled = false;
+            _meter.Stop();
+            _meterTimer?.Stop();
+            try
+            {
+                var filter = SystemManager.SetFilterActive(model.InstanceId, false);
+                if (!filter.Success) { LogStatus($"No se pudo quitar el filtro: {filter.Error}"); return; }
+
+                var replug = await SystemManager.ReplugDevice(model.InstanceId);
+                if (!replug.Success) { LogStatus($"Reconexion fallida: {replug.Error}"); return; }
+                LogStatus($"{model.Name} restablecido a su estado por defecto.");
+            }
+            finally
+            {
+                ApplyOverclockBtn.IsEnabled = true;
+                ResetOverclockBtn.IsEnabled = true;
+                RefreshDevicesList();
+            }
         }
 
         // Event: Global driver mode selection changes
