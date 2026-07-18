@@ -88,7 +88,7 @@ namespace HidusbfModernGui.Tests
         public void SpeedPlan_Clamps()
         {
             Assert.Equal(RainbowWalker.SpeedPlan(5).coloursPerTick,   RainbowWalker.SpeedPlan(1).coloursPerTick,   3);
-            Assert.Equal(RainbowWalker.SpeedPlan(180).coloursPerTick, RainbowWalker.SpeedPlan(999).coloursPerTick, 3);
+            Assert.Equal(RainbowWalker.SpeedPlan(360).coloursPerTick, RainbowWalker.SpeedPlan(999).coloursPerTick, 3);
         }
 
         [Fact]

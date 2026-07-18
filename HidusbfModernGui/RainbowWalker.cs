@@ -7,8 +7,8 @@ namespace HidusbfModernGui
     // are possible. Up to 64 colours/s we show every colour (one per tick). Above that, the
     // timer fires as fast as it can and each tick advances MORE than one colour - fractional,
     // accumulated - so the cycle speeds up past 64/s. Consecutive ramp colours differ by <=1
-    // per channel, so advancing ~3 per tick changes the shown colour by <=3/255 per frame:
-    // still smooth, but no longer literally every colour.
+    // per channel, so advancing a few per tick changes the shown colour by only a few /255 per
+    // frame (at the 360/s ceiling that is ~6): still smooth, but no longer literally every colour.
     public sealed class RainbowWalker
     {
         private readonly ColourRamp _ramp;
@@ -35,7 +35,7 @@ namespace HidusbfModernGui
         public const double OsTickMs = 15.625;
         private const double FramesPerSecFloor = 1000.0 / OsTickMs;   // ~64
         public const double MinColoursPerSecond = 5.0;
-        public const double MaxColoursPerSecond = 180.0;
+        public const double MaxColoursPerSecond = 360.0;
 
         // Maps a target colours/s to (timer interval, colours to advance per tick).
         public static (double intervalMs, double coloursPerTick) SpeedPlan(double coloursPerSec)
