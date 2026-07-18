@@ -31,5 +31,31 @@ namespace HidusbfModernGui
             ResponseCurve.Rapida  => Math.Pow(t, 0.6),
             _                     => t,
         };
+
+        // Hair trigger: por debajo del punto = 0; en el punto o mas = a fondo (1.0) de inmediato,
+        // con point==0 como passthrough lineal (sin efecto hair-trigger).
+        public static double ApplyTrigger(double value, double triggerPoint)
+        {
+            double p = Math.Clamp(triggerPoint, 0.0, 0.99);
+            if (p <= 0.0) return Math.Clamp(value, 0.0, 1.0);
+            return value < p ? 0.0 : 1.0;
+        }
+
+        public static PadButton Remap(PadButton pressed,
+            System.Collections.Generic.IReadOnlyDictionary<PadButton, PadButton> table)
+            => table != null && table.TryGetValue(pressed, out var to) ? to : pressed;
+
+        public static TouchZone ResolveTouchZone(bool touched, int x, int y, int xSplit, int ySplit)
+        {
+            if (!touched) return TouchZone.None;
+            bool left = x < xSplit, top = y < ySplit;
+            return (top, left) switch
+            {
+                (true, true)   => TouchZone.ArribaIzq,
+                (true, false)  => TouchZone.ArribaDer,
+                (false, true)  => TouchZone.AbajoIzq,
+                (false, false) => TouchZone.AbajoDer,
+            };
+        }
     }
 }

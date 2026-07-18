@@ -7,6 +7,9 @@ namespace HidusbfModernGui
 
     public enum ResponseCurve { Precisa, Normal, Rapida }
 
+    // Cuadrante del touchpad tocado (None = sin toque). El remapeo asigna un boton por zona.
+    public enum TouchZone { None, ArribaIzq, ArribaDer, AbajoIzq, AbajoDer }
+
     // Botones del mando (superset DS4/DualSense). El remapeo mapea de uno a otro.
     public enum PadButton
     {
