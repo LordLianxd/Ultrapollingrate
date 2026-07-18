@@ -24,7 +24,7 @@ namespace HidusbfModernGui
         public PlayerLeds Player { get; set; } = PlayerLeds.Player1;
         public LedBrightness Brightness { get; set; } = LedBrightness.High;
         public RainbowStyle Style { get; set; } = RainbowStyle.Smooth;
-        public int TicksPerColour { get; set; } = 3;
+        public int RainbowColoursPerSecond { get; set; } = 64;
 
         public LightState ToLightState() => new LightState(R, G, B, Player, Brightness);
 
@@ -34,11 +34,11 @@ namespace HidusbfModernGui
             R = s.R, G = s.G, B = s.B, Player = s.Player, Brightness = s.Brightness
         };
 
-        public static LightIntent FromRainbow(RainbowStyle style, int ticksPerColour,
+        public static LightIntent FromRainbow(RainbowStyle style, int coloursPerSecond,
                                               PlayerLeds player, LedBrightness brightness) => new LightIntent
         {
             Kind = LightIntentKind.Rainbow,
-            Style = style, TicksPerColour = ticksPerColour,
+            Style = style, RainbowColoursPerSecond = coloursPerSecond,
             Player = player, Brightness = brightness
         };
     }

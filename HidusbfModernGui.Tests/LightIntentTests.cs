@@ -38,14 +38,14 @@ public class LightIntentTests : IDisposable
     [Fact]
     public void Rainbow_RoundTrips_WithPlayerAndBrightness()
     {
-        var intent = LightIntent.FromRainbow(RainbowStyle.Vivid, 7, PlayerLeds.Player2, LedBrightness.Medium);
+        var intent = LightIntent.FromRainbow(RainbowStyle.Vivid, 120, PlayerLeds.Player2, LedBrightness.Medium);
         Assert.True(IntentStore.Save(intent).Success);
 
         var loaded = IntentStore.Load();
         Assert.NotNull(loaded);
         Assert.Equal(LightIntentKind.Rainbow, loaded!.Kind);
         Assert.Equal(RainbowStyle.Vivid, loaded.Style);
-        Assert.Equal(7, loaded.TicksPerColour);
+        Assert.Equal(120, loaded.RainbowColoursPerSecond);
         Assert.Equal(PlayerLeds.Player2, loaded.Player);
         Assert.Equal(LedBrightness.Medium, loaded.Brightness);
     }
@@ -53,7 +53,7 @@ public class LightIntentTests : IDisposable
     [Fact]
     public void Enums_PersistAsNames()
     {
-        IntentStore.Save(LightIntent.FromRainbow(RainbowStyle.Vivid, 3, PlayerLeds.Player4, LedBrightness.Low));
+        IntentStore.Save(LightIntent.FromRainbow(RainbowStyle.Vivid, 30, PlayerLeds.Player4, LedBrightness.Low));
         string json = File.ReadAllText(IntentStore.Path);
         Assert.Contains("Vivid", json);
         Assert.Contains("Player4", json);
