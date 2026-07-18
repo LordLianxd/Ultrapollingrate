@@ -567,11 +567,35 @@ Pestaña nueva como **UserControl** (`RemapPage.xaml`) para no inflar más `Main
 - [ ] **Step 1** — sección nueva que explique el remapeador: qué hace, que requiere ViGEmBus + HidHide (se instalan aparte, rompe el portable), y el aviso honesto de anticheat (mecanismo detectable aunque no hagas trampa; ideal para un jugador / sin anticheat; online bajo tu riesgo; sin macros/KB-M/evasión).
 - [ ] **Step 2: Commit** — `git ... commit -m "docs: seccion del remapeador en el README (requisitos + anticheat honesto)"`
 
+### Task 14: Interruptor maestro + estado del mando (físico / virtual / HidHide)
+
+**Files:** Modify `HidusbfModernGui/MainWindow.xaml` (el `ConfigPanel` del hub + la barra de estado del header), `MainWindow.xaml.cs`. Depende del motor: `RemapEngine` (Task 7), `DriverCheck` (Task 5), y el estado de `HidHideControl`/`DualSenseReader`/`VirtualPad`.
+
+Requisito del usuario: tiene que quedar clarísimo si la configuración está activa, qué mando ve el juego (físico o virtual), y si el físico está oculto — y poder volver al **mando nativo** en un clic.
+
+- [ ] **Step 1: Interruptor maestro (default APAGADO = nativo).** En `ConfigPanel`, arriba del todo, un switch grande **"CONFIGURACIÓN DEL MANDO"** con estados **DESACTIVADA / ACTIVADA**. Por defecto **DESACTIVADA**: no se crea el virtual, no se oculta el físico, ViGEm/HidHide no actúan → el juego ve tu **DualSense nativo** (estado limpio y el más seguro para anticheat). ACTIVADA → `RemapEngine.Start(_remap)` (oculta el físico con HidHide + crea el DS4 virtual con tu config). Al pasar a DESACTIVADA → `RemapEngine.Stop()` que **revierte del todo**: muestra el físico, quita el virtual, mando nativo al instante. El switch nunca arranca solo; siempre lo activa el usuario.
+
+- [ ] **Step 2: Panel "ESTADO DEL MANDO"** con indicadores en vivo (punto + texto, estilo `StatusDot`/paleta), actualizados por un timer de UI o por eventos del engine:
+  - **Físico:** `Conectado` / `No detectado`, y `Visible` / `Oculto (HidHide)`.
+  - **Virtual:** `Activo` / `Inactivo`.
+  - **Lo que ve el juego:** una línea resumen — `MANDO NATIVO` (cuando está DESACTIVADA) o `MANDO VIRTUAL (tu config)` (cuando ACTIVADA).
+  Estos indicadores leen el estado real (`HidHideControl` sabe si el físico está oculto; `VirtualPad` si el virtual está conectado; `DualSenseReader`/`DriverCheck` si hay físico) — no un flag optimista.
+
+- [ ] **Step 3: Indicador en el header (visible desde cualquier pestaña).** Un badge pequeño en la barra de estado superior: **"MANDO: NATIVO"** (gris, `TextLabelBrush`) cuando la config está desactivada, o **"MANDO: VIRTUAL"** (acento) cuando está activa. Objetivo de seguridad: que nunca lo dejes activado sin darte cuenta antes de una partida con anticheat.
+
+- [ ] **Step 4: Control explícito de HidHide.** El ocultamiento del físico va ligado al interruptor maestro (ACTIVADA oculta, DESACTIVADA muestra), pero su **estado siempre es visible** (Step 2). Si `RemapEngine.Stop()` o el cierre de la app fallara al revertir, al abrir de nuevo la app debe **re-mostrar el físico** (limpiar la lista de ocultos de HidHide para nuestro dispositivo) para no dejar el mando "desaparecido" — un guard de arranque en `Window_Loaded`.
+
+- [ ] **Step 5: Verificación manual (hardware).** Con el mando conectado: por defecto el header dice NATIVO y `joy.cpl` muestra tu DualSense real. Activar → header VIRTUAL, `joy.cpl` muestra el DS4 virtual y el físico desaparece para otras apps, el panel de estado lo refleja. Desactivar → vuelve el físico al instante, header NATIVO. Cerrar la app con la config activa y reabrir → el físico debe estar visible de nuevo (guard de arranque).
+
+- [ ] **Step 6: Commit** — `git ... commit -m "feat: interruptor maestro + estado del mando (fisico/virtual/HidHide) con default nativo"`
+
 ---
 
 ## Self-Review
 
-**Cobertura del spec:** núcleo puro (deadzone/curva/gatillo/remapeo/touchpad) → Tasks 1–2; traducción UI↔parámetros → Task 3; persistencia → Task 4; deps+detección → Task 5; E/S (lector/virtual/HidHide) → Tasks 6–7; UI simple (sticks/gatillos/botones/touchpad/perfiles/vista previa) → Tasks 8–12; anticheat honesto → Task 8 (UI) + Task 13 (README); coexistencia luz/overclock → vía lista blanca de HidHide (Task 6). Alcance v1 = sticks+botones+touchpad+gatillos. ✓
+**Cobertura del spec:** núcleo puro (deadzone/curva/gatillo/remapeo/touchpad) → Tasks 1–2; traducción UI↔parámetros → Task 3; persistencia → Task 4; deps+detección → Task 5; E/S (lector/virtual/HidHide) → Tasks 6–7; UI simple (sticks/gatillos/botones/touchpad/perfiles/vista previa) → Tasks 8–12; anticheat honesto → Task 8 (UI) + Task 13 (README); **interruptor maestro + estado físico/virtual/HidHide + default nativo + indicador en header → Task 14**; coexistencia luz/overclock → vía lista blanca de HidHide (Task 6). Alcance v1 = sticks+botones+touchpad+gatillos. ✓
+
+**Nota de UI:** la pestaña/UI del remapeador (Fase 3 original, Tasks 8–12) fue reemplazada por el plan `2026-07-18-controller-ui-restructure.md` (hub Configurar/Luces). El interruptor maestro + estado del mando (Task 14) viven en ese `ConfigPanel`. El plan de curvas `2026-07-18-stick-curves.md` añade Dinámica/Digital. Este plan sigue siendo la fuente del **motor** (Fase 2: Tasks 5–7) y de la Task 14.
 
 **Placeholders:** la Fase 1 tiene código completo. La Fase 2/3 es hardware/driver-dependiente: se marca explícitamente como spike-first + verificación manual, con los puntos exactos de API/offsets a confirmar contra la librería/dispositivo real (no es un placeholder, es la naturaleza del código que toca hardware externo).
 
