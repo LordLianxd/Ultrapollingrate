@@ -93,7 +93,7 @@
                     <Grid>
                         <StackPanel VerticalAlignment="Center">
                             <Button Style="{StaticResource SidebarButton}" Click="DashboardNavBtn_Click" ToolTip="Dispositivos">
-                                <Path Data="{StaticResource HomeIconPath}" Fill="{StaticResource TextDataBrush}" Stretch="Uniform" Width="18" Height="18"/>
+                                <Path Data="{StaticResource HomeIconPath}" Fill="{StaticResource TextLabelBrush}" Stretch="Uniform" Width="18" Height="18"/>
                             </Button>
                             <Button Style="{StaticResource SidebarButton}" Click="LightNavBtn_Click" ToolTip="Color del mando (PlayStation)">
                                 <Path Data="{StaticResource GamepadIconPath}" Fill="{StaticResource TextLabelBrush}" Stretch="Uniform" Width="18" Height="18"/>
