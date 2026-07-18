@@ -111,4 +111,15 @@ public class LightIntentTests : IDisposable
         var intent = LightIntent.FromStatic(new LightState(0, 0, 0, PlayerLeds.Player1, LedBrightness.High));
         Assert.Equal(PlayerLedEffect.None, intent.PlayerEffect);
     }
+
+    [Fact]
+    public void PlayerEffectFps_RoundTrips_DefaultsTo6()
+    {
+        var fresh = LightIntent.FromStatic(new LightState(0,0,0, PlayerLeds.Player1, LedBrightness.High));
+        Assert.Equal(6, fresh.PlayerEffectFps);
+
+        fresh.PlayerEffectFps = 12;
+        Assert.True(IntentStore.Save(fresh).Success);
+        Assert.Equal(12, IntentStore.Load()!.PlayerEffectFps);
+    }
 }
