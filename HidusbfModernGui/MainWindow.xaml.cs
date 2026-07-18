@@ -1056,7 +1056,6 @@ namespace HidusbfModernGui
         // CM_Query_And_Remove_SubTree se veta si algo tiene el dispositivo abierto.
         private async void ApplyOverclock_Click(object sender, RoutedEventArgs e)
         {
-            _overclockBusy = true;
             if (DevicesListBox.SelectedItem is not UsbDeviceModel model)
             {
                 LogStatus("Selecciona un dispositivo primero.");
@@ -1071,6 +1070,7 @@ namespace HidusbfModernGui
             string original = (string)ApplyOverclockBtn.Content;
             try
             {
+                _overclockBusy = true;
                 ApplyOverclockBtn.IsEnabled = false;
                 ResetOverclockBtn.IsEnabled = false;
                 ApplyOverclockBtn.Content = "APLICANDO...";
@@ -1106,18 +1106,19 @@ namespace HidusbfModernGui
         // defecto. Sustituye a la vieja funcion de REINICIAR/quitar filtro manual.
         private async void ResetOverclock_Click(object sender, RoutedEventArgs e)
         {
-            _overclockBusy = true;
             if (DevicesListBox.SelectedItem is not UsbDeviceModel model)
             {
                 LogStatus("Selecciona un dispositivo primero.");
                 return;
             }
-            ApplyOverclockBtn.IsEnabled = false;
-            ResetOverclockBtn.IsEnabled = false;
-            _meter.Stop();
-            _meterTimer?.Stop();
             try
             {
+                _overclockBusy = true;
+                ApplyOverclockBtn.IsEnabled = false;
+                ResetOverclockBtn.IsEnabled = false;
+                _meter.Stop();
+                _meterTimer?.Stop();
+
                 var filter = SystemManager.SetFilterActive(model.InstanceId, false);
                 if (!filter.Success) { LogStatus($"No se pudo quitar el filtro: {filter.Error}"); return; }
 
