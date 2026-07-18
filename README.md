@@ -8,8 +8,8 @@ Interfaz moderna y gratuita para el driver [hidusbf](https://github.com/LordOfMi
 
 - **Overclock de polling rate USB.** Cambia la tasa de sondeo de ratones, teclados y mandos: desde 125 Hz hasta 8000 Hz, según el modo del driver y de lo que aguante el dispositivo. El techo real depende de la clase de velocidad USB (Low/Full/High Speed) y del firmware del dispositivo; ningún número está garantizado en un hardware concreto.
 - **Medidor de tasa real.** La app no solo muestra la tasa que *pidió*: abre la interfaz HID del dispositivo seleccionado y mide la llegada de reportes en vivo, mostrando PEDIDA vs MEDIDA (mediana, min/max de los huecos). Es la respuesta con números a "¿se aplicó el overclock?". Limitación honesta: mide reportes HID, no el bus USB; un ratón quieto no genera datos y mide "sin datos", no 0 Hz mentiroso.
-- **Luz del DualSense (solo USB/cable).** Color de la barra de luz con selector y hex, LED de jugador (las 5 luces bajo el touchpad, patrón simétrico) con brillo, y un efecto arcoíris por pasos calculado en OKLab para que las transiciones sean perceptualmente uniformes. Perfiles en JSON que guardan luz y, si quieres, la tasa. Por Bluetooth el mando usa otro protocolo y no se controla; la app solo lista mandos conectados por USB, así que un mando por Bluetooth directamente no aparece en la lista.
-- **Gestión del driver.** Instala/desinstala el servicio `hidusbf`, cambia entre modos del driver, y aplica los cambios sin reiniciar el PC mediante RECONECTAR (replug por software: quita el dispositivo del árbol PnP, lo re-enumera y lo reinicia).
+- **Luz del DualSense (solo USB/cable).** Color de la barra de luz con selector y hex, LED de jugador (las 5 luces bajo el touchpad) con brillo, un efecto arcoíris por pasos calculado en OKLab (velocidad ajustable hasta 360 colores/s), y animaciones de los LEDs de jugador (Carga, Estrellas, Respiración) con su propia barra de velocidad. La app recuerda tu último color/efecto y lo restaura al abrir y al reconectar el mando. Perfiles en JSON que guardan luz y, si quieres, la tasa. Por Bluetooth el mando usa otro protocolo y no se controla; la app solo lista mandos conectados por USB, así que un mando por Bluetooth directamente no aparece en la lista.
+- **Gestión del driver.** Instala/desinstala el servicio `hidusbf`, cambia entre modos del driver, y aplica los cambios sin reiniciar el PC mediante un replug por software (quita el dispositivo del árbol PnP, lo re-enumera y lo reinicia).
 
 ## Requisitos
 
@@ -25,9 +25,8 @@ Interfaz moderna y gratuita para el driver [hidusbf](https://github.com/LordOfMi
 3. Ejecuta `UltraPolling.exe`.
 4. En la pestaña Sistema, instala el servicio si no está instalado y elige el modo del driver.
 5. Selecciona tu dispositivo en la lista.
-6. Activa **FILTRO**.
-7. Elige una **TASA OBJETIVO**.
-8. Pulsa **RECONECTAR (REPLUG)**. Este botón es el que aplica el cambio de verdad: un reinicio PnP a secas no basta, porque el dispositivo nunca abandona el bus USB y sus descriptores —donde hidusbf escribe la tasa— no se releen.
+6. Elige una **TASA OBJETIVO**.
+7. Pulsa **APLICAR CAMBIOS**. Un solo botón hace todo: activa el filtro, escribe la tasa y reconecta el dispositivo (replug por software). Ese replug es lo que aplica el cambio de verdad: un reinicio PnP a secas no basta, porque el dispositivo nunca abandona el bus USB y sus descriptores —donde hidusbf escribe la tasa— no se releen. Un enlace **Restablecer valores** deshace el filtro y lo deja por defecto.
 
 ### Modos del driver
 
@@ -40,7 +39,7 @@ El modo es el techo de velocidad de todo el sistema:
 | `2kHz-4kHz` | 4000 Hz | Parchea código de Windows en memoria. |
 | `4kHz-8kHz` | 8000 Hz | Parchea código de Windows en memoria. |
 
-Cambiar de modo puede requerir reemplazar el archivo del driver (entre niveles con parche suele bastar el registro), y Windows bloquea el archivo de un driver cargado. Si el cambio falla, quita el FILTRO de todos los dispositivos y reinícialos, o reinicia el PC.
+Cambiar de modo puede requerir reemplazar el archivo del driver (entre niveles con parche suele bastar el registro), y Windows bloquea el archivo de un driver cargado. Si el cambio falla, usa **Restablecer valores** para quitar el filtro de los dispositivos y reinícialos, o reinicia el PC.
 
 Una tasa alta no crea datos: si el firmware del dispositivo genera reportes a 1000 Hz, sondearlo a 8000 Hz devuelve el mismo dato repetido.
 

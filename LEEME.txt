@@ -9,14 +9,15 @@ USO
 ---
 1. Ejecuta UltraPolling.exe como Administrador (lo pide solo).
 2. Selecciona un dispositivo de la lista.
-3. Activa FILTRO.
-4. Elige una TASA OBJETIVO.
-5. Pulsa RECONECTAR (REPLUG).
+3. Elige una TASA OBJETIVO.
+4. Pulsa APLICAR CAMBIOS.
 
-RECONECTAR es el que aplica el cambio. Hace cuatro cosas encadenadas: quita el
-dispositivo del arbol PnP, espera 2 segundos, lo re-enumera y lo reinicia. Un
-reinicio PnP a secas no basta: el dispositivo nunca abandona el bus USB y sus
-descriptores no se releen, que es donde hidusbf escribe la tasa.
+APLICAR CAMBIOS hace todo de un clic: activa el filtro, escribe la tasa y
+reconecta el dispositivo (replug por software). Ese replug es lo que aplica el
+cambio de verdad: quita el dispositivo del arbol PnP, espera, lo re-enumera y lo
+reinicia. Un reinicio PnP a secas no basta porque el dispositivo nunca abandona
+el bus USB y sus descriptores (donde hidusbf escribe la tasa) no se releen. El
+enlace "Restablecer valores" quita el filtro y lo deja por defecto.
 
 EL MEDIDOR
 ----------
@@ -29,9 +30,12 @@ quieto no genera reportes y el medidor dira "sin datos", no un 0 falso.
 LA LUZ DEL DUALSENSE (solo USB/cable)
 -------------------------------------
 En la pestana del mando: color de la barra de luz con selector y hex, LED de
-jugador con brillo, efecto arcoiris con tres estilos, y perfiles guardados en
-JSON. Por Bluetooth el mando usa otro protocolo y no se controla; la app solo
-lista mandos conectados por USB, asi que por Bluetooth directamente no aparece.
+jugador con brillo, efecto arcoiris con tres estilos (velocidad ajustable), y
+animaciones de los LEDs de jugador (Carga, Estrellas, Respiracion) con su propia
+barra de velocidad. La app recuerda tu ultimo color/efecto y lo restaura al abrir
+y al reconectar el mando. Hay perfiles guardados en JSON. Por Bluetooth el mando
+usa otro protocolo y no se controla; la app solo lista mandos conectados por USB,
+asi que por Bluetooth directamente no aparece.
 
 LA CARPETA DRIVER
 -----------------
