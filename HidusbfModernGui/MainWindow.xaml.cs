@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Shapes;
 using System.Windows.Threading;
 
 namespace HidusbfModernGui
@@ -441,6 +442,7 @@ namespace HidusbfModernGui
 
             BuildButtonRemapRows();
             BuildTouchZoneCombos();
+            BuildCurveLists();
 
             _remapProfiles = RemapProfileStore.Load();
             var last = _remapProfiles.FirstOrDefault(p => p.Name == LastUsedProfileName);
@@ -515,6 +517,72 @@ namespace HidusbfModernGui
             }
         }
 
+        // Preajustes de RESPUESTA en el orden que ve el usuario en cada ComboBox. "Lineal" es
+        // la etiqueta amigable de ResponseCurve.Normal (el nombre del enum no cambia: lo usan
+        // los perfiles guardados).
+        private static readonly (string Label, ResponseCurve Curve)[] CurvePresets =
+        {
+            ("Lineal", ResponseCurve.Normal),
+            ("Precisa", ResponseCurve.Precisa),
+            ("Rapida", ResponseCurve.Rapida),
+            ("Dinamica", ResponseCurve.Dinamica),
+            ("Digital", ResponseCurve.Digital),
+            ("Personalizada", ResponseCurve.Personalizada),
+        };
+
+        // Puntos del mini-icono de cada curva. Menos muestras que el CURVA grande (CurveSamples):
+        // a 48x24 la diferencia no se nota y son 6 curvas x 2 sticks por reconstruir cada vez
+        // que se abre la pestana.
+        private const int CurveIconSamples = 12;
+
+        private void BuildCurveLists()
+        {
+            LeftCurveList.Items.Clear();
+            RightCurveList.Items.Clear();
+            foreach (var (label, curve) in CurvePresets)
+            {
+                AddCurveItem(LeftCurveList, label, curve);
+                AddCurveItem(RightCurveList, label, curve);
+            }
+        }
+
+        // Un ComboBoxItem con el mini-icono de la curva (Canvas+Polyline muestreando Shape a
+        // curvatura neutra 50 - el icono no cambia con el slider de Curvatura) + su nombre.
+        // Tag = el ResponseCurve, que es lo que leen LeftCurve_Changed/RightCurve_Changed y
+        // SelectComboByTag (ya usado por los combos de remapeo de botones/touchpad).
+        private void AddCurveItem(ComboBox combo, string label, ResponseCurve curve)
+        {
+            const double w = 48, h = 24;
+            var points = new PointCollection();
+            for (int i = 0; i < CurveIconSamples; i++)
+            {
+                double t = i / (double)(CurveIconSamples - 1);
+                double y = InputTransform.Shape(t, curve, 50);
+                points.Add(new Point(t * w, h - y * h));
+            }
+
+            var canvas = new Canvas { Width = w, Height = h };
+            canvas.Children.Add(new Polyline
+            {
+                Points = points,
+                Stroke = (Brush)FindResource("TextDataBrush"),
+                StrokeThickness = 1.25,
+            });
+
+            var panel = new StackPanel { Orientation = Orientation.Horizontal };
+            panel.Children.Add(canvas);
+            panel.Children.Add(new TextBlock
+            {
+                Text = label,
+                Style = (Style)FindResource("FieldLabel"),
+                Foreground = (Brush)FindResource("TextDataBrush"),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 0, 0),
+            });
+
+            combo.Items.Add(new ComboBoxItem { Content = panel, Tag = curve });
+        }
+
         // Refleja _remap entero en los controles. Usado al construir la UI y tras CARGAR.
         // Bajo _updatingRemap para que ninguno de los ValueChanged/SelectionChanged que
         // dispara escriba de vuelta en _remap ni programe un guardado.
@@ -523,14 +591,14 @@ namespace HidusbfModernGui
             LeftDeadzoneSlider.Value = _remap.LeftDeadzonePct;
             LeftReachSlider.Value = _remap.LeftReachPct;
             LeftCurvaturaSlider.Value = _remap.LeftCurvaturePct;
-            SetCurveButtonsVisual(LeftCurvePrecisaBtn, LeftCurveNormalBtn, LeftCurveRapidaBtn, LeftCurvePersonalizadaBtn, _remap.LeftCurve);
+            SelectComboByTag(LeftCurveList, _remap.LeftCurve);
             LeftCurvaturaPanel.Visibility = _remap.LeftCurve == ResponseCurve.Personalizada
                 ? Visibility.Visible : Visibility.Collapsed;
 
             RightDeadzoneSlider.Value = _remap.RightDeadzonePct;
             RightReachSlider.Value = _remap.RightReachPct;
             RightCurvaturaSlider.Value = _remap.RightCurvaturePct;
-            SetCurveButtonsVisual(RightCurvePrecisaBtn, RightCurveNormalBtn, RightCurveRapidaBtn, RightCurvePersonalizadaBtn, _remap.RightCurve);
+            SelectComboByTag(RightCurveList, _remap.RightCurve);
             RightCurvaturaPanel.Visibility = _remap.RightCurve == ResponseCurve.Personalizada
                 ? Visibility.Visible : Visibility.Collapsed;
 
@@ -646,10 +714,9 @@ namespace HidusbfModernGui
             RememberRemap();
         }
 
-        private void LeftCurve_Click(object sender, RoutedEventArgs e)
+        private void LeftCurve_Changed(object sender, SelectionChangedEventArgs e)
         {
-            if (sender is not Button { Tag: ResponseCurve curve }) return;
-            SetCurveButtonsVisual(LeftCurvePrecisaBtn, LeftCurveNormalBtn, LeftCurveRapidaBtn, LeftCurvePersonalizadaBtn, curve);
+            if (LeftCurveList.SelectedItem is not ComboBoxItem { Tag: ResponseCurve curve }) return;
             LeftCurvaturaPanel.Visibility = curve == ResponseCurve.Personalizada ? Visibility.Visible : Visibility.Collapsed;
             if (_updatingRemap) return;
             _remap.LeftCurve = curve;
@@ -657,10 +724,9 @@ namespace HidusbfModernGui
             RememberRemap();
         }
 
-        private void RightCurve_Click(object sender, RoutedEventArgs e)
+        private void RightCurve_Changed(object sender, SelectionChangedEventArgs e)
         {
-            if (sender is not Button { Tag: ResponseCurve curve }) return;
-            SetCurveButtonsVisual(RightCurvePrecisaBtn, RightCurveNormalBtn, RightCurveRapidaBtn, RightCurvePersonalizadaBtn, curve);
+            if (RightCurveList.SelectedItem is not ComboBoxItem { Tag: ResponseCurve curve }) return;
             RightCurvaturaPanel.Visibility = curve == ResponseCurve.Personalizada ? Visibility.Visible : Visibility.Collapsed;
             if (_updatingRemap) return;
             _remap.RightCurve = curve;
@@ -684,18 +750,6 @@ namespace HidusbfModernGui
             _remap.RightCurvaturePct = (int)Math.Round(RightCurvaturaSlider.Value);
             RedrawRightCurve();
             RememberRemap();
-        }
-
-        // Resalta el boton de la curva activa reusando BorderBrush (el mismo tono que el
-        // hover de InstrumentButton) en vez de inventar un color nuevo.
-        private void SetCurveButtonsVisual(Button precisa, Button normal, Button rapida, Button personalizada, ResponseCurve active)
-        {
-            var selectedBrush = (Brush)FindResource("BorderBrush");
-            var idleBrush = (Brush)FindResource("SurfaceAltBrush");
-            precisa.Background = active == ResponseCurve.Precisa ? selectedBrush : idleBrush;
-            normal.Background = active == ResponseCurve.Normal ? selectedBrush : idleBrush;
-            rapida.Background = active == ResponseCurve.Rapida ? selectedBrush : idleBrush;
-            personalizada.Background = active == ResponseCurve.Personalizada ? selectedBrush : idleBrush;
         }
 
         private void ToggleLeftAdvanced(object sender, RoutedEventArgs e)
@@ -737,19 +791,19 @@ namespace HidusbfModernGui
         // Dibuja la curva de respuesta muestreando InputTransform.ApplyStick sobre un stick
         // puramente horizontal (Y=0): la salida en X para cada entrada t en 0..1 es
         // exactamente lo que el usuario siente al empujar el stick en una direccion. Sin
-        // hardware ni mock: es la misma funcion pura que usara el motor. Se pasa el exponente
-        // ya resuelto (no el enum ResponseCurve) para que un mismo camino cubra tanto los
-        // presets fijos como Personalizada, cuyo exponente sale del % de curvatura elegido.
+        // hardware ni mock: es la misma funcion pura que usara el motor. Pasa curve+curvaturePct
+        // directo al overload de ApplyStick que usa Shape, asi que cubre las 6 curvas (incluidas
+        // la S de Dinamica y el escalon de Digital), no solo las de exponente fijo.
         private const int CurveSamples = 41;
 
         private static void DrawCurve(System.Windows.Shapes.Polyline line, double innerDeadzone,
-            double outerDeadzone, double exponent, double width, double height)
+            double outerDeadzone, ResponseCurve curve, int curvaturePct, double width, double height)
         {
             var points = new PointCollection();
             for (int i = 0; i < CurveSamples; i++)
             {
                 double t = i / (double)(CurveSamples - 1);
-                var (x, _) = InputTransform.ApplyStick(new StickInput(t, 0), innerDeadzone, outerDeadzone, exponent);
+                var (x, _) = InputTransform.ApplyStick(new StickInput(t, 0), innerDeadzone, outerDeadzone, curve, curvaturePct);
                 points.Add(new Point(t * width, height - (x * height)));
             }
             line.Points = points;
@@ -762,14 +816,14 @@ namespace HidusbfModernGui
         {
             if (LeftCurveLine == null || LeftCurveCanvas == null) return;
             DrawCurve(LeftCurveLine, _remap.LeftInnerDeadzone, _remap.LeftOuterDeadzone,
-                _remap.LeftCurveExponent, LeftCurveCanvas.Width, LeftCurveCanvas.Height);
+                _remap.LeftCurve, _remap.LeftCurvaturePct, LeftCurveCanvas.Width, LeftCurveCanvas.Height);
         }
 
         private void RedrawRightCurve()
         {
             if (RightCurveLine == null || RightCurveCanvas == null) return;
             DrawCurve(RightCurveLine, _remap.RightInnerDeadzone, _remap.RightOuterDeadzone,
-                _remap.RightCurveExponent, RightCurveCanvas.Width, RightCurveCanvas.Height);
+                _remap.RightCurve, _remap.RightCurvaturePct, RightCurveCanvas.Width, RightCurveCanvas.Height);
         }
 
         // Copia profunda: RemapProfile.Settings no debe compartir instancia con _remap, o

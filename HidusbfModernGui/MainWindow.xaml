@@ -513,14 +513,8 @@
                                                                         <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                                                                             <TextBlock Text="RESPUESTA" Style="{StaticResource FieldLabel}"
                                                                                        VerticalAlignment="Center" Width="100"/>
-                                                                            <Button x:Name="LeftCurvePrecisaBtn" Content="PRECISA" Style="{StaticResource InstrumentButton}"
-                                                                                    Tag="{x:Static local:ResponseCurve.Precisa}" Click="LeftCurve_Click" Margin="0,0,8,0"/>
-                                                                            <Button x:Name="LeftCurveNormalBtn" Content="NORMAL" Style="{StaticResource InstrumentButton}"
-                                                                                    Tag="{x:Static local:ResponseCurve.Normal}" Click="LeftCurve_Click" Margin="0,0,8,0"/>
-                                                                            <Button x:Name="LeftCurveRapidaBtn" Content="RAPIDA" Style="{StaticResource InstrumentButton}"
-                                                                                    Tag="{x:Static local:ResponseCurve.Rapida}" Click="LeftCurve_Click" Margin="0,0,8,0"/>
-                                                                            <Button x:Name="LeftCurvePersonalizadaBtn" Content="PERSONALIZADA" Style="{StaticResource InstrumentButton}"
-                                                                                    Tag="{x:Static local:ResponseCurve.Personalizada}" Click="LeftCurve_Click"/>
+                                                                            <ComboBox x:Name="LeftCurveList" Width="190"
+                                                                                      SelectionChanged="LeftCurve_Changed"/>
                                                                         </StackPanel>
 
                                                                         <StackPanel x:Name="LeftCurvaturaPanel" Visibility="Collapsed" Margin="0,12,0,0">
@@ -579,14 +573,8 @@
                                                                         <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                                                                             <TextBlock Text="RESPUESTA" Style="{StaticResource FieldLabel}"
                                                                                        VerticalAlignment="Center" Width="100"/>
-                                                                            <Button x:Name="RightCurvePrecisaBtn" Content="PRECISA" Style="{StaticResource InstrumentButton}"
-                                                                                    Tag="{x:Static local:ResponseCurve.Precisa}" Click="RightCurve_Click" Margin="0,0,8,0"/>
-                                                                            <Button x:Name="RightCurveNormalBtn" Content="NORMAL" Style="{StaticResource InstrumentButton}"
-                                                                                    Tag="{x:Static local:ResponseCurve.Normal}" Click="RightCurve_Click" Margin="0,0,8,0"/>
-                                                                            <Button x:Name="RightCurveRapidaBtn" Content="RAPIDA" Style="{StaticResource InstrumentButton}"
-                                                                                    Tag="{x:Static local:ResponseCurve.Rapida}" Click="RightCurve_Click" Margin="0,0,8,0"/>
-                                                                            <Button x:Name="RightCurvePersonalizadaBtn" Content="PERSONALIZADA" Style="{StaticResource InstrumentButton}"
-                                                                                    Tag="{x:Static local:ResponseCurve.Personalizada}" Click="RightCurve_Click"/>
+                                                                            <ComboBox x:Name="RightCurveList" Width="190"
+                                                                                      SelectionChanged="RightCurve_Changed"/>
                                                                         </StackPanel>
 
                                                                         <StackPanel x:Name="RightCurvaturaPanel" Visibility="Collapsed" Margin="0,12,0,0">
