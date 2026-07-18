@@ -546,8 +546,8 @@
                                                      continuous speed slider would promise rates it cannot keep:
                                                      the old 30/s default really ran at 21.4/s. Every stop here is
                                                      a rate the timer actually delivers. -->
-                                                <Slider x:Name="RainbowSpeed" Minimum="1" Maximum="12" Value="3" Width="130"
-                                                        IsDirectionReversed="True" IsSnapToTickEnabled="True" TickFrequency="1"
+                                                <Slider x:Name="RainbowSpeed" Minimum="5" Maximum="180" Value="64" Width="130"
+                                                        IsSnapToTickEnabled="True" TickFrequency="1"
                                                         VerticalAlignment="Center" ValueChanged="RainbowSpeed_Changed"/>
                                                 <TextBlock x:Name="RainbowSpeedText" Text="" Style="{StaticResource DataText}"
                                                            VerticalAlignment="Center" Margin="8,0,0,0"/>

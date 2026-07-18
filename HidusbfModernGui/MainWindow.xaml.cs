@@ -482,7 +482,7 @@ namespace HidusbfModernGui
                 if (RainbowStyleList.SelectedItem == null) return;
                 var style = (RainbowStyle)((ComboBoxItem)RainbowStyleList.SelectedItem).Tag;
                 var lit = CurrentLight();
-                intent = LightIntent.FromRainbow(style, (int)RainbowSpeed.Value, player, brightness);
+                intent = LightIntent.FromRainbow(style, (int)Math.Round(TargetColoursPerSecond), player, brightness);
                 intent.R = lit.R; intent.G = lit.G; intent.B = lit.B;
             }
             else
@@ -608,7 +608,7 @@ namespace HidusbfModernGui
                 // only way to go faster. Apply() measures 1.0 ms against the 15.625 ms floor, so
                 // even the fastest stop (n=1, 64 colours/s) costs ~6% of one core.
                 _rainbowTimer ??= new DispatcherTimer(DispatcherPriority.Render);
-                _rainbowTimer.Interval = RainbowWalker.IntervalFor(TicksPerColour);
+                _rainbowTimer.Interval = RainbowWalker.IntervalFor(TargetColoursPerSecond);
                 _rainbowTimer.Tick -= Rainbow_Tick;
                 _rainbowTimer.Tick += Rainbow_Tick;
                 _rainbowTimer.Start();
@@ -629,7 +629,7 @@ namespace HidusbfModernGui
             _rainbowWalker ??= new RainbowWalker(CurrentRainbowStyle);
 
             // No clock, no elapsed time, no arithmetic. One tick, one colour.
-            var (r, g, b) = _rainbowWalker.Step();
+            var (r, g, b) = _rainbowWalker.Advance(RainbowWalker.SpeedPlan(TargetColoursPerSecond).coloursPerTick);
 
             // The picker follows the effect so the UI shows what the pad is doing. _updatingLight
             // stops that from bouncing back through Picker_ColorChanged and killing the effect on
@@ -648,14 +648,14 @@ namespace HidusbfModernGui
             DualSenseLight.Apply(model.InstanceId, state);
         }
 
-        private int TicksPerColour => (int)RainbowSpeed.Value;
+        private double TargetColoursPerSecond => RainbowSpeed.Value;
 
         // Speed is the tick's period, so a drag has to retune the live timer - there is no
         // longer a speed term inside the tick that would pick the change up on its own.
         private void RainbowSpeed_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (_rainbowTimer != null)
-                _rainbowTimer.Interval = RainbowWalker.IntervalFor(TicksPerColour);
+                _rainbowTimer.Interval = RainbowWalker.IntervalFor(TargetColoursPerSecond);
             UpdateRainbowSpeedText();
             RememberLight();
         }
@@ -667,7 +667,9 @@ namespace HidusbfModernGui
             if (RainbowSpeedText == null || RainbowSpeed == null) return;
 
             var walker = new RainbowWalker(CurrentRainbowStyle);
-            RainbowSpeedText.Text = $"{RainbowWalker.ColoursPerSecond(TicksPerColour):0.#}/s · vuelta {walker.CycleSeconds(TicksPerColour):0.#} s";
+            double actual = RainbowWalker.ActualColoursPerSecond(TargetColoursPerSecond);
+            string suffix = RainbowWalker.ShowsEveryColour(TargetColoursPerSecond) ? "" : " · varios colores/cuadro";
+            RainbowSpeedText.Text = $"{actual:0.#}/s · vuelta {walker.CycleSeconds(TargetColoursPerSecond):0.#} s{suffix}";
         }
 
         private void LoadProfiles()
