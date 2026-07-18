@@ -30,12 +30,25 @@ namespace HidusbfModernGui
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            // Guard de arranque (Task 6/14): si un run anterior murio con el DualSense
+            // oculto por HidHide, re-mostrarlo ahora para no dejar el mando "desaparecido".
+            // Best-effort y silencioso: nunca debe impedir que la app abra.
+            try { new HidHideControl().ShowAllDualSense(); } catch { }
+
             BuildHeaderSpectrum();
             BuildLoadingIndicator();
             RefreshStatus();
             RefreshDevicesList();
             BuildRemapControls();
             _isInitializing = false;
+        }
+
+        // Nunca cerrar la app con el fisico todavia oculto: si el spike sigue activo,
+        // detenerlo (muestra el fisico, quita el virtual) antes de salir.
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            if (_spikeRunning) { try { StopSpike(); } catch { } }
+            base.OnClosing(e);
         }
 
         private const int WM_DEVICECHANGE = 0x0219;
@@ -349,6 +362,126 @@ namespace HidusbfModernGui
             TabGatillos.Visibility = Visibility.Collapsed;
             TabTouchpad.Visibility = Visibility.Collapsed;
             TabBotones.Visibility = Visibility.Visible;
+        }
+
+        // ===== SPIKE (Task 6): passthrough fisico -> DS4 virtual con HidHide =====
+        //
+        // Temporal y claramente etiquetado. Prueba la fontaneria de la Fase 2: leer el
+        // DualSense (DualSenseReader), reflejarlo en un DS4 virtual (VirtualPad/ViGEm) y
+        // ocultar el fisico (HidHideControl). SIN transformacion: copia 1:1. El motor real
+        // con curvas/remapeo (RemapEngine, Task 7) y el interruptor maestro (Task 14)
+        // llegan despues; esto solo demuestra que las tres piezas hablan con el hardware.
+        private DualSenseReader? _spikeReader;
+        private VirtualPad? _spikeVirtual;
+        private HidHideControl? _spikeHidHide;
+        private DispatcherTimer? _spikeTimer;
+        private bool _spikeRunning;
+        private int _spikeTick;
+        private string? _spikeHideError;
+
+        private void SpikeToggle_Click(object sender, RoutedEventArgs e)
+        {
+            if (_spikeRunning) StopSpike();
+            else StartSpike();
+        }
+
+        private void StartSpike()
+        {
+            _spikeVirtual = new VirtualPad();
+            _spikeReader = new DualSenseReader();
+            _spikeHidHide = new HidHideControl();
+
+            // Orden de seguridad al arrancar: el virtual PRIMERO (para que el juego nunca
+            // se quede sin ningun mando), luego el lector, y solo al final ocultar.
+            var v = _spikeVirtual.Connect();
+            if (!v.Success)
+            {
+                SpikeStatusText.Text = "Error creando el DS4 virtual: " + v.Error;
+                CleanupSpike();
+                return;
+            }
+
+            var r = _spikeReader.Start();
+            if (!r.Success)
+            {
+                SpikeStatusText.Text = "Error leyendo el DualSense: " + r.Error;
+                _spikeVirtual.Disconnect();
+                CleanupSpike();
+                return;
+            }
+
+            // Ocultar es best-effort: si falla, el fisico simplemente queda VISIBLE (el
+            // estado seguro) y el spike igual prueba lector + virtual. Se muestra el error.
+            string exe = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName
+                         ?? System.Reflection.Assembly.GetExecutingAssembly().Location;
+            var h = _spikeHidHide.HideDualSense(exe, _spikeReader.DevicePath ?? "");
+            _spikeHideError = h.Success ? null : h.Error;
+
+            _spikeRunning = true;
+            _spikeTick = 0;
+            SpikeToggleBtn.Content = "DETENER PASSTHROUGH (spike)";
+
+            _spikeTimer = new DispatcherTimer(DispatcherPriority.Render)
+            {
+                Interval = TimeSpan.FromMilliseconds(8)
+            };
+            _spikeTimer.Tick += SpikeTick;
+            _spikeTimer.Start();
+            UpdateSpikeStatus();
+        }
+
+        private void SpikeTick(object? sender, EventArgs e)
+        {
+            var reader = _spikeReader;
+            var virt = _spikeVirtual;
+            if (!_spikeRunning || reader == null || virt == null) return;
+            virt.Push(reader.Snapshot());   // sin transformacion: passthrough puro 1:1
+            if (++_spikeTick % 15 == 0) UpdateSpikeStatus();
+        }
+
+        private void UpdateSpikeStatus()
+        {
+            if (_spikeReader == null || _spikeVirtual == null || _spikeHidHide == null) return;
+            string fisico = _spikeHidHide.IsHiding ? "fisico OCULTO" : "fisico visible";
+            string virt = _spikeVirtual.Connected ? "virtual ACTIVO" : "virtual inactivo";
+            string reportes = $"{_spikeReader.ReportsRead} reportes leidos";
+            string extra = _spikeHideError == null ? "" : $"  (HidHide no oculto: {_spikeHideError})";
+            SpikeStatusText.Text = $"{fisico} / {virt} / {reportes}{extra}";
+        }
+
+        private void StopSpike()
+        {
+            if (_spikeTimer != null)
+            {
+                _spikeTimer.Stop();
+                _spikeTimer.Tick -= SpikeTick;
+                _spikeTimer = null;
+            }
+            _spikeRunning = false;
+
+            // Orden de seguridad al detener: MOSTRAR el fisico primero (revert de HidHide),
+            // luego parar el lector y desconectar el virtual. Asi nunca queda una ventana
+            // sin ningun mando.
+            string? revertErr = null;
+            try { revertErr = _spikeHidHide?.Revert().Error; }
+            catch (Exception ex) { revertErr = ex.Message; }
+            try { _spikeReader?.Stop(); } catch { }
+            try { _spikeVirtual?.Disconnect(); } catch { }
+
+            SpikeToggleBtn.Content = "PROBAR PASSTHROUGH (spike)";
+            SpikeStatusText.Text = revertErr == null
+                ? "Detenido. El fisico volvio; el juego ve tu DualSense nativo."
+                : $"Detenido (revert parcial: {revertErr}). Revisa joy.cpl.";
+            CleanupSpike();
+        }
+
+        private void CleanupSpike()
+        {
+            _spikeReader = null;
+            _spikeVirtual = null;
+            _spikeHidHide = null;
+            _spikeHideError = null;
+            _spikeRunning = false;
         }
 
         // ===== Configurador del mando: edita _remap y persiste via perfiles (Task 4) =====

@@ -721,6 +721,24 @@
                                                             </StackPanel>
                                                         </StackPanel>
                                                     </Border>
+
+                                                    <!-- SPIKE (Task 6): passthrough fisico -> DS4 virtual con HidHide.
+                                                         Temporal y claramente etiquetado. Sin transformacion: copia el
+                                                         estado leido 1:1 al virtual para probar la fontaneria (lector +
+                                                         ViGEm + HidHide). El interruptor maestro real llega en Task 14. -->
+                                                    <TextBlock Text="PRUEBA DE FONTANERIA (SPIKE)" Style="{StaticResource SectionHeading}" Margin="0,20,0,0"/>
+                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                            BorderThickness="1" Padding="18" Margin="0,8,0,0">
+                                                        <StackPanel>
+                                                            <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,0,0,12"
+                                                                       Text="Prueba tecnica: oculta el DualSense fisico (HidHide), crea un DS4 virtual (ViGEm) y copia lo leido 1:1 (sin curvas ni remapeo). Sirve para verificar que la lectura, el mando virtual y el ocultamiento funcionan. Al detener, el fisico vuelve al instante."/>
+                                                            <Button x:Name="SpikeToggleBtn" Content="PROBAR PASSTHROUGH (spike)"
+                                                                    Style="{StaticResource InstrumentButton}" HorizontalAlignment="Left"
+                                                                    Click="SpikeToggle_Click"/>
+                                                            <TextBlock x:Name="SpikeStatusText" Style="{StaticResource DataText}" TextWrapping="Wrap"
+                                                                       Margin="0,12,0,0" Text="Detenido. El juego ve tu DualSense nativo."/>
+                                                        </StackPanel>
+                                                    </Border>
                                                 </StackPanel>
                                             </Grid>
                                         </ScrollViewer>
