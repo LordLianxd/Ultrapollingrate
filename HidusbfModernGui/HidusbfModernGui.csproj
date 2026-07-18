@@ -17,6 +17,12 @@
 
   <ItemGroup>
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.10" />
+    <!-- Controller-remapper engine (Task 5): virtual DS4 (ViGEm), hide the physical
+         pad (HidHide), read the physical HID (HidSharp). Versions are the latest
+         stable resolved from nuget.org at the time this was added. -->
+    <PackageReference Include="Nefarius.ViGEm.Client" Version="1.21.256" />
+    <PackageReference Include="Nefarius.Drivers.HidHide" Version="3.4.0" />
+    <PackageReference Include="HidSharp" Version="2.6.4" />
   </ItemGroup>
 
   <ItemGroup>
