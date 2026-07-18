@@ -412,10 +412,12 @@ namespace HidusbfModernGui
                     RainbowSpeed.Value = Math.Clamp(saved.RainbowColoursPerSecond,
                         (int)RainbowWalker.MinColoursPerSecond, (int)RainbowWalker.MaxColoursPerSecond);
                     SelectComboByTag(PlayerEffectList, saved.PlayerEffect);
-                    PlayerLedList.IsEnabled = saved.PlayerEffect == PlayerLedEffect.None;
                     PlayerSpeed.Value = Math.Clamp(saved.PlayerEffectFps, 2, 20);
-                    PlayerSpeed.IsEnabled = saved.PlayerEffect != PlayerLedEffect.None;
                 }
+                // Con o sin intencion guardada (p.ej. primer arranque), la barra de velocidad y la
+                // seleccion fija de Player dependen solo de si hay un efecto de LED activo.
+                PlayerSpeed.IsEnabled = PlayerEffectOn;
+                PlayerLedList.IsEnabled = !PlayerEffectOn;
 
                 // Presets cover the common case in one click. "Apagado" belongs here: turning the
                 // light off is a preference, not an error state.
@@ -734,7 +736,14 @@ namespace HidusbfModernGui
                 _playerWalker ??= new PlayerLedWalker(CurrentPlayerEffect);
                 double frameMs = 1000.0 / PlayerEffectFps;
                 _playerFrameAccumMs += _rainbowTimer!.Interval.TotalMilliseconds;
-                if (_playerFrameAccumMs >= frameMs) { _playerFrameAccumMs -= frameMs; _playerFrameIndex++; }
+                // Recuperar TODOS los frames vencidos, no solo uno: si el tick del rainbow es mas
+                // lento que 1/fps, un solo paso acumularia deuda sin fin (camara lenta + rafaga al
+                // reajustar). Avanzar el indice por los frames enteros vencidos y guardar el resto.
+                if (_playerFrameAccumMs >= frameMs)
+                {
+                    _playerFrameIndex += (int)(_playerFrameAccumMs / frameMs);
+                    _playerFrameAccumMs %= frameMs;
+                }
                 player = (PlayerLeds)_playerWalker.MaskAt(_playerFrameIndex);
             }
             else
