@@ -663,6 +663,10 @@ namespace HidusbfModernGui
             {
                 _rainbowTimer?.Stop();
             }
+            // Con el rainbow activo el color lo maneja el efecto: deshabilitar todo el apartado
+            // COLOR para que no se pueda editar. El selector sigue mostrando el color animado
+            // (solo lectura) porque IsEnabled=false no bloquea los cambios por codigo del tick.
+            if (ColorSection != null) ColorSection.IsEnabled = RainbowCheck.IsChecked != true;
             RememberLight();
         }
 
