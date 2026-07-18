@@ -47,4 +47,13 @@ public class PlayerLedWalkerTests
         Assert.True(PlayerLedWalker.FrameMsFor(PlayerLedEffect.Charge) > 0);
         Assert.True(PlayerLedWalker.FrameMsFor(PlayerLedEffect.Twinkle) > 0);
     }
+
+    [Fact]
+    public void Breathe_ExpandsFromCentreAndContracts()
+    {
+        var w = new PlayerLedWalker(PlayerLedEffect.Breathe);
+        Assert.Equal(new byte[] { 0, 4, 14, 31, 14, 4 },
+            new[] { w.MaskAt(0), w.MaskAt(1), w.MaskAt(2), w.MaskAt(3), w.MaskAt(4), w.MaskAt(5) });
+        Assert.Equal(w.MaskAt(0), w.MaskAt(6)); // wrap
+    }
 }

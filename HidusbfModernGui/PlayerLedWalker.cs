@@ -5,7 +5,7 @@ namespace HidusbfModernGui
     // Efectos animados de las 5 luces de jugador. Cada luz es un bit del mask de 5 bits que
     // va en el byte 44 del reporte 0x02 (bit0 = izquierda .. bit4 = derecha). No es color:
     // son las luces blancas bajo el touchpad. La animacion es una secuencia de masks en bucle.
-    public enum PlayerLedEffect { None, Charge, Twinkle }
+    public enum PlayerLedEffect { None, Charge, Twinkle, Breathe }
 
     public sealed class PlayerLedWalker
     {
@@ -39,6 +39,8 @@ namespace HidusbfModernGui
             PlayerLedEffect.Charge => (new byte[] { 17, 27, 10, 0 }, 180),
             // Una sola luz que barre de izquierda a derecha y vuelve (tipo estrellas/knight-rider).
             PlayerLedEffect.Twinkle => (new byte[] { 1, 2, 4, 8, 16, 8, 4, 2 }, 110),
+            // Centro hacia afuera y de vuelta: respiracion simetrica.
+            PlayerLedEffect.Breathe => (new byte[] { 0, 4, 14, 31, 14, 4 }, 140),
             _ => (Array.Empty<byte>(), 150),
         };
     }
