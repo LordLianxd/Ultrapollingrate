@@ -204,7 +204,7 @@ git -c user.name="UltraPolling" -c user.email="calizayacristhian96@gmail.com" co
 - Test: `HidusbfModernGui.Tests/LightIntentTests.cs`
 
 **Interfaces:**
-- Renames: la propiedad `int TicksPerColour` (default 3) pasa a `int RainbowColoursPerSecond` (default 30). `FromRainbow(RainbowStyle, int ticksPerColour, ...)` pasa a `FromRainbow(RainbowStyle style, int coloursPerSecond, PlayerLeds player, LedBrightness brightness)`.
+- Renames: la propiedad `int TicksPerColour` (default 3) pasa a `int RainbowColoursPerSecond` (default 64 — la base "cada color", desde donde el usuario va más lento o más rápido). `FromRainbow(RainbowStyle, int ticksPerColour, ...)` pasa a `FromRainbow(RainbowStyle style, int coloursPerSecond, PlayerLeds player, LedBrightness brightness)`.
 
 - [ ] **Step 1: Actualizar los tests (fallan)**
 
@@ -226,7 +226,7 @@ Expected: FALLA de compilación (`TicksPerColour`/firma vieja no existen).
 En `HidusbfModernGui/LightIntent.cs`:
 - Cambiar la propiedad:
 ```csharp
-        public int RainbowColoursPerSecond { get; set; } = 30;
+        public int RainbowColoursPerSecond { get; set; } = 64;
 ```
 (borrar `public int TicksPerColour { get; set; } = 3;`)
 - Cambiar el comentario que mencione "TicksPerColour" si lo hay.
@@ -268,11 +268,11 @@ git -c user.name="UltraPolling" -c user.email="calizayacristhian96@gmail.com" co
 
 Reemplazar el `<Slider x:Name="RainbowSpeed" .../>` (~L549-551) por:
 ```xml
-                                                <Slider x:Name="RainbowSpeed" Minimum="5" Maximum="180" Value="30" Width="130"
+                                                <Slider x:Name="RainbowSpeed" Minimum="5" Maximum="180" Value="64" Width="130"
                                                         IsSnapToTickEnabled="True" TickFrequency="1"
                                                         VerticalAlignment="Center" ValueChanged="RainbowSpeed_Changed"/>
 ```
-(quitar `IsDirectionReversed="True"`: ahora mayor = más rápido de forma natural.)
+(quitar `IsDirectionReversed="True"`: ahora mayor = más rápido de forma natural. Base 64 = "cada color"; a la izquierda más lento, a la derecha hasta 180 más rápido.)
 
 - [ ] **Step 2: Ajustar el code-behind**
 
@@ -427,10 +427,53 @@ git -c user.name="UltraPolling" -c user.email="calizayacristhian96@gmail.com" co
 
 ---
 
+### Task 5: Grabar la intención al instante al cerrar (blindaje)
+
+**Files:**
+- Modify: `HidusbfModernGui/MainWindow.xaml.cs` (CloseButton_Click, ~L210)
+
+Contexto: `RememberLight()` guarda con un retardo de 750 ms (`_intentSave`). Si el usuario cambia algo y cierra la app dentro de esa ventana, el `Tick` nunca dispara y el último cambio se pierde. Verificado que `CloseButton_Click` hace `_meter.Dispose()` + `Application.Current.Shutdown()` sin vaciar el guardado pendiente.
+
+**Interfaces:**
+- Consumes: `_intentSave` (DispatcherTimer, de la Task B2 del plan anterior), `_lastIntent` (LightIntent?), `IntentStore.Save`.
+
+- [ ] **Step 1: Vaciar el guardado pendiente antes de cerrar**
+
+En `CloseButton_Click`, ANTES de `_meter.Dispose();` (~L216), añadir:
+
+```csharp
+            // Si hay un guardado con debounce pendiente, escribirlo YA: cerrar dentro de la
+            // ventana de 750 ms no debe perder el ultimo color/player que eligio el usuario.
+            if (_intentSave != null && _intentSave.IsEnabled && _lastIntent != null)
+            {
+                _intentSave.Stop();
+                IntentStore.Save(_lastIntent);
+            }
+```
+
+- [ ] **Step 2: Build**
+
+Run: `dotnet build HidusbfModernGui/HidusbfModernGui.csproj -v q`
+Expected: `Build succeeded. 0 Error(s)`.
+
+- [ ] **Step 3: Verificación manual**
+
+Cambiar el player y cerrar de inmediato (sin esperar); reabrir → el cambio debe estar (junto con la Task 4, la UI lo muestra).
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add HidusbfModernGui/MainWindow.xaml.cs
+git -c user.name="UltraPolling" -c user.email="calizayacristhian96@gmail.com" commit -m "fix: grabar la intencion de luz al instante al cerrar (no perder el ultimo cambio)"
+```
+
+---
+
 ## Self-Review
 
 **Cobertura de lo reportado por el usuario:**
-- "No vuelve el número de jugador" → Task 4 (la UI se inicializa desde la intención). ✓
+- "No vuelve el número de jugador / no guarda el color" → el dato SÍ se guarda (verificado en active.json); el bug es que la UI no lo lee al abrir → Task 4 (la UI se inicializa desde la intención) + Task 5 (blindaje: no perder un cambio si se cierra rápido). ✓
+- Velocidad "base 64, luego rápido hasta 180" → default del slider y de la intención = 64; rango 5–180. Tasks 1–3. ✓
 - "La velocidad debe llegar hasta 180" → Tasks 1–3 (colores/s hasta 180, honesto). ✓
 - "Los perfiles sí se aplican" → sin cambios (ya funciona). ✓
 - Confusión del exe (bin\Debug vs dist) → aclarada en Global Constraints; no requiere código. ✓
