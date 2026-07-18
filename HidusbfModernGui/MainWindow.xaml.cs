@@ -213,6 +213,15 @@ namespace HidusbfModernGui
             // out could veto a later CM_Query_And_Remove_SubTree on that device.
             _meterTimer?.Stop();
             _rainbowTimer?.Stop();
+
+            // Si hay un guardado con debounce pendiente, escribirlo YA: cerrar dentro de la
+            // ventana de 750 ms no debe perder el ultimo color/player que eligio el usuario.
+            if (_intentSave != null && _intentSave.IsEnabled && _lastIntent != null)
+            {
+                _intentSave.Stop();
+                IntentStore.Save(_lastIntent);
+            }
+
             _meter.Dispose();
             Application.Current.Shutdown();
         }
