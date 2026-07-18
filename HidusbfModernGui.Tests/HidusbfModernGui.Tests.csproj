@@ -27,6 +27,8 @@
     <Compile Include="..\HidusbfModernGui\RainbowWalker.cs" Link="RainbowWalker.cs" />
     <Compile Include="..\HidusbfModernGui\LightIntent.cs" Link="LightIntent.cs" />
     <Compile Include="..\HidusbfModernGui\PlayerLedWalker.cs" Link="PlayerLedWalker.cs" />
+    <Compile Include="..\HidusbfModernGui\ControllerState.cs" Link="ControllerState.cs" />
+    <Compile Include="..\HidusbfModernGui\InputTransform.cs" Link="InputTransform.cs" />
   </ItemGroup>
 
 </Project>
