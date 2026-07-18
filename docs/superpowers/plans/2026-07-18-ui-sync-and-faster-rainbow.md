@@ -483,7 +483,7 @@ git -c user.name="UltraPolling" -c user.email="calizayacristhian96@gmail.com" co
 **Consistencia de tipos:** `Advance(double)`, `SpeedPlan(double)`, `IntervalFor(double)`, `ActualColoursPerSecond(double)`, `CycleSeconds(double)`, `ShowsEveryColour(double)` (Task 1) usados en Task 3. `LightIntent.RainbowColoursPerSecond` + `FromRainbow(style, coloursPerSecond, player, brightness)` (Task 2) usados en Task 3 (RememberLight) y Task 4 (init UI). `TargetColoursPerSecond` reemplaza a `TicksPerColour` en todos sus usos.
 
 **Riesgos señalados para el review:**
-- Migración de `active.json` viejo: un archivo guardado por la versión anterior tiene la clave `TicksPerColour`, que ya no existe. `Load()` la ignora y `RainbowColoursPerSecond` toma su default (30). Aceptable en beta; documentado.
+- Migración de `active.json` viejo: un archivo guardado por la versión anterior tiene la clave `TicksPerColour`, que ya no existe. `Load()` la ignora y `RainbowColoursPerSecond` toma su default (64). Aceptable en beta; documentado.
 - Honestidad de la velocidad: >64/s ya NO muestra cada color (micro-avances de ≤3 unidades). Decisión consciente del usuario; el label lo indica con "varios colores/cuadro".
 - `BuildLightControls` corre una vez (guard `Items.Count > 0`); llama `IntentStore.Load()` dos veces (Step 1 y Step 2) — barato (lectura de un JSON pequeño una sola vez por sesión). Un reviewer puede unificarlo en una variable si prefiere.
 

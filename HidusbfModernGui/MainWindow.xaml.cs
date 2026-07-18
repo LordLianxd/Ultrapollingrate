@@ -307,8 +307,9 @@ namespace HidusbfModernGui
         // Set while code (not the user) moves a control, so programmatic updates do not write.
         private bool _updatingLight;
 
-        // Drives the rainbow effect: each tick steps the walker exactly one colour, so
-        // speed is how often the timer fires, never how far a step jumps.
+        // Drives the rainbow effect. Speed is in colours/second: at or below 64/s the timer
+        // fires once per colour; above 64/s it fires at the timer floor and each tick advances
+        // a fractional number of colours (still smooth, since ramp colours differ by <=1).
         private DispatcherTimer? _rainbowTimer;
         private RainbowWalker? _rainbowWalker;
         private List<LightProfile> _profiles = new List<LightProfile>();
@@ -647,9 +648,10 @@ namespace HidusbfModernGui
                 // 3 made it 7). The walker cannot jump, but a starved tick still costs speed,
                 // so the priority still matters.
                 //
-                // The interval IS the speed: one colour per tick, so firing more often is the
-                // only way to go faster. Apply() measures 1.0 ms against the 15.625 ms floor, so
-                // even the fastest stop (n=1, 64 colours/s) costs ~6% of one core.
+                // Speed is colours/second: up to 64/s the timer fires once per colour; above that
+                // it fires at the 15.625 ms floor and advances several colours per tick. Apply()
+                // measures 1.0 ms against that floor, so writes stay at ~64/s (~6% of one core)
+                // even at full speed - the extra speed comes from bigger steps, not more writes.
                 _rainbowTimer ??= new DispatcherTimer(DispatcherPriority.Render);
                 _rainbowTimer.Interval = RainbowWalker.IntervalFor(TargetColoursPerSecond);
                 _rainbowTimer.Tick -= Rainbow_Tick;
@@ -671,7 +673,8 @@ namespace HidusbfModernGui
             // Rebuilt lazily because a style change drops it: each style has its own ramp.
             _rainbowWalker ??= new RainbowWalker(CurrentRainbowStyle);
 
-            // No clock, no elapsed time, no arithmetic. One tick, one colour.
+            // No clock, no elapsed time, no time-based catch-up. Each tick advances by SpeedPlan's
+            // colours-per-tick (1 at or below 64/s; a fractional value >1 above it).
             var (r, g, b) = _rainbowWalker.Advance(RainbowWalker.SpeedPlan(TargetColoursPerSecond).coloursPerTick);
 
             // The picker follows the effect so the UI shows what the pad is doing. _updatingLight
