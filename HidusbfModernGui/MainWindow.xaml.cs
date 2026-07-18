@@ -401,6 +401,8 @@ namespace HidusbfModernGui
                     SelectComboByTag(RainbowStyleList, saved.Style);
                     RainbowSpeed.Value = Math.Clamp(saved.RainbowColoursPerSecond,
                         (int)RainbowWalker.MinColoursPerSecond, (int)RainbowWalker.MaxColoursPerSecond);
+                    SelectComboByTag(PlayerEffectList, saved.PlayerEffect);
+                    PlayerLedList.IsEnabled = saved.PlayerEffect == PlayerLedEffect.None;
                 }
 
                 // Presets cover the common case in one click. "Apagado" belongs here: turning the
@@ -445,6 +447,13 @@ namespace HidusbfModernGui
             if (savedIntent?.Kind == LightIntentKind.Rainbow && RainbowCheck.IsChecked != true)
             {
                 RainbowCheck.IsChecked = true;
+            }
+
+            if (savedIntent != null && savedIntent.PlayerEffect != PlayerLedEffect.None)
+            {
+                _playerWalker = new PlayerLedWalker(savedIntent.PlayerEffect);
+                _playerFrameIndex = 0; _playerFrameAccumMs = 0;
+                UpdateEffectDriver();
             }
         }
 
@@ -553,6 +562,8 @@ namespace HidusbfModernGui
             {
                 intent = LightIntent.FromStatic(CurrentLight());
             }
+
+            intent.PlayerEffect = CurrentPlayerEffect;
 
             if (_intentSave == null)
             {
