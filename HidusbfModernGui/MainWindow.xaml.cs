@@ -297,7 +297,21 @@ namespace HidusbfModernGui
         private void LightNavBtn_Click(object sender, RoutedEventArgs e)
         {
             MainTabControl.SelectedIndex = 2;
-            RefreshPlayStationDevices();
+            ShowConfigPanel(this, null!);
+        }
+
+        // Sub-nav del hub "Mando": Configurar el mando (por defecto) | Luces del mando.
+        private void ShowConfigPanel(object sender, RoutedEventArgs e)
+        {
+            ConfigPanel.Visibility = Visibility.Visible;
+            LucesPanel.Visibility = Visibility.Collapsed;
+        }
+
+        private void ShowLucesPanel(object sender, RoutedEventArgs e)
+        {
+            ConfigPanel.Visibility = Visibility.Collapsed;
+            LucesPanel.Visibility = Visibility.Visible;
+            RefreshPlayStationDevices();   // igual que hoy al entrar a la luz
         }
 
         // Collapses a slider drag into one write. Without it, dragging fires a HID write per

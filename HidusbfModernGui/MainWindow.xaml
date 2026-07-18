@@ -446,16 +446,35 @@
 
                         <!-- PAGE 2: CONTROLLER LIGHT -->
                         <TabItem Header="Light">
-                            <!-- Two columns AND a scroller. The columns are what make it fit; the
-                                 scroller is the net. Without one, this page has already dropped
-                                 RESTAURAR and the anti-cheat warning off the bottom twice - once
-                                 as a single column, and again the moment the EFECTO card grew two
-                                 rows. Content that overflows must be reachable, not gone. -->
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                            <Grid Margin="24">
-                                <!-- Empty state. A page of dead sliders would imply the feature is broken
-                                     rather than inapplicable. -->
-                                <StackPanel x:Name="LightEmptyState" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Sub-nav del hub "Mando": Configurar el mando (por defecto) | Luces del mando. -->
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="24,16,24,0">
+                                    <Button x:Name="ConfigTabBtn" Content="CONFIGURAR EL MANDO" Style="{StaticResource InstrumentButton}"
+                                            Click="ShowConfigPanel" Margin="0,0,10,0"/>
+                                    <Button x:Name="LucesTabBtn" Content="LUCES DEL MANDO" Style="{StaticResource InstrumentButton}"
+                                            Click="ShowLucesPanel"/>
+                                </StackPanel>
+
+                                <Grid Grid.Row="1">
+                                    <!-- Configurador del mando: shell vacio por ahora; una tarea posterior lo llena. -->
+                                    <Grid x:Name="ConfigPanel"/>
+
+                                    <Grid x:Name="LucesPanel" Visibility="Collapsed">
+                                    <!-- Two columns AND a scroller. The columns are what make it fit; the
+                                         scroller is the net. Without one, this page has already dropped
+                                         RESTAURAR and the anti-cheat warning off the bottom twice - once
+                                         as a single column, and again the moment the EFECTO card grew two
+                                         rows. Content that overflows must be reachable, not gone. -->
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <Grid Margin="24">
+                                        <!-- Empty state. A page of dead sliders would imply the feature is broken
+                                             rather than inapplicable. -->
+                                        <StackPanel x:Name="LightEmptyState" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
                                     <TextBlock Text="Sin mandos de PlayStation conectados" Style="{StaticResource FieldLabel}" HorizontalAlignment="Center"/>
                                     <TextBlock Text="Esta funcion solo aplica a DualSense y DualShock." Style="{StaticResource FieldLabel}"
                                                Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,6,0,0"/>
@@ -613,6 +632,9 @@
                                 </Grid>
                             </Grid>
                             </ScrollViewer>
+                                    </Grid>
+                                </Grid>
+                            </Grid>
                         </TabItem>
                     </TabControl>
 
