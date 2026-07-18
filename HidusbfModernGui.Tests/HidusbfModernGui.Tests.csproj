@@ -26,6 +26,7 @@
     <Compile Include="..\HidusbfModernGui\LightProfile.cs" Link="LightProfile.cs" />
     <Compile Include="..\HidusbfModernGui\RainbowWalker.cs" Link="RainbowWalker.cs" />
     <Compile Include="..\HidusbfModernGui\LightIntent.cs" Link="LightIntent.cs" />
+    <Compile Include="..\HidusbfModernGui\PlayerLedWalker.cs" Link="PlayerLedWalker.cs" />
   </ItemGroup>
 
 </Project>
