@@ -43,26 +43,26 @@ namespace HidusbfModernGui
             _isInitializing = false;
         }
 
-        // Nunca cerrar la app con el fisico todavia oculto: si el spike sigue activo,
+        // Nunca cerrar la app con el fisico todavia oculto: si el mando virtual sigue activo,
         // detenerlo (muestra el fisico, quita el virtual) antes de salir. Se hace en el
-        // hilo de UI, en linea (no via StopSpike()/Task.Run): la app ya se esta cerrando,
+        // hilo de UI, en linea (no via StopEngine()/Task.Run): la app ya se esta cerrando,
         // asi que un revert sincrono de ~1-2s aqui no es el freeze que se reporto (ese
         // ocurria al hacer clic en PROBAR/DETENER durante uso normal); esperar aqui a un
-        // Task.Run en cambio arriesgaria deadlock, porque StopSpike() toca controles de
+        // Task.Run en cambio arriesgaria deadlock, porque StopEngine() toca controles de
         // UI despues de su await y esta llamada no puede hacer await (OnClosing no es async).
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
-            if (_spikeRunning)
+            if (_engineRunning)
             {
-                if (_spikeTimer != null)
+                if (_engineTimer != null)
                 {
-                    _spikeTimer.Stop();
-                    _spikeTimer.Tick -= SpikeTick;
-                    _spikeTimer = null;
+                    _engineTimer.Stop();
+                    _engineTimer.Tick -= EngineTick;
+                    _engineTimer = null;
                 }
-                _spikeRunning = false;
-                try { RevertSpikeDevices(); } catch { }
-                CleanupSpike();
+                _engineRunning = false;
+                try { RevertEngineDevices(); } catch { }
+                CleanupEngine();
             }
             base.OnClosing(e);
         }
@@ -93,11 +93,11 @@ namespace HidusbfModernGui
                     {
                         _deviceChangeDebounce!.Stop();
                         if (_overclockBusy) return;  // no competir con un replug en curso
-                        // El propio spike provoca este WM_DEVICECHANGE (HidHide reinicia el
+                        // El propio motor provoca este WM_DEVICECHANGE (HidHide reinicia el
                         // devnode del DualSense al ocultarlo/mostrarlo). Sin este guard, ese
                         // replug propio dispara un RefreshDevicesList() (~1s de PowerShell) que
-                        // compite por el hilo de UI con el propio Start/StopSpike.
-                        if (_spikeBusy) return;
+                        // compite por el hilo de UI con el propio Start/StopEngine.
+                        if (_engineBusy) return;
                         _intentReapplied = false;   // permitir reaplicar al mando reaparecido
                         RefreshDevicesList();        // repuebla _allDevices y reaplica la luz
                     };
@@ -385,87 +385,88 @@ namespace HidusbfModernGui
             TabBotones.Visibility = Visibility.Visible;
         }
 
-        // ===== SPIKE (Task 6): passthrough fisico -> DS4 virtual con HidHide =====
+        // ===== MOTOR DEL MANDO VIRTUAL (interruptor maestro, Tasks 6/7/14) =====
         //
-        // Temporal y claramente etiquetado. Prueba la fontaneria de la Fase 2: leer el
-        // DualSense (DualSenseReader), reflejarlo en un DS4 virtual (VirtualPad/ViGEm) y
-        // ocultar el fisico (HidHideControl). SIN transformacion: copia 1:1. El motor real
-        // con curvas/remapeo (RemapEngine, Task 7) y el interruptor maestro (Task 14)
-        // llegan despues; esto solo demuestra que las tres piezas hablan con el hardware.
-        private DualSenseReader? _spikeReader;
-        private VirtualPad? _spikeVirtual;
-        private HidHideControl? _spikeHidHide;
-        private DispatcherTimer? _spikeTimer;
-        private bool _spikeRunning;
-        private int _spikeTick;
-        private string? _spikeHideError;
+        // El lazo completo del remapeador: leer el DualSense fisico (DualSenseReader),
+        // transformarlo con los ajustes del configurador (RemapEngine + _remap, en vivo) y
+        // empujarlo a un DS4 virtual (VirtualPad/ViGEm), con el fisico oculto para las demas
+        // apps (HidHideControl). Apagado por defecto: sin activar, el juego ve el DualSense
+        // nativo y esta app no toca nada. Crecio del spike de la Fase 2, ya validado en
+        // hardware real (lectura ~8kHz, ocultado y revert comprobados en joy.cpl).
+        private DualSenseReader? _padReader;
+        private VirtualPad? _padVirtual;
+        private HidHideControl? _padHidHide;
+        private DispatcherTimer? _engineTimer;
+        private bool _engineRunning;
+        private int _engineTick;
+        private string? _hideError;
 
-        // True while Start/StopSpike's background thread is doing the heavy device work
+        // True while Start/StopEngine's background thread is doing the heavy device work
         // (HidHide hide/revert, which includes a PnP devnode remove+re-enumerate). That
         // restart raises our own WM_DEVICECHANGE, which the debounced handler above would
         // otherwise answer with a ~1s RefreshDevicesList() PowerShell scan; this guard
         // (mirrors _overclockBusy) skips that self-inflicted rescan.
-        private volatile bool _spikeBusy;
+        private volatile bool _engineBusy;
 
-        private async void SpikeToggle_Click(object sender, RoutedEventArgs e)
+        private async void MasterToggle_Click(object sender, RoutedEventArgs e)
         {
-            if (_spikeRunning) await StopSpike();
-            else await StartSpike();
+            if (_engineRunning) await StopEngine();
+            else await StartEngine();
         }
 
         // Everything that can block for a while - ViGEm connect, opening the HID device,
         // and HidHide's hide (which best-effort restarts the DualSense's devnode, a slow
-        // PnP remove+re-enumerate) - runs on a background thread via StartSpikeDevices() so
+        // PnP remove+re-enumerate) - runs on a background thread via StartEngineDevices() so
         // the UI thread never stalls for it. Object construction and the exe path are read
         // here on the UI thread (cheap, no device I/O); everything after 'await' resumes on
         // the UI thread automatically (WPF's SynchronizationContext), which is why the
         // DispatcherTimer and every *.Text/*.Content assignment below are safe as written.
-        private async Task StartSpike()
+        private async Task StartEngine()
         {
-            SpikeToggleBtn.IsEnabled = false;
-            SpikeStatusText.Text = "Aplicando...";
+            MasterToggleBtn.IsEnabled = false;
+            MasterStatusText.Text = "Aplicando...";
 
-            _spikeVirtual = new VirtualPad();
-            _spikeReader = new DualSenseReader();
-            _spikeHidHide = new HidHideControl();
+            _padVirtual = new VirtualPad();
+            _padReader = new DualSenseReader();
+            _padHidHide = new HidHideControl();
             string exe = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName
                          ?? System.Reflection.Assembly.GetExecutingAssembly().Location;
 
-            _spikeBusy = true;
-            var result = await Task.Run(() => StartSpikeDevices(exe));
-            _spikeBusy = false;
+            _engineBusy = true;
+            var result = await Task.Run(() => StartEngineDevices(exe));
+            _engineBusy = false;
 
             if (!result.Success)
             {
-                SpikeStatusText.Text = result.FailedStage == "virtual"
+                MasterStatusText.Text = result.FailedStage == "virtual"
                     ? "Error creando el DS4 virtual: " + result.Error
                     : "Error leyendo el DualSense: " + result.Error;
-                CleanupSpike();
-                SpikeToggleBtn.IsEnabled = true;
+                CleanupEngine();
+                MasterToggleBtn.IsEnabled = true;
                 return;
             }
 
-            _spikeHideError = result.HideError;
-            _spikeRunning = true;
-            _spikeTick = 0;
-            SpikeToggleBtn.Content = "DETENER PASSTHROUGH (spike)";
+            _hideError = result.HideError;
+            _engineRunning = true;
+            _engineTick = 0;
+            MasterToggleBtn.Content = "VOLVER AL MANDO NATIVO";
 
             // El DispatcherTimer se crea/arranca en el hilo de UI (no es seguro entre
             // hilos; construirlo desde el hilo de fondo lo asociaria a un dispatcher ad-hoc
             // de ese hilo, que nunca bombea, y el passthrough nunca avanzaria).
-            _spikeTimer = new DispatcherTimer(DispatcherPriority.Render)
+            _engineTimer = new DispatcherTimer(DispatcherPriority.Render)
             {
                 Interval = TimeSpan.FromMilliseconds(8)
             };
-            _spikeTimer.Tick += SpikeTick;
-            _spikeTimer.Start();
-            UpdateSpikeStatus();
-            SpikeToggleBtn.IsEnabled = true;
+            _engineTimer.Tick += EngineTick;
+            _engineTimer.Start();
+            UpdateEngineStatus();
+            MasterToggleBtn.IsEnabled = true;
         }
 
         // Trabajo puro de dispositivo (ViGEm/HID/HidHide), sin tocar ningun control de UI,
-        // para que sea seguro ejecutarlo en el hilo de fondo que arma StartSpike().
-        private (bool Success, string? FailedStage, string? Error, string? HideError) StartSpikeDevices(string exe)
+        // para que sea seguro ejecutarlo en el hilo de fondo que arma StartEngine().
+        private (bool Success, string? FailedStage, string? Error, string? HideError) StartEngineDevices(string exe)
         {
             // Orden al arrancar (importa mucho):
             //  1. Virtual PRIMERO, para que ningun juego vea cero mandos durante el cambio.
@@ -480,48 +481,48 @@ namespace HidusbfModernGui
             //     para las demas apps). Nuestro exe esta en la whitelist, asi que nosotros
             //     si podemos abrirlo; Start() reintenta unos segundos porque el devnode
             //     necesita un momento para volver tras el reinicio.
-            var v = _spikeVirtual!.Connect();
+            var v = _padVirtual!.Connect();
             if (!v.Success) return (false, "virtual", v.Error, null);
 
             // Ocultar es best-effort: si falla, el fisico queda VISIBLE (el estado seguro) y
-            // el spike igual prueba lector + virtual. El error se muestra pero no aborta.
-            var h = _spikeHidHide!.HideDualSense(exe, "");
+            // el motor igual corre lector + virtual. El error se muestra pero no aborta.
+            var h = _padHidHide!.HideDualSense(exe, "");
             string? hideError = h.Success ? null : h.Error;
 
-            var r = _spikeReader!.Start();
+            var r = _padReader!.Start();
             if (!r.Success)
             {
                 // El lector no pudo abrir tras el reinicio del devnode: revertir el ocultado
                 // (nunca dejar el fisico oculto sin nada que lo lea) y soltar el virtual.
-                try { _spikeHidHide.Revert(); } catch { }
-                _spikeVirtual.Disconnect();
+                try { _padHidHide.Revert(); } catch { }
+                _padVirtual.Disconnect();
                 return (false, "reader", r.Error, null);
             }
 
             return (true, null, null, hideError);
         }
 
-        private void SpikeTick(object? sender, EventArgs e)
+        private void EngineTick(object? sender, EventArgs e)
         {
-            var reader = _spikeReader;
-            var virt = _spikeVirtual;
-            if (!_spikeRunning || reader == null || virt == null) return;
+            var reader = _padReader;
+            var virt = _padVirtual;
+            if (!_engineRunning || reader == null || virt == null) return;
             // Aplica los ajustes de la UI (deadzone/curvas/gatillos/remapeo/touchpad) en vivo:
             // _remap es el MISMO objeto que editan los controles del configurador, y tanto la
             // edicion como este tick corren en el hilo de UI, asi que leerlo aqui es seguro y
             // cualquier cambio de slider se refleja en el mando virtual en el acto.
             virt.Push(RemapEngine.Transform(reader.Snapshot(), _remap));
-            if (++_spikeTick % 15 == 0) UpdateSpikeStatus();
+            if (++_engineTick % 15 == 0) UpdateEngineStatus();
         }
 
-        private void UpdateSpikeStatus()
+        private void UpdateEngineStatus()
         {
-            if (_spikeReader == null || _spikeVirtual == null || _spikeHidHide == null) return;
-            string fisico = _spikeHidHide.IsHiding ? "fisico OCULTO" : "fisico visible";
-            string virt = _spikeVirtual.Connected ? "virtual ACTIVO" : "virtual inactivo";
-            string reportes = $"{_spikeReader.ReportsRead} reportes leidos";
-            string extra = _spikeHideError == null ? "" : $"  (HidHide no oculto: {_spikeHideError})";
-            SpikeStatusText.Text = $"{fisico} / {virt} / {reportes}{extra}";
+            if (_padReader == null || _padVirtual == null || _padHidHide == null) return;
+            string fisico = _padHidHide.IsHiding ? "fisico OCULTO" : "fisico visible";
+            string virt = _padVirtual.Connected ? "virtual ACTIVO" : "virtual inactivo";
+            string reportes = $"{_padReader.ReportsRead} reportes leidos";
+            string extra = _hideError == null ? "" : $"  (HidHide no oculto: {_hideError})";
+            MasterStatusText.Text = $"MANDO VIRTUAL ACTIVO - {fisico} / {virt} / {reportes}{extra}";
         }
 
         // Trabajo puro de dispositivo (sin tocar ningun control de UI): revierte HidHide
@@ -530,59 +531,59 @@ namespace HidusbfModernGui
         // primero, luego parar el lector y desconectar el virtual, para que nunca haya una
         // ventana sin ningun mando. Seguro de llamar desde el hilo de UI (OnClosing, donde
         // la app ya se esta cerrando y bloquear brevemente no es el freeze reportado) o
-        // desde un hilo de fondo (StopSpike, via Task.Run, para no bloquear la UI en uso
+        // desde un hilo de fondo (StopEngine, via Task.Run, para no bloquear la UI en uso
         // normal).
-        private string? RevertSpikeDevices()
+        private string? RevertEngineDevices()
         {
             string? revertErr = null;
-            try { revertErr = _spikeHidHide?.Revert().Error; }
+            try { revertErr = _padHidHide?.Revert().Error; }
             catch (Exception ex) { revertErr = ex.Message; }
-            try { _spikeReader?.Stop(); } catch { }
-            try { _spikeVirtual?.Disconnect(); } catch { }
+            try { _padReader?.Stop(); } catch { }
+            try { _padVirtual?.Disconnect(); } catch { }
             return revertErr;
         }
 
-        private async Task StopSpike()
+        private async Task StopEngine()
         {
-            SpikeToggleBtn.IsEnabled = false;
-            SpikeStatusText.Text = "Deteniendo...";
+            MasterToggleBtn.IsEnabled = false;
+            MasterStatusText.Text = "Deteniendo...";
 
             // El timer del passthrough vive y muere en el hilo de UI; pararlo aqui, antes
             // del trabajo pesado de fondo, deja de empujar reportes al virtual de inmediato.
-            if (_spikeTimer != null)
+            if (_engineTimer != null)
             {
-                _spikeTimer.Stop();
-                _spikeTimer.Tick -= SpikeTick;
-                _spikeTimer = null;
+                _engineTimer.Stop();
+                _engineTimer.Tick -= EngineTick;
+                _engineTimer = null;
             }
-            _spikeRunning = false;
+            _engineRunning = false;
 
-            _spikeBusy = true;
-            string? revertErr = await Task.Run(() => RevertSpikeDevices());
-            _spikeBusy = false;
+            _engineBusy = true;
+            string? revertErr = await Task.Run(() => RevertEngineDevices());
+            _engineBusy = false;
 
-            SpikeToggleBtn.Content = "PROBAR PASSTHROUGH (spike)";
-            SpikeStatusText.Text = revertErr == null
-                ? "Detenido. El fisico volvio; el juego ve tu DualSense nativo."
-                : $"Detenido (revert parcial: {revertErr}). Revisa joy.cpl.";
-            CleanupSpike();
-            SpikeToggleBtn.IsEnabled = true;
+            MasterToggleBtn.Content = "ACTIVAR MANDO VIRTUAL";
+            MasterStatusText.Text = revertErr == null
+                ? "MANDO NATIVO - el juego ve tu DualSense fisico, sin transformar."
+                : $"MANDO NATIVO (revert parcial: {revertErr}). Revisa joy.cpl.";
+            CleanupEngine();
+            MasterToggleBtn.IsEnabled = true;
         }
 
-        private void CleanupSpike()
+        private void CleanupEngine()
         {
-            _spikeReader = null;
-            _spikeVirtual = null;
-            _spikeHidHide = null;
-            _spikeHideError = null;
-            _spikeRunning = false;
+            _padReader = null;
+            _padVirtual = null;
+            _padHidHide = null;
+            _hideError = null;
+            _engineRunning = false;
         }
 
         // ===== Configurador del mando: edita _remap y persiste via perfiles (Task 4) =====
         //
-        // No hay motor de E/S todavia (Fase 2 del plan del remapeador, pendiente de hardware),
-        // asi que estos controles solo editan RemapSettings en memoria y lo guardan/cargan.
-        // Nada de esto llega a un juego hoy.
+        // _remap es el objeto vivo: EngineTick lo lee en cada frame cuando el mando virtual
+        // esta activo, asi que cualquier cambio aqui (slider, combo, CARGAR un perfil) se
+        // aplica al juego en el acto, sin boton de "aplicar".
 
         // El estado que edita toda la pestana STICKS/GATILLOS/BOTONES/TOUCHPAD.
         private RemapSettings _remap = new();
@@ -686,6 +687,23 @@ namespace HidusbfModernGui
             }
 
             RefreshRemapProfileList();
+            CheckEngineDrivers();
+        }
+
+        // Si falta ViGEmBus o HidHide, el interruptor maestro se desactiva y el estado dice
+        // exactamente que instalar; sin drivers el mando virtual no puede existir y el juego
+        // sigue viendo el DualSense nativo (el estado seguro). La deteccion consulta el SCM
+        // (DriverCheck, sin efectos secundarios) en un hilo de fondo para no tocar la UI.
+        private async void CheckEngineDrivers()
+        {
+            var (vigem, hidhide) = await Task.Run(DriverCheck.Detect);
+            if (vigem && hidhide) return;   // ambos instalados: el interruptor queda operativo
+
+            MasterToggleBtn.IsEnabled = false;
+            string faltan = (!vigem && !hidhide) ? "ViGEmBus y HidHide"
+                          : !vigem ? "ViGEmBus" : "HidHide";
+            MasterStatusText.Text = $"Falta instalar {faltan} (drivers de Nefarius). Sin eso no hay " +
+                                    "mando virtual; el juego sigue viendo tu DualSense nativo.";
         }
 
         private void BuildButtonRemapRows()

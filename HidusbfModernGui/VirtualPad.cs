@@ -6,9 +6,9 @@ using Nefarius.ViGEm.Client.Targets.DualShock4;
 namespace HidusbfModernGui
 {
     // A virtual DualShock4 created through ViGEm (the ViGEmBus driver). Push(state) maps
-    // a parsed ControllerState onto the virtual pad and submits one report. For the spike
-    // this is a straight 1:1 mirror of the physical pad; RemapEngine (Task 7) will insert
-    // the transform between the reader and this Push.
+    // a parsed ControllerState onto the virtual pad and submits one report. The engine
+    // loop (EngineTick) feeds it RemapEngine.Transform's output, so what lands here is
+    // the already-transformed state, never the raw physical read.
     public sealed class VirtualPad
     {
         private ViGEmClient? _client;

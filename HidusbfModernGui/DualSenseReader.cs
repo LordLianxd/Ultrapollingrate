@@ -35,7 +35,7 @@ namespace HidusbfModernGui
         // read as the dpad hat = 0 = DpadUp stuck forever). PID_0CE6 excludes it.
         private const int DualSensePid = 0x0CE6;
         // USB gives a 64-byte input report; Bluetooth is 78 and laid out differently, so
-        // this spike deliberately only handles the USB pad the user has plugged in.
+        // this reader deliberately only handles the USB pad the user has plugged in.
         private const int UsbReportLength = 64;
 
         private Thread? _thread;
@@ -106,7 +106,7 @@ namespace HidusbfModernGui
             // the pad can be found and opened again - a single immediate attempt would race
             // the re-enumeration and fail. ~4s of retries covers that window comfortably
             // without hanging if the pad is genuinely absent. Safe to sleep here: Start()
-            // is called on a background thread (StartSpikeDevices via Task.Run), never on
+            // is called on a background thread (StartEngineDevices via Task.Run), never on
             // the UI thread.
             HidDevice? dev = null;
             HidStream? stream = null;

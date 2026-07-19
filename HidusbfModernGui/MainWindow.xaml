@@ -478,6 +478,25 @@
                                                                    Text="El mando virtual (ViGEm) y HidHide son detectables por anticheat de nucleo (Ricochet, Vanguard, EAC, BattlEye) aunque no hagas trampa: algunos banean solo por la presencia de ViGEm. Ideal para un jugador o juegos sin anticheat; jugar online es bajo tu propio riesgo por el mecanismo, no por la intencion. Sin garantias, los baneos van por oleadas. No hay macros, emulacion de teclado o raton, ni auto-aim: esto solo reconfigura el mando."/>
                                                     </Border>
 
+                                                    <!-- Interruptor maestro (Task 14). Apagado por defecto = mando NATIVO:
+                                                         el juego ve el DualSense fisico y la app no toca nada. Encendido =
+                                                         fisico oculto (HidHide) + DS4 virtual (ViGEm) con los ajustes de
+                                                         abajo aplicados en vivo. El estado de al lado lee el driver real
+                                                         (IsHiding/Connected), no una bandera. -->
+                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                            BorderThickness="1" Padding="18" Margin="0,0,0,20">
+                                                        <StackPanel>
+                                                            <TextBlock Text="MANDO VIRTUAL" Style="{StaticResource SectionHeading}"/>
+                                                            <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,8,0,12"
+                                                                       Text="Activa el mando virtual para que los ajustes de abajo (sticks, gatillos, touchpad, botones) se apliquen al juego: el DualSense fisico se oculta y el juego ve un DS4 virtual con tu configuracion. Desactivalo para volver al mando nativo tal cual. Requiere los drivers ViGEmBus y HidHide (Nefarius), instalados aparte."/>
+                                                            <Button x:Name="MasterToggleBtn" Content="ACTIVAR MANDO VIRTUAL"
+                                                                    Style="{StaticResource InstrumentButton}" HorizontalAlignment="Left"
+                                                                    Click="MasterToggle_Click"/>
+                                                            <TextBlock x:Name="MasterStatusText" Style="{StaticResource DataText}" TextWrapping="Wrap"
+                                                                       Margin="0,12,0,0" Text="MANDO NATIVO - el juego ve tu DualSense fisico, sin transformar."/>
+                                                        </StackPanel>
+                                                    </Border>
+
                                                     <StackPanel Orientation="Horizontal">
                                                         <Button x:Name="StickTabBtn" Content="STICKS" Style="{StaticResource InstrumentButton}"
                                                                 Click="ShowStickTab" Margin="0,0,8,0"/>
@@ -705,7 +724,7 @@
                                                             BorderThickness="1" Padding="18" Margin="0,8,0,0">
                                                         <StackPanel>
                                                             <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,0,0,12"
-                                                                       Text="Un perfil guarda sticks, gatillos, botones y touchpad. Por ahora solo se edita y se guarda: todavia no hay motor que lo aplique a un juego."/>
+                                                                       Text="Un perfil guarda sticks, gatillos, botones y touchpad. Con el mando virtual activo, CARGAR un perfil lo aplica al juego en el acto."/>
                                                             <StackPanel Orientation="Horizontal">
                                                                 <ComboBox x:Name="RemapProfileList" Width="180" HorizontalAlignment="Left" Margin="0,0,10,0"
                                                                           DisplayMemberPath="Name"/>
@@ -722,23 +741,6 @@
                                                         </StackPanel>
                                                     </Border>
 
-                                                    <!-- SPIKE (Task 6): passthrough fisico -> DS4 virtual con HidHide.
-                                                         Temporal y claramente etiquetado. Sin transformacion: copia el
-                                                         estado leido 1:1 al virtual para probar la fontaneria (lector +
-                                                         ViGEm + HidHide). El interruptor maestro real llega en Task 14. -->
-                                                    <TextBlock Text="PRUEBA DE FONTANERIA (SPIKE)" Style="{StaticResource SectionHeading}" Margin="0,20,0,0"/>
-                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                            BorderThickness="1" Padding="18" Margin="0,8,0,0">
-                                                        <StackPanel>
-                                                            <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,0,0,12"
-                                                                       Text="Prueba tecnica: oculta el DualSense fisico (HidHide), crea un DS4 virtual (ViGEm) y copia lo leido 1:1 (sin curvas ni remapeo). Sirve para verificar que la lectura, el mando virtual y el ocultamiento funcionan. Al detener, el fisico vuelve al instante."/>
-                                                            <Button x:Name="SpikeToggleBtn" Content="PROBAR PASSTHROUGH (spike)"
-                                                                    Style="{StaticResource InstrumentButton}" HorizontalAlignment="Left"
-                                                                    Click="SpikeToggle_Click"/>
-                                                            <TextBlock x:Name="SpikeStatusText" Style="{StaticResource DataText}" TextWrapping="Wrap"
-                                                                       Margin="0,12,0,0" Text="Detenido. El juego ve tu DualSense nativo."/>
-                                                        </StackPanel>
-                                                    </Border>
                                                 </StackPanel>
                                             </Grid>
                                         </ScrollViewer>
