@@ -172,4 +172,17 @@ public class RemapEngineTests
         var outp = RemapEngine.Transform(input, null!);
         Assert.Equal(0.7, outp.Left.X, 3);
     }
+
+    [Fact]
+    public void CustomCurvePoints_ReachTheOutput()
+    {
+        var s = new RemapSettings
+        {
+            LeftCurve = ResponseCurve.Propia,
+            LeftCurvePoints = new() { new(0, 0), new(0.5, 0.9), new(1, 1) },
+        };
+        var input = new ControllerState { Left = new StickInput(0.5, 0.0) };
+        var outp = RemapEngine.Transform(input, s);
+        Assert.Equal(0.9, outp.Left.X, 2);
+    }
 }

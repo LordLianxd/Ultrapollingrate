@@ -1092,6 +1092,8 @@ namespace HidusbfModernGui
             R2PointPct = s.R2PointPct,
             ButtonRemap = new Dictionary<PadButton, PadButton>(s.ButtonRemap),
             TouchZoneMap = new Dictionary<TouchZone, PadButton>(s.TouchZoneMap),
+            LeftCurvePoints = new List<CurvePoint>(s.LeftCurvePoints),
+            RightCurvePoints = new List<CurvePoint>(s.RightCurvePoints),
         };
 
         private void RefreshRemapProfileList()

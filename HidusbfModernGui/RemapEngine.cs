@@ -25,9 +25,9 @@ namespace HidusbfModernGui
             // 1. Sticks: deadzone radial (por magnitud, preserva el angulo) + alcance + curva
             //    de respuesta, con los ajustes propios de cada stick.
             var (lx, ly) = InputTransform.ApplyStick(
-                input.Left, s.LeftInnerDeadzone, s.LeftOuterDeadzone, s.LeftCurve, s.LeftCurvaturePct);
+                input.Left, s.LeftInnerDeadzone, s.LeftOuterDeadzone, s.LeftCurve, s.LeftCurvaturePct, s.LeftCurvePoints);
             var (rx, ry) = InputTransform.ApplyStick(
-                input.Right, s.RightInnerDeadzone, s.RightOuterDeadzone, s.RightCurve, s.RightCurvaturePct);
+                input.Right, s.RightInnerDeadzone, s.RightOuterDeadzone, s.RightCurve, s.RightCurvaturePct, s.RightCurvePoints);
 
             // 2. Gatillos: hair-trigger. Con punto 0 es passthrough (sin efecto); con punto>0
             //    el analog salta a 0 o a fondo segun cruce el umbral.

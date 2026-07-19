@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System;
+using System.Text.Json;
 using HidusbfModernGui;
 using Xunit;
 
@@ -47,5 +48,25 @@ public class RemapProfileStoreTests : IDisposable
         RemapProfileStore.Save(new[] { new RemapProfile { Name = "a", Settings = new() } });
         RemapProfileStore.Save(new[] { new RemapProfile { Name = "b", Settings = new() } });
         Assert.True(File.Exists(RemapProfileStore.Path + ".backup"));
+    }
+
+    [Fact]
+    public void CurvePoints_RoundTripThroughJson()
+    {
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+        };
+        var s = new RemapSettings
+        {
+            LeftCurve = ResponseCurve.Propia,
+            LeftCurvePoints = new() { new(0, 0), new(0.3, 0.6), new(0.7, 0.65), new(1, 1) },
+        };
+        string json = JsonSerializer.Serialize(s, options);
+        var back = JsonSerializer.Deserialize<RemapSettings>(json, options)!;
+        Assert.Equal(ResponseCurve.Propia, back.LeftCurve);
+        Assert.Equal(4, back.LeftCurvePoints.Count);
+        Assert.Equal(0.6, back.LeftCurvePoints[1].Y, 3);
     }
 }

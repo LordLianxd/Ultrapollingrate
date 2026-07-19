@@ -50,4 +50,14 @@ public class RemapSettingsTests
         var s = new RemapSettings { LeftCurve = ResponseCurve.Normal };
         Assert.Equal(1.0, s.LeftCurveExponent, 3);
     }
+
+    [Fact]
+    public void CurvePoints_DefaultToFiveDiagonalPoints()
+    {
+        var s = new RemapSettings();
+        Assert.Equal(5, s.LeftCurvePoints.Count);
+        Assert.Equal(new CurvePoint(0, 0), s.LeftCurvePoints[0]);
+        Assert.Equal(new CurvePoint(1, 1), s.LeftCurvePoints[^1]);
+        Assert.Equal(new CurvePoint(0.5, 0.5), s.RightCurvePoints[2]);
+    }
 }

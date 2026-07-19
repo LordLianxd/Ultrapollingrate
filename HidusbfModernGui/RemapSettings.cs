@@ -24,6 +24,12 @@ namespace HidusbfModernGui
         // Remapeo y touchpad
         public Dictionary<PadButton, PadButton> ButtonRemap { get; set; } = new();
         public Dictionary<TouchZone, PadButton> TouchZoneMap { get; set; } = new();
+        // Puntos de la curva "Editor" (ResponseCurve.Propia), en 0..1. Siempre 5: extremos
+        // (0,0)/(1,1) fijos en la UI y 3 interiores arrastrables. Solo actuan cuando la curva
+        // del stick es Propia; se guardan siempre (el usuario no pierde su dibujo al cambiar
+        // de preset y volver).
+        public List<CurvePoint> LeftCurvePoints { get; set; } = DefaultCurvePoints();
+        public List<CurvePoint> RightCurvePoints { get; set; } = DefaultCurvePoints();
 
         public double LeftInnerDeadzone  => Math.Clamp(LeftDeadzonePct, 0, 30) / 100.0;
         public double LeftOuterDeadzone  => Math.Clamp(LeftReachPct, 70, 100) / 100.0;
@@ -40,5 +46,10 @@ namespace HidusbfModernGui
         public double RightCurveExponent => RightCurve == ResponseCurve.Personalizada
             ? InputTransform.CurvatureExponent(RightCurvaturePct)
             : InputTransform.PresetExponent(RightCurve);
+
+        public static List<CurvePoint> DefaultCurvePoints() => new()
+        {
+            new(0, 0), new(0.25, 0.25), new(0.5, 0.5), new(0.75, 0.75), new(1, 1),
+        };
     }
 }
