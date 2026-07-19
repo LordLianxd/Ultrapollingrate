@@ -696,6 +696,7 @@ namespace HidusbfModernGui
             _remapProfiles = RemapProfileStore.Load();
             var last = _remapProfiles.FirstOrDefault(p => p.Name == LastUsedProfileName);
             if (last != null) _remap = CloneRemapSettings(last.Settings);
+            _remap.Sanitize();   // perfiles viejos con presets retirados -> Lineal (ver RemapSettings)
 
             try
             {
@@ -789,11 +790,6 @@ namespace HidusbfModernGui
         private static readonly (string Label, ResponseCurve Curve)[] CurvePresets =
         {
             ("Lineal", ResponseCurve.Normal),
-            ("Precisa", ResponseCurve.Precisa),
-            ("Rapida", ResponseCurve.Rapida),
-            ("Dinamica", ResponseCurve.Dinamica),
-            ("Digital", ResponseCurve.Digital),
-            ("Personalizada", ResponseCurve.Personalizada),
             ("Editor", ResponseCurve.Propia),
         };
 
@@ -865,17 +861,11 @@ namespace HidusbfModernGui
         {
             LeftDeadzoneSlider.Value = _remap.LeftDeadzonePct;
             LeftReachSlider.Value = _remap.LeftReachPct;
-            LeftCurvaturaSlider.Value = _remap.LeftCurvaturePct;
             SelectComboByTag(LeftCurveList, _remap.LeftCurve);
-            LeftCurvaturaPanel.Visibility = _remap.LeftCurve == ResponseCurve.Personalizada
-                ? Visibility.Visible : Visibility.Collapsed;
 
             RightDeadzoneSlider.Value = _remap.RightDeadzonePct;
             RightReachSlider.Value = _remap.RightReachPct;
-            RightCurvaturaSlider.Value = _remap.RightCurvaturePct;
             SelectComboByTag(RightCurveList, _remap.RightCurve);
-            RightCurvaturaPanel.Visibility = _remap.RightCurve == ResponseCurve.Personalizada
-                ? Visibility.Visible : Visibility.Collapsed;
 
             L2PointSlider.Value = _remap.L2PointPct;
             R2PointSlider.Value = _remap.R2PointPct;
@@ -891,7 +881,6 @@ namespace HidusbfModernGui
             // asi que el texto y la curva se refrescan aqui explicitamente en vez de confiar
             // solo en los handlers de arriba.
             UpdateDeadzoneReachText();
-            UpdateCurvaturaText();
             UpdateTriggerText();
             RedrawLeftCurve();
             RedrawRightCurve();
@@ -915,16 +904,7 @@ namespace HidusbfModernGui
             RightReachText.Text = $"{RightReachSlider.Value:0}%";
         }
 
-        // Same null-guard pattern as UpdateDeadzoneReachText: LeftCurvaturaText/RightCurvaturaText
-        // are declared after the sliders they mirror, so a ValueChanged raised mid-parse would
-        // otherwise hit a null reference.
-        private void UpdateCurvaturaText()
-        {
-            if (LeftCurvaturaText == null || RightCurvaturaText == null) return;
 
-            LeftCurvaturaText.Text = $"{LeftCurvaturaSlider.Value:0}%";
-            RightCurvaturaText.Text = $"{RightCurvaturaSlider.Value:0}%";
-        }
 
         private void UpdateTriggerText()
         {
@@ -992,7 +972,6 @@ namespace HidusbfModernGui
         private void LeftCurve_Changed(object sender, SelectionChangedEventArgs e)
         {
             if (LeftCurveList.SelectedItem is not ComboBoxItem { Tag: ResponseCurve curve }) return;
-            LeftCurvaturaPanel.Visibility = curve == ResponseCurve.Personalizada ? Visibility.Visible : Visibility.Collapsed;
             if (_updatingRemap) return;
             _remap.LeftCurve = curve;
             RedrawLeftCurve();
@@ -1002,30 +981,13 @@ namespace HidusbfModernGui
         private void RightCurve_Changed(object sender, SelectionChangedEventArgs e)
         {
             if (RightCurveList.SelectedItem is not ComboBoxItem { Tag: ResponseCurve curve }) return;
-            RightCurvaturaPanel.Visibility = curve == ResponseCurve.Personalizada ? Visibility.Visible : Visibility.Collapsed;
             if (_updatingRemap) return;
             _remap.RightCurve = curve;
             RedrawRightCurve();
             RememberRemap();
         }
 
-        private void LeftCurvatura_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            UpdateCurvaturaText();
-            if (_updatingRemap) return;
-            _remap.LeftCurvaturePct = (int)Math.Round(LeftCurvaturaSlider.Value);
-            RedrawLeftCurve();
-            RememberRemap();
-        }
 
-        private void RightCurvatura_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            UpdateCurvaturaText();
-            if (_updatingRemap) return;
-            _remap.RightCurvaturePct = (int)Math.Round(RightCurvaturaSlider.Value);
-            RedrawRightCurve();
-            RememberRemap();
-        }
 
         private void ToggleLeftAdvanced(object sender, RoutedEventArgs e)
         {
@@ -1328,6 +1290,7 @@ namespace HidusbfModernGui
             {
                 _updatingRemap = true;
                 _remap = CloneRemapSettings(p.Settings);
+                _remap.Sanitize();   // perfiles viejos con presets retirados -> Lineal (ver RemapSettings)
                 ApplyRemapSettingsToControls();
             }
             finally

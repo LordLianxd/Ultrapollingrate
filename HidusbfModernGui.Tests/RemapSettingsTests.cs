@@ -60,4 +60,42 @@ public class RemapSettingsTests
         Assert.Equal(new CurvePoint(1, 1), s.LeftCurvePoints[^1]);
         Assert.Equal(new CurvePoint(0.5, 0.5), s.RightCurvePoints[2]);
     }
+
+    [Fact]
+    public void Sanitize_DegradesRetiredCurvesToLineal()
+    {
+        var s = new RemapSettings { LeftCurve = ResponseCurve.Precisa, RightCurve = ResponseCurve.Digital };
+        s.Sanitize();
+        Assert.Equal(ResponseCurve.Normal, s.LeftCurve);
+        Assert.Equal(ResponseCurve.Normal, s.RightCurve);
+    }
+
+    [Fact]
+    public void Sanitize_KeepsLinealAndEditor()
+    {
+        var s = new RemapSettings { LeftCurve = ResponseCurve.Normal, RightCurve = ResponseCurve.Propia };
+        s.Sanitize();
+        Assert.Equal(ResponseCurve.Normal, s.LeftCurve);
+        Assert.Equal(ResponseCurve.Propia, s.RightCurve);
+    }
+
+    [Fact]
+    public void SanitizePoints_WrongCountOrNull_ResetsToDefault()
+    {
+        Assert.Equal(RemapSettings.DefaultCurvePoints(), RemapSettings.SanitizePoints(null));
+        Assert.Equal(RemapSettings.DefaultCurvePoints(),
+            RemapSettings.SanitizePoints(new List<CurvePoint> { new(0, 0), new(1, 1) }));
+    }
+
+    [Fact]
+    public void SanitizePoints_AnchorsEndpointsAndOrdersX()
+    {
+        var messy = new List<CurvePoint> { new(0.9, 0.8), new(0.5, 2.0), new(0.1, -1.0), new(0.7, 0.6), new(0.2, 0.3) };
+        var r = RemapSettings.SanitizePoints(messy);
+        Assert.Equal(5, r.Count);
+        Assert.Equal(new CurvePoint(0, 0), r[0]);
+        Assert.Equal(new CurvePoint(1, 1), r[4]);
+        for (int i = 1; i < 5; i++) Assert.True(r[i].X > r[i - 1].X);          // X estrictamente creciente
+        for (int i = 1; i <= 3; i++) Assert.InRange(r[i].Y, 0.0, 1.0);         // Y acotada
+    }
 }

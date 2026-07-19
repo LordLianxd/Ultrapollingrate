@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace HidusbfModernGui
 {
@@ -46,6 +47,40 @@ namespace HidusbfModernGui
         public double RightCurveExponent => RightCurve == ResponseCurve.Personalizada
             ? InputTransform.CurvatureExponent(RightCurvaturePct)
             : InputTransform.PresetExponent(RightCurve);
+
+        // Desde la v2 el combo de RESPUESTA solo ofrece Lineal y Editor. Los perfiles guardados
+        // con los presets retirados (Precisa/Rapida/Dinamica/Digital/Personalizada) se degradan a
+        // Lineal AL CARGAR - visible y honesto, en vez de dejar un combo sin seleccion o un motor
+        // aplicando una curva que la UI ya no puede mostrar. El enum conserva los valores viejos
+        // (los perfiles serializan nombres) y el motor sigue sabiendo aplicarlos; esta coercion es
+        // la unica frontera.
+        public void Sanitize()
+        {
+            if (LeftCurve != ResponseCurve.Normal && LeftCurve != ResponseCurve.Propia)
+                LeftCurve = ResponseCurve.Normal;
+            if (RightCurve != ResponseCurve.Normal && RightCurve != ResponseCurve.Propia)
+                RightCurve = ResponseCurve.Normal;
+            LeftCurvePoints = SanitizePoints(LeftCurvePoints);
+            RightCurvePoints = SanitizePoints(RightCurvePoints);
+        }
+
+        // Devuelve SIEMPRE una lista valida de 5 puntos para el editor: extremos anclados en
+        // (0,0)/(1,1), X estrictamente creciente (separacion minima 0.03, la misma que impone el
+        // arrastre en la UI), Y en 0..1. Cualquier cosa irreparable (null, otro tamano) vuelve a
+        // la diagonal por defecto. Internal para que CurveLibraryStore tambien la use al cargar
+        // curvas de un JSON editado a mano.
+        internal static List<CurvePoint> SanitizePoints(List<CurvePoint>? pts)
+        {
+            if (pts == null || pts.Count != 5) return DefaultCurvePoints();
+            var s = pts.OrderBy(p => p.X).ToList();
+            s[0] = new CurvePoint(0.0, 0.0);
+            s[4] = new CurvePoint(1.0, 1.0);
+            for (int i = 1; i <= 3; i++)
+                s[i] = new CurvePoint(Math.Max(s[i].X, s[i - 1].X + 0.03), Math.Clamp(s[i].Y, 0.0, 1.0));
+            for (int i = 3; i >= 1; i--)
+                s[i] = new CurvePoint(Math.Min(s[i].X, s[i + 1].X - 0.03), s[i].Y);
+            return s;
+        }
 
         public static List<CurvePoint> DefaultCurvePoints() => new()
         {

@@ -580,19 +580,7 @@
                                                                                       SelectionChanged="LeftCurve_Changed"/>
                                                                         </StackPanel>
 
-                                                                        <StackPanel x:Name="LeftCurvaturaPanel" Visibility="Collapsed" Margin="0,12,0,0">
-                                                                            <StackPanel Orientation="Horizontal">
-                                                                                <TextBlock Text="CURVATURA" Style="{StaticResource FieldLabel}"
-                                                                                           VerticalAlignment="Center" Width="100"/>
-                                                                                <Slider x:Name="LeftCurvaturaSlider" Minimum="0" Maximum="100" Value="50" Width="160"
-                                                                                        IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
-                                                                                        ValueChanged="LeftCurvatura_Changed"/>
-                                                                                <TextBlock x:Name="LeftCurvaturaText" Text="50%" Style="{StaticResource DataText}"
-                                                                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                                                            </StackPanel>
-                                                                            <TextBlock Text="50 = lineal, menos = precisa, mas = rapida" Style="{StaticResource FieldLabel}"
-                                                                                       Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
-                                                                        </StackPanel>
+
 
                                                                         <TextBlock Text="CURVA (entrada -&gt; salida)" Style="{StaticResource FieldLabel}" Margin="0,14,0,6"/>
                                                                         <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
@@ -644,19 +632,7 @@
                                                                                       SelectionChanged="RightCurve_Changed"/>
                                                                         </StackPanel>
 
-                                                                        <StackPanel x:Name="RightCurvaturaPanel" Visibility="Collapsed" Margin="0,12,0,0">
-                                                                            <StackPanel Orientation="Horizontal">
-                                                                                <TextBlock Text="CURVATURA" Style="{StaticResource FieldLabel}"
-                                                                                           VerticalAlignment="Center" Width="100"/>
-                                                                                <Slider x:Name="RightCurvaturaSlider" Minimum="0" Maximum="100" Value="50" Width="160"
-                                                                                        IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
-                                                                                        ValueChanged="RightCurvatura_Changed"/>
-                                                                                <TextBlock x:Name="RightCurvaturaText" Text="50%" Style="{StaticResource DataText}"
-                                                                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                                                            </StackPanel>
-                                                                            <TextBlock Text="50 = lineal, menos = precisa, mas = rapida" Style="{StaticResource FieldLabel}"
-                                                                                       Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
-                                                                        </StackPanel>
+
 
                                                                         <TextBlock Text="CURVA (entrada -&gt; salida)" Style="{StaticResource FieldLabel}" Margin="0,14,0,6"/>
                                                                         <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
