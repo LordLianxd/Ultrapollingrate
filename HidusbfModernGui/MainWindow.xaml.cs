@@ -429,8 +429,12 @@ namespace HidusbfModernGui
             _padVirtual = new VirtualPad();
             _padReader = new DualSenseReader();
             _padHidHide = new HidHideControl();
-            string exe = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName
-                         ?? System.Reflection.Assembly.GetExecutingAssembly().Location;
+            // Environment.ProcessPath es la ruta real del exe incluso en el publish de un
+            // solo archivo (Assembly.Location ahi devuelve cadena vacia - IL3000 -, y una
+            // whitelist vacia en HidHide nos ocultaria el mando a nosotros mismos).
+            string exe = Environment.ProcessPath
+                         ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName
+                         ?? "";
 
             _engineBusy = true;
             var result = await Task.Run(() => StartEngineDevices(exe));
