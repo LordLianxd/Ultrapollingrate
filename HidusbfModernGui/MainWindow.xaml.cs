@@ -1003,6 +1003,12 @@ namespace HidusbfModernGui
                 ? Visibility.Collapsed : Visibility.Visible;
         }
 
+        private void ToggleHelpPanel_Click(object sender, RoutedEventArgs e)
+        {
+            HelpPanel.Visibility = HelpPanel.Visibility == Visibility.Visible
+                ? Visibility.Collapsed : Visibility.Visible;
+        }
+
         private void ButtonRemapCombo_Changed(object sender, SelectionChangedEventArgs e)
         {
             if (_updatingRemap) return;

@@ -557,6 +557,45 @@
                                                              cada uno edita _remap y persiste via el debounce/CARGAR/GUARDAR de abajo. -->
                                                         <Grid x:Name="TabSticks">
                                                             <StackPanel>
+                                                                <Button x:Name="HelpToggleBtn" Content="¿CÓMO FUNCIONA?" Style="{StaticResource InstrumentButton}"
+                                                                        HorizontalAlignment="Left" Margin="0,0,0,12" Click="ToggleHelpPanel_Click"/>
+
+                                                                <Border x:Name="HelpPanel" Visibility="Collapsed" Background="{StaticResource BgBrush}"
+                                                                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8"
+                                                                        Padding="16" Margin="0,0,0,16">
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="GUÍA DE CURVAS DE RESPUESTA" Style="{StaticResource SectionHeading}" Foreground="{StaticResource TextDataBrush}" Margin="0,0,0,12"/>
+                                                                        <TextBlock TextWrapping="Wrap" Style="{StaticResource FieldLabel}" Foreground="{StaticResource TextDataBrush}" Margin="0,0,0,8"
+                                                                                   Text="La curva de respuesta define cómo se traduce la inclinación física de tu stick (entrada) al movimiento en el juego (salida)."/>
+
+                                                                        <BulletDecorator Margin="0,4,0,4">
+                                                                            <BulletDecorator.Bullet>
+                                                                                <Ellipse Width="8" Height="8" Fill="#66BB6A" Stroke="White" StrokeThickness="1" Margin="0,3,8,0"/>
+                                                                            </BulletDecorator.Bullet>
+                                                                            <TextBlock TextWrapping="Wrap" Style="{StaticResource FieldLabel}" Foreground="{StaticResource TextMutedBrush}"
+                                                                                       Text="Punto Verde (Zona Baja): Controla los pequeños movimientos. Ideal para micro-ajustes y precisión al apuntar a larga distancia. Bajarlo da más precisión."/>
+                                                                        </BulletDecorator>
+
+                                                                        <BulletDecorator Margin="0,4,0,4">
+                                                                            <BulletDecorator.Bullet>
+                                                                                <Ellipse Width="8" Height="8" Fill="#FFCA28" Stroke="White" StrokeThickness="1" Margin="0,3,8,0"/>
+                                                                            </BulletDecorator.Bullet>
+                                                                            <TextBlock TextWrapping="Wrap" Style="{StaticResource FieldLabel}" Foreground="{StaticResource TextMutedBrush}"
+                                                                                       Text="Punto Ámbar (Zona Media): Transición suave entre precisión y giros rápidos. Define la progresividad general de la respuesta."/>
+                                                                        </BulletDecorator>
+
+                                                                        <BulletDecorator Margin="0,4,0,12">
+                                                                            <BulletDecorator.Bullet>
+                                                                                <Ellipse Width="8" Height="8" Fill="#EF5350" Stroke="White" StrokeThickness="1" Margin="0,3,8,0"/>
+                                                                            </BulletDecorator.Bullet>
+                                                                            <TextBlock TextWrapping="Wrap" Style="{StaticResource FieldLabel}" Foreground="{StaticResource TextMutedBrush}"
+                                                                                       Text="Punto Rojo (Zona Alta): Controla la respuesta cerca del límite físico del stick. Subirlo garantiza que alcances la velocidad máxima de giro antes."/>
+                                                                        </BulletDecorator>
+
+                                                                        <TextBlock TextWrapping="Wrap" Style="{StaticResource FieldLabel}" Foreground="{StaticResource TextDataBrush}"
+                                                                                   Text="CONSEJO: En modo 'Lineal', la entrada equivale directamente a la salida. En modo 'Editor', arrastra los puntos con el ratón directamente en el gráfico para diseñar tu propia curva personalizada (por ejemplo, con una zona central plana para mejor precisión)."/>
+                                                                    </StackPanel>
+                                                                </Border>
 
                                                                 <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
                                                                         BorderThickness="1" Padding="18" Margin="0,0,0,16">
