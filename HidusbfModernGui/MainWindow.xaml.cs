@@ -616,6 +616,7 @@ namespace HidusbfModernGui
 
         private bool _remapControlsBuilt;
         private List<RemapProfile> _remapProfiles = new();
+        private List<SavedCurve> _savedCurves = new();
         private readonly List<(PadButton Source, ComboBox Combo)> _buttonRemapRows = new();
         private readonly List<(TouchZone Zone, ComboBox Combo)> _touchZoneRows = new();
 
@@ -692,6 +693,7 @@ namespace HidusbfModernGui
             BuildButtonRemapRows();
             BuildTouchZoneCombos();
             BuildCurveLists();
+            RefreshCurveLibraryLists();
 
             _remapProfiles = RemapProfileStore.Load();
             var last = _remapProfiles.FirstOrDefault(p => p.Name == LastUsedProfileName);
@@ -2436,6 +2438,144 @@ namespace HidusbfModernGui
             LogStatus($"Restart complete. Successfully restarted {successCount}/{filteredDevices.Count} devices.");
             RestartAllBtn.IsEnabled = true;
         }
+
+        // ===== BIBLIOTECA "MIS CURVAS" (Task 4) =====
+        private void RefreshCurveLibraryLists()
+        {
+            _savedCurves = CurveLibraryStore.Load();
+
+            // Refresca combo izquierdo
+            var leftSel = LeftSavedCurveList.SelectedItem as SavedCurve;
+            LeftSavedCurveList.ItemsSource = null;
+            LeftSavedCurveList.ItemsSource = _savedCurves;
+            if (leftSel != null)
+                LeftSavedCurveList.SelectedItem = _savedCurves.FirstOrDefault(c => c.Name == leftSel.Name);
+
+            // Refresca combo derecho
+            var rightSel = RightSavedCurveList.SelectedItem as SavedCurve;
+            RightSavedCurveList.ItemsSource = null;
+            RightSavedCurveList.ItemsSource = _savedCurves;
+            if (rightSel != null)
+                RightSavedCurveList.SelectedItem = _savedCurves.FirstOrDefault(c => c.Name == rightSel.Name);
+        }
+
+        private void SaveCurveGeneric(bool isLeft, string name, List<CurvePoint> points)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                LogStatus("Introduce un nombre para la curva.");
+                return;
+            }
+            name = name.Trim();
+            if (name.Equals("Lineal", StringComparison.OrdinalIgnoreCase) || name.Equals("Editor", StringComparison.OrdinalIgnoreCase))
+            {
+                LogStatus("No puedes usar nombres reservados ('Lineal', 'Editor').");
+                return;
+            }
+
+            var existing = _savedCurves.FirstOrDefault(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (existing != null)
+            {
+                existing.Points = new List<CurvePoint>(points);
+            }
+            else
+            {
+                _savedCurves.Add(new SavedCurve { Name = name, Points = new List<CurvePoint>(points) });
+            }
+
+            var res = CurveLibraryStore.Save(_savedCurves);
+            if (!res.Success)
+            {
+                ShowError("Error al guardar curva", res.Error!);
+                return;
+            }
+
+            RefreshCurveLibraryLists();
+            if (isLeft)
+            {
+                LeftCurveName.Text = "";
+                LeftSavedCurveList.SelectedItem = _savedCurves.FirstOrDefault(c => c.Name == name);
+            }
+            else
+            {
+                RightCurveName.Text = "";
+                RightSavedCurveList.SelectedItem = _savedCurves.FirstOrDefault(c => c.Name == name);
+            }
+            LogStatus($"Curva '{name}' guardada en la biblioteca.");
+        }
+
+        private void LoadCurveGeneric(bool isLeft, SavedCurve? curve)
+        {
+            if (curve == null)
+            {
+                LogStatus("Selecciona una curva de la biblioteca.");
+                return;
+            }
+
+            try
+            {
+                _updatingRemap = true;
+                if (isLeft)
+                {
+                    _remap.LeftCurve = ResponseCurve.Propia;
+                    _remap.LeftCurvePoints = new List<CurvePoint>(curve.Points);
+                    SelectComboByTag(LeftCurveList, ResponseCurve.Propia);
+                    RedrawLeftCurve();
+                }
+                else
+                {
+                    _remap.RightCurve = ResponseCurve.Propia;
+                    _remap.RightCurvePoints = new List<CurvePoint>(curve.Points);
+                    SelectComboByTag(RightCurveList, ResponseCurve.Propia);
+                    RedrawRightCurve();
+                }
+            }
+            finally
+            {
+                _updatingRemap = false;
+            }
+
+            RememberRemap();
+            LogStatus($"Curva '{curve.Name}' aplicada al stick {(isLeft ? "izquierdo" : "derecho")}.");
+        }
+
+        private void DeleteCurveGeneric(bool isLeft, SavedCurve? curve)
+        {
+            if (curve == null)
+            {
+                LogStatus("Selecciona una curva para borrar.");
+                return;
+            }
+
+            _savedCurves.RemoveAll(c => c.Name == curve.Name);
+            var res = CurveLibraryStore.Save(_savedCurves);
+            if (!res.Success)
+            {
+                ShowError("Error al borrar curva", res.Error!);
+                return;
+            }
+
+            RefreshCurveLibraryLists();
+            LogStatus($"Curva '{curve.Name}' eliminada de la biblioteca.");
+        }
+
+        private void LoadLeftCurve_Click(object sender, RoutedEventArgs e)
+            => LoadCurveGeneric(true, LeftSavedCurveList.SelectedItem as SavedCurve);
+
+        private void LoadRightCurve_Click(object sender, RoutedEventArgs e)
+            => LoadCurveGeneric(false, RightSavedCurveList.SelectedItem as SavedCurve);
+
+        private void DeleteLeftCurve_Click(object sender, RoutedEventArgs e)
+            => DeleteCurveGeneric(true, LeftSavedCurveList.SelectedItem as SavedCurve);
+
+        private void DeleteRightCurve_Click(object sender, RoutedEventArgs e)
+            => DeleteCurveGeneric(false, RightSavedCurveList.SelectedItem as SavedCurve);
+
+        private void SaveLeftCurve_Click(object sender, RoutedEventArgs e)
+            => SaveCurveGeneric(true, LeftCurveName.Text, _remap.LeftCurvePoints);
+
+        private void SaveRightCurve_Click(object sender, RoutedEventArgs e)
+            => SaveCurveGeneric(false, RightCurveName.Text, _remap.RightCurvePoints);
 
         private static void ShowError(string title, string message)
         {
