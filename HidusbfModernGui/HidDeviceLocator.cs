@@ -54,6 +54,12 @@ namespace HidusbfModernGui
                 HidD_GetHidGuid(out Guid hidGuid);
 
                 if (CM_Locate_DevNode(out uint dev, usbInstanceId, 0) != CR_SUCCESS) return paths;
+
+                // El propio nodo primero: si el id ya ES el nodo HID (la ruta en-proceso de las luces
+                // con HidHide activo le pasa HID\VID_054C&PID_0CE6...), su interfaz esta aqui, no en
+                // un hijo. Para un id USB compuesto (el camino clasico) esto no aporta nada y no rompe.
+                paths.AddRange(InterfacesFor(usbInstanceId, hidGuid));
+
                 if (CM_Get_Child(out uint child, dev, 0) != CR_SUCCESS) return paths;
 
                 var descendants = new List<string>();

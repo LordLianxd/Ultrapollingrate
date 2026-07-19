@@ -244,7 +244,7 @@ namespace HidusbfModernGui
         // (7&..., 8&...) are read as-is from whatever Windows reports right now, never
         // hardcoded. Returns null (never throws) if the physical isn't found, so the caller
         // can fall back to the caller-supplied device path.
-        private static string? FindPhysicalGamepadInstanceId()
+        public static string? FindPhysicalGamepadInstanceId()
         {
             try
             {

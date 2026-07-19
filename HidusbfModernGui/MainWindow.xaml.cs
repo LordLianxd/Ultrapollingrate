@@ -1533,6 +1533,22 @@ namespace HidusbfModernGui
             BuildLightControls();
             var ps = _allDevices.Where(DualSenseLight.IsPlayStation).ToList();
 
+            // Con HidHide ocultando el fisico, el escaneo (PowerShell, proceso externo sin
+            // whitelist) no lo ve, pero NOSOTROS si: se resuelve en-proceso y se inyecta una
+            // entrada sintetica para que la pagina de luces siga funcionando con el motor activo.
+            if (ps.Count == 0)
+            {
+                var hiddenId = HidHideControl.FindPhysicalGamepadInstanceId();
+                if (hiddenId != null)
+                    ps.Add(new UsbDeviceModel
+                    {
+                        Name = "DualSense (oculto por HidHide)",
+                        InstanceId = hiddenId,
+                        Status = "OK",
+                        Class = "HIDClass",
+                    });
+            }
+
             PlayStationList.ItemsSource = ps;
             if (ps.Count > 0 && PlayStationList.SelectedItem == null) PlayStationList.SelectedIndex = 0;
 
@@ -1836,6 +1852,12 @@ namespace HidusbfModernGui
             if (intent == null) { _intentReapplied = true; return; }
 
             var pad = _allDevices.FirstOrDefault(DualSenseLight.IsPlayStation);
+            if (pad == null)
+            {
+                var hiddenId = HidHideControl.FindPhysicalGamepadInstanceId();
+                if (hiddenId != null)
+                    pad = new UsbDeviceModel { Name = "DualSense (oculto)", InstanceId = hiddenId, Status = "OK", Class = "HIDClass" };
+            }
             if (pad == null) return;   // sin mando aun; se reintenta al reconectar (Task B4)
             _intentReapplied = true;
 
