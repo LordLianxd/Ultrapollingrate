@@ -136,5 +136,19 @@ namespace HidusbfModernGui.Tests
             Assert.False(DualSenseLight.IsPlayStation(new UsbDeviceModel { InstanceId = "" }));
             Assert.False(DualSenseLight.IsPlayStation(new UsbDeviceModel { InstanceId = "nonsense" }));
         }
+
+        [Fact]
+        public void IsPlayStation_RejectsOurVirtualDs4()
+        {
+            var virt = new UsbDeviceModel { InstanceId = @"HID\VID_054C&PID_05C4&Col01\1&2d595ca7&1&0000" };
+            Assert.False(DualSenseLight.IsPlayStation(virt));
+        }
+
+        [Fact]
+        public void IsPlayStation_AcceptsPhysicalDualSense()
+        {
+            var fis = new UsbDeviceModel { InstanceId = @"USB\VID_054C&PID_0CE6\6&227ba791&0&4" };
+            Assert.True(DualSenseLight.IsPlayStation(fis));
+        }
     }
 }

@@ -54,8 +54,11 @@ namespace HidusbfModernGui
         private static extern SafeFileHandle CreateFile(string path, uint access, uint share,
             IntPtr sec, uint disposition, uint flags, IntPtr template);
 
+        // Sony, pero NUNCA nuestro propio DS4 virtual de ViGEm (VID_054C&PID_05C4): escribirle
+        // el reporte 0x02 del DualSense no hace nada y, peor, roba el lugar del fisico en la lista.
         public static bool IsPlayStation(UsbDeviceModel model) =>
-            model?.InstanceId?.IndexOf("VID_054C", StringComparison.OrdinalIgnoreCase) >= 0;
+            model?.InstanceId?.IndexOf("VID_054C", StringComparison.OrdinalIgnoreCase) >= 0 &&
+            model.InstanceId.IndexOf("PID_05C4", StringComparison.OrdinalIgnoreCase) < 0;
 
         // The report, built and testable without touching hardware.
         //
