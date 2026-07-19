@@ -336,6 +336,23 @@ namespace HidusbfModernGui
             ShowConfigPanel(this, null!);
         }
 
+        private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = e.Uri.AbsoluteUri,
+                    UseShellExecute = true
+                });
+                e.Handled = true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error al abrir el enlace: {ex.Message}");
+            }
+        }
+
         // Sub-nav del hub "Mando": Configurar el mando (por defecto) | Luces del mando.
         private void ShowConfigPanel(object sender, RoutedEventArgs e)
         {

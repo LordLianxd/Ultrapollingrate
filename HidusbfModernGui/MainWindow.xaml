@@ -440,6 +440,50 @@
                                         </StackPanel>
                                     </Border>
 
+                                    <TextBlock Text="RECURSOS Y DRIVERS" Style="{StaticResource SectionHeading}" Margin="0,20,0,0"/>
+                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                            BorderThickness="1" Padding="18" Margin="0,8,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Descarga de dependencias y drivers requeridos para las funciones de remapeo y overclock:" Style="{StaticResource FieldLabel}" Margin="0,0,0,12" TextWrapping="Wrap"/>
+                                            
+                                            <StackPanel Margin="0,0,0,10">
+                                                <TextBlock Style="{StaticResource DataText}">
+                                                    <Hyperlink NavigateUri="https://github.com/LordOfMice/hidusbf" RequestNavigate="Hyperlink_RequestNavigate">
+                                                        Repositorio Oficial de hidusbf (SweetLow)
+                                                    </Hyperlink>
+                                                </TextBlock>
+                                                <TextBlock Text="Controlador principal utilizado para el overclock del puerto USB y la tasa de sondeo." Style="{StaticResource FieldLabel}" Margin="16,2,0,0" TextWrapping="Wrap"/>
+                                            </StackPanel>
+
+                                            <StackPanel Margin="0,0,0,10">
+                                                <TextBlock Style="{StaticResource DataText}">
+                                                    <Hyperlink NavigateUri="https://github.com/nefarius/ViGEmBus/releases" RequestNavigate="Hyperlink_RequestNavigate">
+                                                        Driver ViGEmBus (Nefarius)
+                                                    </Hyperlink>
+                                                </TextBlock>
+                                                <TextBlock Text="Controlador del bus virtual requerido para emular el mando de PlayStation (DS4) o Xbox." Style="{StaticResource FieldLabel}" Margin="16,2,0,0" TextWrapping="Wrap"/>
+                                            </StackPanel>
+
+                                            <StackPanel Margin="0,0,0,10">
+                                                <TextBlock Style="{StaticResource DataText}">
+                                                    <Hyperlink NavigateUri="https://github.com/nefarius/HidHide/releases" RequestNavigate="Hyperlink_RequestNavigate">
+                                                        Driver HidHide (Nefarius)
+                                                    </Hyperlink>
+                                                </TextBlock>
+                                                <TextBlock Text="Filtro de dispositivo requerido para ocultar el mando físico y evitar la doble entrada de señal." Style="{StaticResource FieldLabel}" Margin="16,2,0,0" TextWrapping="Wrap"/>
+                                            </StackPanel>
+
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource DataText}">
+                                                    <Hyperlink NavigateUri="https://dotnet.microsoft.com/download/dotnet/9.0" RequestNavigate="Hyperlink_RequestNavigate">
+                                                        Microsoft .NET 9.0 Runtime
+                                                    </Hyperlink>
+                                                </TextBlock>
+                                                <TextBlock Text="Entorno de ejecución de .NET requerido para el funcionamiento de la aplicación UltraPolling." Style="{StaticResource FieldLabel}" Margin="16,2,0,0" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+
                                 </StackPanel>
                             </ScrollViewer>
                         </TabItem>
