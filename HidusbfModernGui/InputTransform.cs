@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 namespace HidusbfModernGui
 {
@@ -67,6 +68,7 @@ namespace HidusbfModernGui
                     double a = Math.Pow(t, k), b = Math.Pow(1.0 - t, k);
                     return a / (a + b);
                 }
+                case ResponseCurve.Propia: return t;
                 default: return t;
             }
         }
@@ -108,6 +110,80 @@ namespace HidusbfModernGui
                 (false, true)  => TouchZone.AbajoIzq,
                 (false, false) => TouchZone.AbajoDer,
             };
+        }
+
+        // Curva Editor: interpolacion cubica monotona de Fritsch-Carlson (PCHIP) por los puntos
+        // del usuario. Pasa exactamente por cada punto, es suave, y NUNCA sobreimpulsa (la
+        // salida entre dos puntos queda dentro del rango de esos puntos): entre puntos vecinos
+        // la mira jamas hace algo que el usuario no dibujo. Con <2 puntos degrada a lineal.
+        public static double ShapeCustom(double t, System.Collections.Generic.IReadOnlyList<CurvePoint>? points)
+        {
+            t = Math.Clamp(t, 0.0, 1.0);
+            if (points == null || points.Count < 2) return t;
+
+            var p = points.OrderBy(q => q.X).ToArray();
+            int n = p.Length;
+            if (t <= p[0].X) return Math.Clamp(p[0].Y, 0.0, 1.0);
+            if (t >= p[n - 1].X) return Math.Clamp(p[n - 1].Y, 0.0, 1.0);
+
+            // Secantes de cada tramo y tangentes en cada punto.
+            var h = new double[n - 1];
+            var delta = new double[n - 1];
+            for (int i = 0; i < n - 1; i++)
+            {
+                h[i] = Math.Max(p[i + 1].X - p[i].X, 1e-9);
+                delta[i] = (p[i + 1].Y - p[i].Y) / h[i];
+            }
+            var m = new double[n];
+            m[0] = delta[0];
+            m[n - 1] = delta[n - 2];
+            for (int i = 1; i < n - 1; i++)
+                m[i] = delta[i - 1] * delta[i] <= 0 ? 0.0 : (delta[i - 1] + delta[i]) / 2.0;
+
+            // Limitador de Fritsch-Carlson: recorta las tangentes que producirian sobreimpulso.
+            for (int i = 0; i < n - 1; i++)
+            {
+                if (delta[i] == 0) { m[i] = 0; m[i + 1] = 0; continue; }
+                double a = m[i] / delta[i], b = m[i + 1] / delta[i];
+                double s = a * a + b * b;
+                if (s > 9.0)
+                {
+                    double tau = 3.0 / Math.Sqrt(s);
+                    m[i] = tau * a * delta[i];
+                    m[i + 1] = tau * b * delta[i];
+                }
+            }
+
+            // Evaluacion del hermite cubico en el tramo que contiene t.
+            int k = 0;
+            while (k < n - 2 && t > p[k + 1].X) k++;
+            double u = (t - p[k].X) / h[k];
+            double u2 = u * u, u3 = u2 * u;
+            double y = p[k].Y * (2 * u3 - 3 * u2 + 1)
+                     + h[k] * m[k] * (u3 - 2 * u2 + u)
+                     + p[k + 1].Y * (-2 * u3 + 3 * u2)
+                     + h[k] * m[k + 1] * (u3 - u2);
+            return Math.Clamp(y, 0.0, 1.0);
+        }
+
+        // Shape con la curva Editor: Propia usa los puntos; el resto ignora points y delega.
+        public static double Shape(double t, ResponseCurve curve, int curvaturePct,
+                                   System.Collections.Generic.IReadOnlyList<CurvePoint>? points)
+            => curve == ResponseCurve.Propia ? ShapeCustom(t, points) : Shape(t, curve, curvaturePct);
+
+        // ApplyStick con puntos: identico al overload de curva+curvatura, pero la forma puede
+        // ser la curva Editor. Es la via que usa RemapEngine.
+        public static (double X, double Y) ApplyStick(StickInput s, double innerDeadzone,
+            double outerDeadzone, ResponseCurve curve, int curvaturePct,
+            System.Collections.Generic.IReadOnlyList<CurvePoint>? points)
+        {
+            double mag = Math.Sqrt(s.X * s.X + s.Y * s.Y);
+            if (mag <= innerDeadzone || mag <= 0.0) return (0.0, 0.0);
+            double outer = Math.Max(outerDeadzone, innerDeadzone + 1e-6);
+            double t = Math.Clamp((mag - innerDeadzone) / (outer - innerDeadzone), 0.0, 1.0);
+            t = Shape(t, curve, curvaturePct, points);
+            double ux = s.X / mag, uy = s.Y / mag;
+            return (ux * t, uy * t);
         }
     }
 }

@@ -5,7 +5,12 @@ namespace HidusbfModernGui
     // a esto, y el nucleo de transformacion trabaja solo con esto.
     public readonly record struct StickInput(double X, double Y);   // -1..1
 
-    public enum ResponseCurve { Precisa, Normal, Rapida, Personalizada, Dinamica, Digital }
+    public enum ResponseCurve { Precisa, Normal, Rapida, Personalizada, Dinamica, Digital, Propia }
+
+    // Un punto de la curva Editor, en coordenadas normalizadas 0..1 (X = entrada del stick
+    // ya sin deadzone, Y = salida). Record struct posicional: System.Text.Json lo
+    // (de)serializa por su constructor, asi que viaja tal cual dentro de RemapSettings.
+    public readonly record struct CurvePoint(double X, double Y);
 
     // Cuadrante del touchpad tocado (None = sin toque). El remapeo asigna un boton por zona.
     public enum TouchZone { None, ArribaIzq, ArribaDer, AbajoIzq, AbajoDer }

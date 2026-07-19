@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using HidusbfModernGui;
 using Xunit;
 
@@ -119,5 +120,76 @@ public class InputTransformCurveTests
         Assert.Equal(1.0, x, 2);
         var (x2, _) = InputTransform.ApplyStick(new StickInput(0.3, 0.0), 0.0, 1.0, ResponseCurve.Digital, 50);
         Assert.Equal(0.0, x2, 2);   // 0.3 < 0.5 -> 0
+    }
+
+    private static List<CurvePoint> Diagonal() => new()
+    {
+        new(0, 0), new(0.25, 0.25), new(0.5, 0.5), new(0.75, 0.75), new(1, 1),
+    };
+
+    [Fact]
+    public void ShapeCustom_DiagonalPoints_IsIdentity()
+    {
+        foreach (var t in new[] { 0.0, 0.1, 0.33, 0.5, 0.77, 1.0 })
+            Assert.Equal(t, InputTransform.ShapeCustom(t, Diagonal()), 3);
+    }
+
+    [Fact]
+    public void ShapeCustom_PassesThroughEveryPoint()
+    {
+        var pts = new List<CurvePoint> { new(0, 0), new(0.3, 0.6), new(0.7, 0.65), new(1, 1) };
+        foreach (var p in pts)
+            Assert.Equal(p.Y, InputTransform.ShapeCustom(p.X, pts), 3);
+    }
+
+    [Fact]
+    public void ShapeCustom_NoOvershoot_BetweenPoints()
+    {
+        // Subida brusca y luego casi plano: un spline ingenuo sobreimpulsa por encima de 0.9
+        // entre 0.5 y 1.0; PCHIP no debe salirse de [0.9, 1.0] en ese tramo.
+        var pts = new List<CurvePoint> { new(0, 0), new(0.5, 0.9), new(1, 1) };
+        for (double t = 0.5; t <= 1.0; t += 0.05)
+        {
+            double y = InputTransform.ShapeCustom(t, pts);
+            Assert.InRange(y, 0.9 - 1e-9, 1.0 + 1e-9);
+        }
+    }
+
+    [Fact]
+    public void ShapeCustom_FlatSegment_StaysFlat()
+    {
+        var pts = new List<CurvePoint> { new(0, 0.5), new(0.5, 0.5), new(1, 1) };
+        Assert.Equal(0.5, InputTransform.ShapeCustom(0.25, pts), 3);
+    }
+
+    [Fact]
+    public void ShapeCustom_ClampsOutsideAndHandlesUnsorted()
+    {
+        var pts = new List<CurvePoint> { new(1, 1), new(0, 0), new(0.5, 0.8) };  // desordenados
+        Assert.Equal(0.0, InputTransform.ShapeCustom(-0.5, pts), 3);
+        Assert.Equal(1.0, InputTransform.ShapeCustom(1.5, pts), 3);
+        Assert.Equal(0.8, InputTransform.ShapeCustom(0.5, pts), 3);
+    }
+
+    [Fact]
+    public void ShapeCustom_NullOrTooFewPoints_IsLinear()
+    {
+        Assert.Equal(0.4, InputTransform.ShapeCustom(0.4, null), 3);
+        Assert.Equal(0.4, InputTransform.ShapeCustom(0.4, new List<CurvePoint> { new(0, 0) }), 3);
+    }
+
+    [Fact]
+    public void Shape_Propia_WithoutPoints_IsLinear()
+    {
+        Assert.Equal(0.6, InputTransform.Shape(0.6, ResponseCurve.Propia, 50), 3);
+    }
+
+    [Fact]
+    public void ApplyStick_WithCustomPoints_UsesThem()
+    {
+        var pts = new List<CurvePoint> { new(0, 0), new(0.5, 0.9), new(1, 1) };
+        var (x, _) = InputTransform.ApplyStick(new StickInput(0.5, 0.0), 0.0, 1.0,
+                                               ResponseCurve.Propia, 50, pts);
+        Assert.Equal(0.9, x, 2);
     }
 }
