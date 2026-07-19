@@ -467,22 +467,38 @@ namespace HidusbfModernGui
         // para que sea seguro ejecutarlo en el hilo de fondo que arma StartSpike().
         private (bool Success, string? FailedStage, string? Error, string? HideError) StartSpikeDevices(string exe)
         {
-            // Orden de seguridad al arrancar: el virtual PRIMERO (para que el juego nunca
-            // se quede sin ningun mando), luego el lector, y solo al final ocultar.
+            // Orden al arrancar (importa mucho):
+            //  1. Virtual PRIMERO, para que ningun juego vea cero mandos durante el cambio.
+            //  2. OCULTAR el fisico ANTES de abrir nuestro lector. HidHide reinicia el
+            //     devnode del mando (RemoveAndSetup), lo que fuerza el cierre de TODO handle
+            //     abierto al mando. Si nuestro lector ya estuviera abierto, seria justo ese
+            //     el handle que se expulsa -> el lector moria y el passthrough se congelaba
+            //     (los reportes se quedaban clavados). Ocultar primero evita la expulsion.
+            //     HidHide resuelve el ID de instancia del fisico por su cuenta, asi que no
+            //     necesita el DevicePath del lector para esto.
+            //  3. RECIEN AHORA abrir el lector, contra el devnode ya re-enumerado (y oculto
+            //     para las demas apps). Nuestro exe esta en la whitelist, asi que nosotros
+            //     si podemos abrirlo; Start() reintenta unos segundos porque el devnode
+            //     necesita un momento para volver tras el reinicio.
             var v = _spikeVirtual!.Connect();
             if (!v.Success) return (false, "virtual", v.Error, null);
+
+            // Ocultar es best-effort: si falla, el fisico queda VISIBLE (el estado seguro) y
+            // el spike igual prueba lector + virtual. El error se muestra pero no aborta.
+            var h = _spikeHidHide!.HideDualSense(exe, "");
+            string? hideError = h.Success ? null : h.Error;
 
             var r = _spikeReader!.Start();
             if (!r.Success)
             {
+                // El lector no pudo abrir tras el reinicio del devnode: revertir el ocultado
+                // (nunca dejar el fisico oculto sin nada que lo lea) y soltar el virtual.
+                try { _spikeHidHide.Revert(); } catch { }
                 _spikeVirtual.Disconnect();
                 return (false, "reader", r.Error, null);
             }
 
-            // Ocultar es best-effort: si falla, el fisico simplemente queda VISIBLE (el
-            // estado seguro) y el spike igual prueba lector + virtual. Se muestra el error.
-            var h = _spikeHidHide!.HideDualSense(exe, _spikeReader.DevicePath ?? "");
-            return (true, null, null, h.Success ? null : h.Error);
+            return (true, null, null, hideError);
         }
 
         private void SpikeTick(object? sender, EventArgs e)
@@ -490,7 +506,11 @@ namespace HidusbfModernGui
             var reader = _spikeReader;
             var virt = _spikeVirtual;
             if (!_spikeRunning || reader == null || virt == null) return;
-            virt.Push(reader.Snapshot());   // sin transformacion: passthrough puro 1:1
+            // Aplica los ajustes de la UI (deadzone/curvas/gatillos/remapeo/touchpad) en vivo:
+            // _remap es el MISMO objeto que editan los controles del configurador, y tanto la
+            // edicion como este tick corren en el hilo de UI, asi que leerlo aqui es seguro y
+            // cualquier cambio de slider se refleja en el mando virtual en el acto.
+            virt.Push(RemapEngine.Transform(reader.Snapshot(), _remap));
             if (++_spikeTick % 15 == 0) UpdateSpikeStatus();
         }
 

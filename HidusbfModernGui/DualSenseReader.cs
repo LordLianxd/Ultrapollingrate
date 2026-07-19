@@ -28,6 +28,12 @@ namespace HidusbfModernGui
     public sealed class DualSenseReader
     {
         private const int SonyVid = 0x054C;
+        // PHYSICAL DualSense only. Critical: our own ViGEm virtual pad is VID_054C too
+        // (PID_05C4, a DS4) and ALSO exposes a 64-byte input report, so matching on vendor
+        // + report length alone can latch onto the virtual pad - a closed feedback loop
+        // reading our own output, misparsed with DualSense offsets (DS4's L2-analog byte 8
+        // read as the dpad hat = 0 = DpadUp stuck forever). PID_0CE6 excludes it.
+        private const int DualSensePid = 0x0CE6;
         // USB gives a 64-byte input report; Bluetooth is 78 and laid out differently, so
         // this spike deliberately only handles the USB pad the user has plugged in.
         private const int UsbReportLength = 64;
@@ -73,9 +79,11 @@ namespace HidusbfModernGui
 
         // First USB DualSense HID collection (the 64-byte gamepad one). Static so the
         // caller can also use it just to test presence without starting a read thread.
+        // Filters by the PHYSICAL pad's PID (0CE6) so it can never pick up our own ViGEm
+        // virtual DS4 (PID_05C4, same Sony vendor id, same 64-byte report length).
         public static HidDevice? FindUsbDualSense()
         {
-            foreach (var dev in DeviceList.Local.GetHidDevices(SonyVid))
+            foreach (var dev in DeviceList.Local.GetHidDevices(SonyVid, DualSensePid))
             {
                 try
                 {
@@ -93,11 +101,27 @@ namespace HidusbfModernGui
         {
             if (_running) return OpResult.Ok();
 
-            var dev = FindUsbDualSense();
+            // Retry finding + opening the pad. This runs right after HidHide restarts the
+            // devnode (RemoveAndSetup), and a PnP remove+re-enumerate needs a beat before
+            // the pad can be found and opened again - a single immediate attempt would race
+            // the re-enumeration and fail. ~4s of retries covers that window comfortably
+            // without hanging if the pad is genuinely absent. Safe to sleep here: Start()
+            // is called on a background thread (StartSpikeDevices via Task.Run), never on
+            // the UI thread.
+            HidDevice? dev = null;
+            HidStream? stream = null;
+            for (int attempt = 0; attempt < 20; attempt++)
+            {
+                dev = FindUsbDualSense();
+                if (dev != null && dev.TryOpen(out stream))
+                    break;
+                stream = null;
+                Thread.Sleep(200);
+            }
+
             if (dev == null)
                 return OpResult.Fail("No se encontro un DualSense por USB (VID 054C, reporte de 64 bytes).");
-
-            if (!dev.TryOpen(out var stream))
+            if (stream == null)
                 return OpResult.Fail("No se pudo abrir el DualSense (otra app podria tenerlo en exclusiva).");
 
             _stream = stream;
@@ -121,6 +145,10 @@ namespace HidusbfModernGui
             _running = false;
             try { _stream?.Close(); } catch { }
             try { _thread?.Join(1500); } catch { }
+            // Close again: the read loop's reconnect could have opened a fresh stream during
+            // teardown (it checks _running each iteration, but may reassign _stream just as
+            // the flag flips). Closing here before dropping the reference avoids leaking it.
+            try { _stream?.Close(); } catch { }
             _stream = null;
             _thread = null;
             Connected = false;
@@ -136,7 +164,16 @@ namespace HidusbfModernGui
                     int n;
                     try { n = _stream!.Read(buf); }
                     catch (TimeoutException) { continue; }   // no report this window; retry
-                    catch { break; }                          // closed on Stop, or unplugged
+                    catch
+                    {
+                        // The stream died. Either Stop() closed it (we're shutting down ->
+                        // exit) or the devnode was restarted/unplugged mid-session. In the
+                        // latter case, try to reopen so the passthrough survives a devnode
+                        // blip or a physical replug instead of freezing forever.
+                        if (!_running) break;
+                        if (!TryReconnect()) break;
+                        continue;
+                    }
 
                     // Need through the touch bytes (index 36) and the right report id.
                     if (n >= 37 && buf[0] == 0x01)
@@ -151,6 +188,32 @@ namespace HidusbfModernGui
             {
                 Connected = false;
             }
+        }
+
+        // Reopen the pad after the stream dropped mid-session (devnode restart / replug).
+        // Runs on the reader thread. Bails immediately if Stop() has flipped _running, so
+        // teardown never waits on a full reconnect window. Returns true once a fresh stream
+        // is open, false if the pad stays gone for the whole window (read loop then exits).
+        private bool TryReconnect()
+        {
+            Connected = false;
+            try { _stream?.Close(); } catch { }
+            _stream = null;
+
+            for (int attempt = 0; attempt < 20 && _running; attempt++)
+            {
+                var dev = FindUsbDualSense();
+                if (dev != null && dev.TryOpen(out var stream))
+                {
+                    stream.ReadTimeout = 150;
+                    _stream = stream;
+                    DevicePath = dev.DevicePath;
+                    Connected = true;
+                    return true;
+                }
+                Thread.Sleep(200);
+            }
+            return false;
         }
 
         // Pure parse from a raw USB report to a normalized ControllerState. Static and
