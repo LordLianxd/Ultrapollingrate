@@ -32,6 +32,7 @@
     <Compile Include="..\HidusbfModernGui\RemapSettings.cs" Link="RemapSettings.cs" />
     <Compile Include="..\HidusbfModernGui\RemapEngine.cs" Link="RemapEngine.cs" />
     <Compile Include="..\HidusbfModernGui\RemapProfileStore.cs" Link="RemapProfileStore.cs" />
+    <Compile Include="..\HidusbfModernGui\CurveLibraryStore.cs" Link="CurveLibraryStore.cs" />
   </ItemGroup>
 
 </Project>
