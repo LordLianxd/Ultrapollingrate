@@ -1077,7 +1077,8 @@ namespace HidusbfModernGui
             DrawCurve(LeftCurveLine, _remap.LeftInnerDeadzone, _remap.LeftOuterDeadzone,
                 _remap.LeftCurve, _remap.LeftCurvaturePct, LeftCurveCanvas.Width, LeftCurveCanvas.Height,
                 _remap.LeftCurvePoints);
-            RefreshCurveDots(LeftCurveCanvas, _leftCurveDots, _remap.LeftCurvePoints, _remap.LeftCurve);
+            RefreshCurveDots(LeftCurveCanvas, _leftCurveDots, _remap.LeftCurvePoints, _remap.LeftCurve,
+                _remap.LeftInnerDeadzone, _remap.LeftOuterDeadzone);
         }
 
         private void RedrawRightCurve()
@@ -1086,12 +1087,26 @@ namespace HidusbfModernGui
             DrawCurve(RightCurveLine, _remap.RightInnerDeadzone, _remap.RightOuterDeadzone,
                 _remap.RightCurve, _remap.RightCurvaturePct, RightCurveCanvas.Width, RightCurveCanvas.Height,
                 _remap.RightCurvePoints);
-            RefreshCurveDots(RightCurveCanvas, _rightCurveDots, _remap.RightCurvePoints, _remap.RightCurve);
+            RefreshCurveDots(RightCurveCanvas, _rightCurveDots, _remap.RightCurvePoints, _remap.RightCurve,
+                _remap.RightInnerDeadzone, _remap.RightOuterDeadzone);
         }
 
         // ===== Editor de curva (ResponseCurve.Propia): 3 puntos interiores arrastrables =====
         // Los extremos (0,0)/(1,1) son fijos: la zona muerta y el alcance ya los gobiernan los
         // sliders. Solo se arrastran los indices 1..3 de la lista de 5.
+
+        // El eje X del canvas es la entrada CRUDA del stick (0..1), pero CurvePoint.X vive en el
+        // dominio post-deadzone (0..1 entre inner y outer). Estos dos convierten entre ambos para
+        // que los marcadores caigan exactamente sobre la polilinea dibujada por DrawCurve y el
+        // arrastre aterrice donde el usuario apunta, con cualquier zona muerta/alcance.
+        private static double DomainToRaw(double x, double inner, double outer)
+            => inner + x * (Math.Max(outer, inner + 1e-6) - inner);
+        private static double RawToDomain(double x, double inner, double outer)
+        {
+            double o = Math.Max(outer, inner + 1e-6);
+            return Math.Clamp((x - inner) / (o - inner), 0.0, 1.0);
+        }
+
         private readonly List<System.Windows.Shapes.Ellipse> _leftCurveDots = new();
         private readonly List<System.Windows.Shapes.Ellipse> _rightCurveDots = new();
         private int _dragIndex = -1;
@@ -1114,32 +1129,38 @@ namespace HidusbfModernGui
         }
 
         // Coloca los 3 marcadores segun los puntos 1..3 y los muestra solo si la curva es Propia.
+        // p.X vive en el dominio post-deadzone; DomainToRaw lo lleva al eje crudo del canvas
+        // (el mismo que usa DrawCurve), asi el marcador cae exactamente sobre la polilinea.
         private void RefreshCurveDots(Canvas canvas, List<System.Windows.Shapes.Ellipse> dots,
-                                      List<CurvePoint> pts, ResponseCurve curve)
+                                      List<CurvePoint> pts, ResponseCurve curve, double inner, double outer)
         {
             EnsureCurveDots(canvas, dots);
             bool show = curve == ResponseCurve.Propia;
             for (int i = 0; i < 3; i++)
             {
                 var p = pts[i + 1];
-                Canvas.SetLeft(dots[i], p.X * canvas.Width - dots[i].Width / 2);
+                Canvas.SetLeft(dots[i], DomainToRaw(p.X, inner, outer) * canvas.Width - dots[i].Width / 2);
                 Canvas.SetTop(dots[i], (1 - p.Y) * canvas.Height - dots[i].Height / 2);
                 dots[i].Visibility = show ? Visibility.Visible : Visibility.Collapsed;
             }
         }
 
         private void CurveCanvas_Down(Canvas canvas, List<CurvePoint> pts, ResponseCurve curve,
-                                      bool isLeft, MouseButtonEventArgs e)
+                                      bool isLeft, double inner, double outer, MouseButtonEventArgs e)
         {
             if (curve != ResponseCurve.Propia) return;
             var pos = e.GetPosition(canvas);
-            double x = pos.X / canvas.Width, y = 1 - pos.Y / canvas.Height;
 
-            // El punto interior mas cercano al clic (radio de captura generoso: 15% del ancho).
-            int best = -1; double bestDist = 0.15;
+            // Prueba en espacio de PIXELES (no en el 0..1 normalizado): un radio fijo en pixeles
+            // da un area de captura circular real sobre el canvas 220x100 (una normalizada seria
+            // muy anisotropica, ancha en X y angosta en Y). Las posiciones de los puntos se
+            // convierten al eje crudo del canvas con DomainToRaw, igual que RefreshCurveDots.
+            int best = -1; double bestDist = 14.0;
             for (int i = 1; i <= 3; i++)
             {
-                double d = Math.Sqrt(Math.Pow(pts[i].X - x, 2) + Math.Pow(pts[i].Y - y, 2));
+                double px = DomainToRaw(pts[i].X, inner, outer) * canvas.Width;
+                double py = (1 - pts[i].Y) * canvas.Height;
+                double d = Math.Sqrt(Math.Pow(px - pos.X, 2) + Math.Pow(py - pos.Y, 2));
                 if (d < bestDist) { bestDist = d; best = i; }
             }
             if (best < 0) return;
@@ -1149,14 +1170,15 @@ namespace HidusbfModernGui
             e.Handled = true;
         }
 
-        private void CurveCanvas_Move(Canvas canvas, List<CurvePoint> pts, MouseEventArgs e)
+        private void CurveCanvas_Move(Canvas canvas, List<CurvePoint> pts, double inner, double outer, MouseEventArgs e)
         {
             if (_dragIndex < 0 || e.LeftButton != MouseButtonState.Pressed) return;
             var pos = e.GetPosition(canvas);
-            // X acotada entre los vecinos (con margen) para que la curva siga siendo una funcion;
-            // Y libre en 0..1.
+            // X acotada entre los vecinos (con margen, en el dominio post-deadzone) para que la
+            // curva siga siendo una funcion; Y libre en 0..1. La posicion cruda del mouse se
+            // convierte al dominio con RawToDomain antes de acotar/guardar.
             double minX = pts[_dragIndex - 1].X + 0.03, maxX = pts[_dragIndex + 1].X - 0.03;
-            double x = Math.Clamp(pos.X / canvas.Width, minX, maxX);
+            double x = Math.Clamp(RawToDomain(pos.X / canvas.Width, inner, outer), minX, maxX);
             double y = Math.Clamp(1 - pos.Y / canvas.Height, 0.0, 1.0);
             pts[_dragIndex] = new CurvePoint(x, y);
             if (_dragIsLeft) RedrawLeftCurve(); else RedrawRightCurve();
@@ -1170,17 +1192,21 @@ namespace HidusbfModernGui
             RememberRemap();   // persiste el dibujo (debounced, como todo _remap)
         }
 
-        // Wrappers por stick (los que referencia el XAML):
+        // Wrappers por stick (los que referencia el XAML). Pasan inner/outer leidos de _remap en
+        // cada llamada (no cacheados): si el usuario mueve el slider de zona muerta/alcance a
+        // mitad de un arrastre, la conversion sigue consistente en el siguiente evento.
         private void LeftCurveCanvas_MouseDown(object sender, MouseButtonEventArgs e)
-            => CurveCanvas_Down(LeftCurveCanvas, _remap.LeftCurvePoints, _remap.LeftCurve, true, e);
+            => CurveCanvas_Down(LeftCurveCanvas, _remap.LeftCurvePoints, _remap.LeftCurve, true,
+                _remap.LeftInnerDeadzone, _remap.LeftOuterDeadzone, e);
         private void LeftCurveCanvas_MouseMove(object sender, MouseEventArgs e)
-            => CurveCanvas_Move(LeftCurveCanvas, _remap.LeftCurvePoints, e);
+            => CurveCanvas_Move(LeftCurveCanvas, _remap.LeftCurvePoints, _remap.LeftInnerDeadzone, _remap.LeftOuterDeadzone, e);
         private void LeftCurveCanvas_MouseUp(object sender, MouseButtonEventArgs e)
             => CurveCanvas_Up(LeftCurveCanvas);
         private void RightCurveCanvas_MouseDown(object sender, MouseButtonEventArgs e)
-            => CurveCanvas_Down(RightCurveCanvas, _remap.RightCurvePoints, _remap.RightCurve, false, e);
+            => CurveCanvas_Down(RightCurveCanvas, _remap.RightCurvePoints, _remap.RightCurve, false,
+                _remap.RightInnerDeadzone, _remap.RightOuterDeadzone, e);
         private void RightCurveCanvas_MouseMove(object sender, MouseEventArgs e)
-            => CurveCanvas_Move(RightCurveCanvas, _remap.RightCurvePoints, e);
+            => CurveCanvas_Move(RightCurveCanvas, _remap.RightCurvePoints, _remap.RightInnerDeadzone, _remap.RightOuterDeadzone, e);
         private void RightCurveCanvas_MouseUp(object sender, MouseButtonEventArgs e)
             => CurveCanvas_Up(RightCurveCanvas);
 
