@@ -1086,6 +1086,19 @@ namespace HidusbfModernGui
             return Math.Clamp((x - inner) / (o - inner), 0.0, 1.0);
         }
 
+        // Colores fijos de los 3 puntos del editor - la UNICA excepcion de color del tema
+        // monocromo, pedida explicitamente: cada punto tiene identidad propia y la ayuda
+        // ("¿COMO FUNCIONA?") los nombra por color. El indice es el contrato:
+        //   0 = VERDE  zona baja  (movimientos finos, punteria)
+        //   1 = AMBAR  zona media (transicion apuntar<->girar)
+        //   2 = ROJO   zona alta  (giros rapidos, tope)
+        private static readonly Color[] CurveDotColors =
+        {
+            Color.FromRgb(0x66, 0xBB, 0x6A),
+            Color.FromRgb(0xFF, 0xCA, 0x28),
+            Color.FromRgb(0xEF, 0x53, 0x50),
+        };
+
         private readonly List<System.Windows.Shapes.Ellipse> _leftCurveDots = new();
         private readonly List<System.Windows.Shapes.Ellipse> _rightCurveDots = new();
         private int _dragIndex = -1;
@@ -1099,7 +1112,9 @@ namespace HidusbfModernGui
                 var dot = new System.Windows.Shapes.Ellipse
                 {
                     Width = 9, Height = 9,
-                    Fill = (Brush)FindResource("TextDataBrush"),
+                    Fill = new SolidColorBrush(CurveDotColors[i]),
+                    Stroke = Brushes.White,
+                    StrokeThickness = 1,
                     Visibility = Visibility.Collapsed,
                 };
                 dots.Add(dot);
