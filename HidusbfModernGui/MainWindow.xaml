@@ -553,7 +553,11 @@
                                                                         <TextBlock Text="CURVA (entrada -&gt; salida)" Style="{StaticResource FieldLabel}" Margin="0,14,0,6"/>
                                                                         <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
                                                                                 BorderThickness="1" Width="220" Height="100" HorizontalAlignment="Left">
-                                                                            <Canvas x:Name="LeftCurveCanvas" Width="220" Height="100" ClipToBounds="True">
+                                                                            <Canvas x:Name="LeftCurveCanvas" Width="220" Height="100" ClipToBounds="True"
+                                                                                    Background="Transparent"
+                                                                                    MouseLeftButtonDown="LeftCurveCanvas_MouseDown"
+                                                                                    MouseMove="LeftCurveCanvas_MouseMove"
+                                                                                    MouseLeftButtonUp="LeftCurveCanvas_MouseUp">
                                                                                 <Polyline x:Name="LeftCurveLine" Stroke="{StaticResource TextDataBrush}" StrokeThickness="1.5"/>
                                                                             </Canvas>
                                                                         </Border>
@@ -613,7 +617,11 @@
                                                                         <TextBlock Text="CURVA (entrada -&gt; salida)" Style="{StaticResource FieldLabel}" Margin="0,14,0,6"/>
                                                                         <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
                                                                                 BorderThickness="1" Width="220" Height="100" HorizontalAlignment="Left">
-                                                                            <Canvas x:Name="RightCurveCanvas" Width="220" Height="100" ClipToBounds="True">
+                                                                            <Canvas x:Name="RightCurveCanvas" Width="220" Height="100" ClipToBounds="True"
+                                                                                    Background="Transparent"
+                                                                                    MouseLeftButtonDown="RightCurveCanvas_MouseDown"
+                                                                                    MouseMove="RightCurveCanvas_MouseMove"
+                                                                                    MouseLeftButtonUp="RightCurveCanvas_MouseUp">
                                                                                 <Polyline x:Name="RightCurveLine" Stroke="{StaticResource TextDataBrush}" StrokeThickness="1.5"/>
                                                                             </Canvas>
                                                                         </Border>

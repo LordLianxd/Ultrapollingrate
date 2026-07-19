@@ -777,7 +777,14 @@ namespace HidusbfModernGui
             ("Dinamica", ResponseCurve.Dinamica),
             ("Digital", ResponseCurve.Digital),
             ("Personalizada", ResponseCurve.Personalizada),
+            ("Editor", ResponseCurve.Propia),
         };
+
+        // El mini-icono de "Editor" no puede muestrear _remap.Left/RightCurvePoints (el combo
+        // es compartido y AddCurveItem no sabe de que stick es): usa una forma de ejemplo fija
+        // solo para que el icono no salga identico al de "Lineal" (que confundiria al usuario).
+        private static readonly CurvePoint[] IconPropiaPoints =
+            { new(0, 0), new(0.3, 0.55), new(0.7, 0.6), new(1, 1) };
 
         // Puntos del mini-icono de cada curva. Menos muestras que el CURVA grande (CurveSamples):
         // a 48x24 la diferencia no se nota y son 6 curvas x 2 sticks por reconstruir cada vez
@@ -806,7 +813,9 @@ namespace HidusbfModernGui
             for (int i = 0; i < CurveIconSamples; i++)
             {
                 double t = i / (double)(CurveIconSamples - 1);
-                double y = InputTransform.Shape(t, curve, 50);
+                double y = curve == ResponseCurve.Propia
+                    ? InputTransform.ShapeCustom(t, IconPropiaPoints)
+                    : InputTransform.Shape(t, curve, 50);
                 points.Add(new Point(t * w, h - y * h));
             }
 
@@ -1046,16 +1055,17 @@ namespace HidusbfModernGui
         private const int CurveSamples = 41;
 
         private static void DrawCurve(System.Windows.Shapes.Polyline line, double innerDeadzone,
-            double outerDeadzone, ResponseCurve curve, int curvaturePct, double width, double height)
+            double outerDeadzone, ResponseCurve curve, int curvaturePct, double width, double height,
+            IReadOnlyList<CurvePoint>? points)
         {
-            var points = new PointCollection();
+            var samples = new PointCollection();
             for (int i = 0; i < CurveSamples; i++)
             {
                 double t = i / (double)(CurveSamples - 1);
-                var (x, _) = InputTransform.ApplyStick(new StickInput(t, 0), innerDeadzone, outerDeadzone, curve, curvaturePct);
-                points.Add(new Point(t * width, height - (x * height)));
+                var (x, _) = InputTransform.ApplyStick(new StickInput(t, 0), innerDeadzone, outerDeadzone, curve, curvaturePct, points);
+                samples.Add(new Point(t * width, height - (x * height)));
             }
-            line.Points = points;
+            line.Points = samples;
         }
 
         // Same XAML-parse-time hazard as UpdateDeadzoneReachText: LeftCurveCanvas is declared
@@ -1065,15 +1075,114 @@ namespace HidusbfModernGui
         {
             if (LeftCurveLine == null || LeftCurveCanvas == null) return;
             DrawCurve(LeftCurveLine, _remap.LeftInnerDeadzone, _remap.LeftOuterDeadzone,
-                _remap.LeftCurve, _remap.LeftCurvaturePct, LeftCurveCanvas.Width, LeftCurveCanvas.Height);
+                _remap.LeftCurve, _remap.LeftCurvaturePct, LeftCurveCanvas.Width, LeftCurveCanvas.Height,
+                _remap.LeftCurvePoints);
+            RefreshCurveDots(LeftCurveCanvas, _leftCurveDots, _remap.LeftCurvePoints, _remap.LeftCurve);
         }
 
         private void RedrawRightCurve()
         {
             if (RightCurveLine == null || RightCurveCanvas == null) return;
             DrawCurve(RightCurveLine, _remap.RightInnerDeadzone, _remap.RightOuterDeadzone,
-                _remap.RightCurve, _remap.RightCurvaturePct, RightCurveCanvas.Width, RightCurveCanvas.Height);
+                _remap.RightCurve, _remap.RightCurvaturePct, RightCurveCanvas.Width, RightCurveCanvas.Height,
+                _remap.RightCurvePoints);
+            RefreshCurveDots(RightCurveCanvas, _rightCurveDots, _remap.RightCurvePoints, _remap.RightCurve);
         }
+
+        // ===== Editor de curva (ResponseCurve.Propia): 3 puntos interiores arrastrables =====
+        // Los extremos (0,0)/(1,1) son fijos: la zona muerta y el alcance ya los gobiernan los
+        // sliders. Solo se arrastran los indices 1..3 de la lista de 5.
+        private readonly List<System.Windows.Shapes.Ellipse> _leftCurveDots = new();
+        private readonly List<System.Windows.Shapes.Ellipse> _rightCurveDots = new();
+        private int _dragIndex = -1;
+        private bool _dragIsLeft;
+
+        private void EnsureCurveDots(Canvas canvas, List<System.Windows.Shapes.Ellipse> dots)
+        {
+            if (dots.Count > 0) return;
+            for (int i = 0; i < 3; i++)
+            {
+                var dot = new System.Windows.Shapes.Ellipse
+                {
+                    Width = 9, Height = 9,
+                    Fill = (Brush)FindResource("TextDataBrush"),
+                    Visibility = Visibility.Collapsed,
+                };
+                dots.Add(dot);
+                canvas.Children.Add(dot);
+            }
+        }
+
+        // Coloca los 3 marcadores segun los puntos 1..3 y los muestra solo si la curva es Propia.
+        private void RefreshCurveDots(Canvas canvas, List<System.Windows.Shapes.Ellipse> dots,
+                                      List<CurvePoint> pts, ResponseCurve curve)
+        {
+            EnsureCurveDots(canvas, dots);
+            bool show = curve == ResponseCurve.Propia;
+            for (int i = 0; i < 3; i++)
+            {
+                var p = pts[i + 1];
+                Canvas.SetLeft(dots[i], p.X * canvas.Width - dots[i].Width / 2);
+                Canvas.SetTop(dots[i], (1 - p.Y) * canvas.Height - dots[i].Height / 2);
+                dots[i].Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            }
+        }
+
+        private void CurveCanvas_Down(Canvas canvas, List<CurvePoint> pts, ResponseCurve curve,
+                                      bool isLeft, MouseButtonEventArgs e)
+        {
+            if (curve != ResponseCurve.Propia) return;
+            var pos = e.GetPosition(canvas);
+            double x = pos.X / canvas.Width, y = 1 - pos.Y / canvas.Height;
+
+            // El punto interior mas cercano al clic (radio de captura generoso: 15% del ancho).
+            int best = -1; double bestDist = 0.15;
+            for (int i = 1; i <= 3; i++)
+            {
+                double d = Math.Sqrt(Math.Pow(pts[i].X - x, 2) + Math.Pow(pts[i].Y - y, 2));
+                if (d < bestDist) { bestDist = d; best = i; }
+            }
+            if (best < 0) return;
+            _dragIndex = best;
+            _dragIsLeft = isLeft;
+            canvas.CaptureMouse();
+            e.Handled = true;
+        }
+
+        private void CurveCanvas_Move(Canvas canvas, List<CurvePoint> pts, MouseEventArgs e)
+        {
+            if (_dragIndex < 0 || e.LeftButton != MouseButtonState.Pressed) return;
+            var pos = e.GetPosition(canvas);
+            // X acotada entre los vecinos (con margen) para que la curva siga siendo una funcion;
+            // Y libre en 0..1.
+            double minX = pts[_dragIndex - 1].X + 0.03, maxX = pts[_dragIndex + 1].X - 0.03;
+            double x = Math.Clamp(pos.X / canvas.Width, minX, maxX);
+            double y = Math.Clamp(1 - pos.Y / canvas.Height, 0.0, 1.0);
+            pts[_dragIndex] = new CurvePoint(x, y);
+            if (_dragIsLeft) RedrawLeftCurve(); else RedrawRightCurve();
+        }
+
+        private void CurveCanvas_Up(Canvas canvas)
+        {
+            if (_dragIndex < 0) return;
+            _dragIndex = -1;
+            canvas.ReleaseMouseCapture();
+            RememberRemap();   // persiste el dibujo (debounced, como todo _remap)
+        }
+
+        // Wrappers por stick (los que referencia el XAML):
+        private void LeftCurveCanvas_MouseDown(object sender, MouseButtonEventArgs e)
+            => CurveCanvas_Down(LeftCurveCanvas, _remap.LeftCurvePoints, _remap.LeftCurve, true, e);
+        private void LeftCurveCanvas_MouseMove(object sender, MouseEventArgs e)
+            => CurveCanvas_Move(LeftCurveCanvas, _remap.LeftCurvePoints, e);
+        private void LeftCurveCanvas_MouseUp(object sender, MouseButtonEventArgs e)
+            => CurveCanvas_Up(LeftCurveCanvas);
+        private void RightCurveCanvas_MouseDown(object sender, MouseButtonEventArgs e)
+            => CurveCanvas_Down(RightCurveCanvas, _remap.RightCurvePoints, _remap.RightCurve, false, e);
+        private void RightCurveCanvas_MouseMove(object sender, MouseEventArgs e)
+            => CurveCanvas_Move(RightCurveCanvas, _remap.RightCurvePoints, e);
+        private void RightCurveCanvas_MouseUp(object sender, MouseButtonEventArgs e)
+            => CurveCanvas_Up(RightCurveCanvas);
 
         // Copia profunda: RemapProfile.Settings no debe compartir instancia con _remap, o
         // seguir editando despues de GUARDAR reescribiria en silencio el perfil ya guardado
