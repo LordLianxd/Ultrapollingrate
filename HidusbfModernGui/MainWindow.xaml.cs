@@ -26,6 +26,15 @@ namespace HidusbfModernGui
         public MainWindow()
         {
             InitializeComponent();
+
+            // El feed vive solo mientras el visualizador esta realmente en pantalla: arranca
+            // cuando ConfigPadVisual se hace visible (sin importar por que camino de
+            // navegacion llego el usuario) y para cuando deja de estarlo.
+            ConfigPadVisual.IsVisibleChanged += (s, e) =>
+            {
+                if (ConfigPadVisual.IsVisible) StartVisualizer();
+                else StopVisualizer();
+            };
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -52,6 +61,7 @@ namespace HidusbfModernGui
         // UI despues de su await y esta llamada no puede hacer await (OnClosing no es async).
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
+            StopVisualizer();
             if (_engineRunning)
             {
                 if (_engineTimer != null)
@@ -453,6 +463,11 @@ namespace HidusbfModernGui
                          ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName
                          ?? "";
 
+            // Cierra el lector propio del visualizador ANTES de que el motor oculte/reinicie
+            // el devnode del fisico: si quedara abierto, seria el handle que HidHide expulsa
+            // (leccion L1). El feed pasara a usar _padReader en cuanto _engineRunning sea true.
+            _visualFeed.StopOwnReader();
+
             _engineBusy = true;
             var result = await Task.Run(() => StartEngineDevices(exe));
             _engineBusy = false;
@@ -588,6 +603,9 @@ namespace HidusbfModernGui
                 ? "MANDO NATIVO - el juego ve tu DualSense fisico, sin transformar."
                 : $"MANDO NATIVO (revert parcial: {revertErr}). Revisa joy.cpl.";
             CleanupEngine();
+            // El fisico volvio a estar visible: si el visualizador sigue en pantalla,
+            // recupera su propia fuente (antes usaba _padReader, que ya no existe).
+            if (ConfigPadVisual.IsVisible) _visualFeed.StartOwnReader();
             MasterToggleBtn.IsEnabled = true;
         }
 
@@ -598,6 +616,45 @@ namespace HidusbfModernGui
             _padHidHide = null;
             _hideError = null;
             _engineRunning = false;
+        }
+
+        // ===== Mando en vivo (Task VZ3): PadVisual del configurador alimentado por la salida
+        // TRANSFORMADA del DualSense fisico, a ~60fps =====
+        //
+        // VisualizerFeed decide la fuente cuando el motor esta apagado (lector propio, de solo
+        // lectura sobre el fisico visible); cuando el motor esta encendido usamos el snapshot
+        // del propio _padReader del motor para no competir por un segundo handle contra el
+        // reinicio de devnode del arranque (leccion L1).
+        private readonly VisualizerFeed _visualFeed = new();
+        private DispatcherTimer? _visualTimer;
+
+        // Arranca el visualizador: timer ~60fps + (si el motor esta apagado) lector propio.
+        // Idempotente.
+        private void StartVisualizer()
+        {
+            if (!_engineRunning) _visualFeed.StartOwnReader();
+            if (_visualTimer == null)
+            {
+                _visualTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(16) };
+                _visualTimer.Tick += VisualizerTick;
+            }
+            _visualTimer.Start();
+        }
+
+        private void StopVisualizer()
+        {
+            _visualTimer?.Stop();
+            _visualFeed.StopOwnReader();
+        }
+
+        private void VisualizerTick(object? sender, EventArgs e)
+        {
+            // Fuente: el lector del motor si esta activo (no abrimos segundo handle), si no el propio.
+            ControllerState? raw = _engineRunning ? _padReader?.Snapshot() : _visualFeed.PhysicalSnapshot();
+            if (raw == null) return;
+            var outState = RemapEngine.Transform(raw, _remap);
+            ConfigPadVisual.Update(outState);
+            // Task 4/5 anaden aqui el streamer y el punto de la curva
         }
 
         // ===== Configurador del mando: edita _remap y persiste via perfiles (Task 4) =====

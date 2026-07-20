@@ -541,6 +541,22 @@
                                                         </StackPanel>
                                                     </Border>
 
+                                                    <!-- Mando en vivo (Task VZ3): la salida TRANSFORMADA (post ajustes de abajo) del
+                                                         DualSense fisico, en vivo a ~60fps. Visible con cualquier pestana abierta:
+                                                         VisualizerFeed decide la fuente (lector propio con el motor apagado,
+                                                         _padReader del motor cuando esta encendido). -->
+                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                            BorderThickness="1" Padding="18" Margin="0,0,0,20">
+                                                        <StackPanel>
+                                                            <TextBlock Text="MANDO EN VIVO (salida al juego)" Style="{StaticResource SectionHeading}"/>
+                                                            <local:PadVisual x:Name="ConfigPadVisual" Height="240" Margin="0,10,0,0"/>
+                                                            <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,8,0,0"
+                                                                       Text="Muestra lo que el juego recibe tras tus ajustes. Con el mando virtual apagado tambien se mueve (para configurar antes de activar)."/>
+                                                            <!-- Fila de modo streamer: la cablea la Task 5 -->
+                                                            <StackPanel x:Name="StreamerRow" Orientation="Horizontal" Margin="0,10,0,0"/>
+                                                        </StackPanel>
+                                                    </Border>
+
                                                     <StackPanel Orientation="Horizontal">
                                                         <Button x:Name="StickTabBtn" Content="STICKS" Style="{StaticResource InstrumentButton}"
                                                                 Click="ShowStickTab" Margin="0,0,8,0"/>
