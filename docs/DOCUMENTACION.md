@@ -2,7 +2,7 @@
 
 Este documento explica cómo está construida la app por dentro: los módulos, los flujos de datos, las decisiones de diseño y las lecciones que dejaron los bugs reales. El [README](../README.md) cubre el uso; esto cubre el **cómo y el porqué**.
 
-Última actualización: 2026-07-18 (tras el editor de curvas v1; el plan v2 — solo Lineal+Editor, puntos de colores, biblioteca de curvas — está escrito pero aún no ejecutado).
+Última actualización: 2026-07-18 (tras el editor de curvas v2: RESPUESTA en Lineal+Editor, puntos de colores, biblioteca MIS CURVAS y botón "¿CÓMO FUNCIONA?").
 
 ---
 
@@ -56,7 +56,7 @@ Todo el código propio vive en `HidusbfModernGui/` (WPF, .NET 9, x64). Núcleo p
 | `intents.json` | La última luz que pidió el usuario (se reaplica al abrir y al reconectar el mando). |
 | `profiles.json` | Perfiles de luz (+ tasa opcional). |
 | `remap-profiles.json` | Perfiles del remapeador (`RemapSettings` completo) + el pseudo-perfil `__ultimo_usado__`. |
-| `curves.json` | (v2, pendiente) Biblioteca de curvas del Editor con nombre. |
+| `curves.json` | Biblioteca de curvas del Editor con nombre (MIS CURVAS). |
 
 ## 3. Flujos clave
 
@@ -138,4 +138,4 @@ Los specs y planes de implementación viven en `docs/superpowers/`:
 - `plans/2026-07-18-controller-remapper.md` — el motor completo (Fases 1–3, ejecutado).
 - `plans/2026-07-18-stick-curves.md` — las curvas Dinámica/Digital (ejecutado; esas curvas se retiran en v2).
 - `plans/2026-07-18-editor-de-curvas.md` — editor de curvas v1 + arreglo de luces con HidHide (ejecutado).
-- `plans/2026-07-18-editor-curvas-v2.md` — **pendiente:** RESPUESTA queda en Lineal+Editor, puntos de colores con significado (verde=zona baja, ámbar=media, rojo=alta), biblioteca "MIS CURVAS" con nombre, y botón "¿CÓMO FUNCIONA?" con la documentación para el usuario.
+- `plans/2026-07-18-editor-curvas-v2.md` — editor v2 (ejecutado): RESPUESTA queda en Lineal+Editor con degradación honesta de perfiles viejos, puntos de colores con significado (verde=zona baja, ámbar=media, rojo=alta), biblioteca "MIS CURVAS" con nombre (`CurveLibraryStore`), y botón "¿CÓMO FUNCIONA?" con la documentación para el usuario.
