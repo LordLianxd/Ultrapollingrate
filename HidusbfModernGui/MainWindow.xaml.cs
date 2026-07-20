@@ -657,7 +657,38 @@ namespace HidusbfModernGui
             if (raw == null) return;
             var outState = RemapEngine.Transform(raw, _remap);
             ConfigPadVisual.Update(outState);
-            // Task 4/5 anaden aqui el streamer y el punto de la curva
+            UpdateCurveLiveDot(raw, outState);
+            // Task 5 anade aqui el streamer
+        }
+
+        // Mueve el punto vivo de cada canvas a (entrada, salida) segun el stick actual. La entrada
+        // es la MAGNITUD cruda del stick (0..1); la salida, la misma curva que dibuja DrawCurve
+        // (via InputTransform.ApplyStick), asi el punto cae exactamente sobre la polilinea. Solo se
+        // muestra si el stick esta fuera de la zona muerta (si no, no hay nada que ver en el centro).
+        private void UpdateCurveLiveDot(ControllerState raw, ControllerState outState)
+        {
+            PlaceLiveDot(LeftCurveCanvas, LeftCurveLiveDot, raw.Left, outState.Left,
+                _remap.LeftInnerDeadzone, _remap.LeftOuterDeadzone);
+            PlaceLiveDot(RightCurveCanvas, RightCurveLiveDot, raw.Right, outState.Right,
+                _remap.RightInnerDeadzone, _remap.RightOuterDeadzone);
+        }
+
+        // La curva mapea magnitud de entrada -> magnitud de salida. X del canvas = entrada cruda
+        // (0..1), Y = salida (0..1, invertida). Coincide con DrawCurve, que muestrea ApplyStick
+        // sobre un stick horizontal. Se oculta dentro de la zona muerta (magnitud de salida 0).
+        private void PlaceLiveDot(Canvas canvas, System.Windows.Shapes.Ellipse dot,
+            StickInput inRaw, StickInput outT, double inner, double outer)
+        {
+            double inMag = Math.Min(1.0, Math.Sqrt(inRaw.X * inRaw.X + inRaw.Y * inRaw.Y));
+            double outMag = Math.Min(1.0, Math.Sqrt(outT.X * outT.X + outT.Y * outT.Y));
+            if (outMag <= 0.0001)
+            {
+                dot.Visibility = Visibility.Collapsed;
+                return;
+            }
+            Canvas.SetLeft(dot, inMag * canvas.Width - dot.Width / 2);
+            Canvas.SetTop(dot, (1 - outMag) * canvas.Height - dot.Height / 2);
+            dot.Visibility = Visibility.Visible;
         }
 
         // ===== Configurador del mando: edita _remap y persiste via perfiles (Task 4) =====

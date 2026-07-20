@@ -645,7 +645,10 @@
                                                                                     MouseLeftButtonDown="LeftCurveCanvas_MouseDown"
                                                                                     MouseMove="LeftCurveCanvas_MouseMove"
                                                                                     MouseLeftButtonUp="LeftCurveCanvas_MouseUp">
+                                                                                <Line x:Name="LeftCurveRef" X1="0" Y1="100" X2="220" Y2="0"
+                                                                                      Stroke="{StaticResource BorderBrush}" StrokeThickness="1" StrokeDashArray="3 3" Opacity="0.5"/>
                                                                                 <Polyline x:Name="LeftCurveLine" Stroke="{StaticResource TextDataBrush}" StrokeThickness="1.5"/>
+                                                                                <Ellipse x:Name="LeftCurveLiveDot" Width="7" Height="7" Fill="White" Visibility="Collapsed"/>
                                                                             </Canvas>
                                                                         </Border>
 
@@ -710,7 +713,10 @@
                                                                                     MouseLeftButtonDown="RightCurveCanvas_MouseDown"
                                                                                     MouseMove="RightCurveCanvas_MouseMove"
                                                                                     MouseLeftButtonUp="RightCurveCanvas_MouseUp">
+                                                                                <Line x:Name="RightCurveRef" X1="0" Y1="100" X2="220" Y2="0"
+                                                                                      Stroke="{StaticResource BorderBrush}" StrokeThickness="1" StrokeDashArray="3 3" Opacity="0.5"/>
                                                                                 <Polyline x:Name="RightCurveLine" Stroke="{StaticResource TextDataBrush}" StrokeThickness="1.5"/>
+                                                                                <Ellipse x:Name="RightCurveLiveDot" Width="7" Height="7" Fill="White" Visibility="Collapsed"/>
                                                                             </Canvas>
                                                                         </Border>
 
