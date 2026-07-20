@@ -1,3 +1,4 @@
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 
@@ -17,13 +18,15 @@ namespace HidusbfModernGui
         // salirse.
         private const double StickRadius = 26;
 
-        private static readonly Brush Idle = new SolidColorBrush(Color.FromRgb(0x3A, 0x3A, 0x3A));
+        private static Brush Idle = Brushes.Transparent;
         private static readonly Brush Active = Brushes.White;
 
         public PadVisual()
         {
             InitializeComponent();
-            Idle.Freeze();
+            Idle = (Brush)Application.Current.FindResource("PadIdleBrush");
+            if (Idle.CanFreeze && !Idle.IsFrozen)
+                Idle.Freeze();
         }
 
         private bool _streamerBackground;
@@ -33,7 +36,12 @@ namespace HidusbfModernGui
             set
             {
                 _streamerBackground = value;
+                // En modo streamer el cuerpo del mando tambien debe volverse
+                // transparente (no solo el fondo del Border), o queda un rectangulo
+                // solido casi negro tapando el video del juego.
                 RootSurface.Background = value ? Brushes.Transparent
+                    : (Brush)FindResource("SurfaceBrush");
+                PadBody.Fill = value ? Brushes.Transparent
                     : (Brush)FindResource("SurfaceBrush");
             }
         }
@@ -64,12 +72,14 @@ namespace HidusbfModernGui
             Set(BtnPS, p.Contains(PadButton.PS));
             Set(TouchpadArea, p.Contains(PadButton.TouchpadClick));
 
-            // Gatillos: la barra crece con el valor analogico. El Top del marco/barra
-            // ya esta fijado arriba en el XAML (Canvas.Top="5"); solo cambia la
-            // Height, y como crece hacia abajo desde ese mismo Top, "llenar" el marco
-            // de 0 a TriggerMaxHeight se lee como el gatillo presionandose.
+            // Gatillos: la barra crece con el valor analogico, desde ABAJO hacia
+            // arriba (metafora de medidor/gauge convencional). Se fija Height y
+            // luego se recalcula Canvas.Top para que el borde inferior de la barra
+            // quede siempre pegado al borde inferior del marco (TriggerFrameBottom).
             L2Fill.Height = TriggerMaxHeight * PadVisualMath.Fill01(s.L2);
+            Canvas.SetTop(L2Fill, TriggerFrameBottom - L2Fill.Height);
             R2Fill.Height = TriggerMaxHeight * PadVisualMath.Fill01(s.R2);
+            Canvas.SetTop(R2Fill, TriggerFrameBottom - R2Fill.Height);
         }
 
         private static void Set(System.Windows.Shapes.Shape shape, bool on)
@@ -82,5 +92,10 @@ namespace HidusbfModernGui
         private const double LeftStickCenterX = 132, LeftStickCenterY = 150;
         private const double RightStickCenterX = 228, RightStickCenterY = 150;
         private const double TriggerMaxHeight = 30;
+
+        // Borde inferior del marco de gatillo (coincide con Canvas.Top="5" +
+        // Height="30" del marco fijo de L2/R2 en el XAML). Las barras de relleno
+        // crecen hacia arriba desde este Y, no hacia abajo desde el Top del marco.
+        private const double TriggerFrameBottom = 5 + TriggerMaxHeight;
     }
 }

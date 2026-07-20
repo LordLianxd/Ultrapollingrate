@@ -3,7 +3,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <!-- RootSurface: Background alterna entre transparente (overlay de streaming) y
          SurfaceBrush (dentro de la ventana normal) via StreamerBackground en el
-         code-behind. El Viewbox interior escala el Canvas de base fija sin deformar. -->
+         code-behind. PadBody.Fill (mas abajo) alterna igual, o el cuerpo del mando
+         se queda solido y tapa el video detras del overlay. El Viewbox interior
+         escala el Canvas de base fija sin deformar. -->
     <Border x:Name="RootSurface" Background="{StaticResource SurfaceBrush}">
         <Viewbox Stretch="Uniform">
             <Canvas Width="360" Height="260">
@@ -16,9 +18,11 @@
                            Fill="{StaticResource SurfaceBrush}"
                            Stroke="{StaticResource BorderBrush}" StrokeThickness="1.5"/>
 
-                <!-- Gatillos L2/R2: marco fijo + barra de relleno. El code-behind solo
-                     toca Height (0..TriggerMaxHeight); el Top se queda arriba del marco,
-                     de forma que crecer hacia abajo se lee como "llenar" el marco. -->
+                <!-- Gatillos L2/R2: marco fijo + barra de relleno. El code-behind toca
+                     Height (0..TriggerMaxHeight) y recalcula Canvas.Top en cada Update()
+                     para que la barra crezca desde el borde INFERIOR del marco hacia
+                     arriba (metafora de medidor/gauge convencional); el Canvas.Top de
+                     aqui abajo es solo el estado de reposo (Height=0). -->
                 <Rectangle Canvas.Left="25" Canvas.Top="5" Width="28" Height="30"
                            Fill="{StaticResource SurfaceAltBrush}"
                            Stroke="{StaticResource BorderBrush}" StrokeThickness="1"/>
@@ -37,44 +41,44 @@
 
                 <!-- Hombros L1/R1. -->
                 <Rectangle x:Name="BtnL1" Canvas.Left="20" Canvas.Top="38" Width="55" Height="14"
-                           RadiusX="4" RadiusY="4" Fill="#3A3A3A"/>
+                           RadiusX="4" RadiusY="4" Fill="{StaticResource PadIdleBrush}"/>
                 <TextBlock Text="L1" Canvas.Left="37" Canvas.Top="40" FontSize="9"
                            Foreground="{StaticResource TextDataBrush}" IsHitTestVisible="False"/>
 
                 <Rectangle x:Name="BtnR1" Canvas.Left="285" Canvas.Top="38" Width="55" Height="14"
-                           RadiusX="4" RadiusY="4" Fill="#3A3A3A"/>
+                           RadiusX="4" RadiusY="4" Fill="{StaticResource PadIdleBrush}"/>
                 <TextBlock Text="R1" Canvas.Left="303" Canvas.Top="40" FontSize="9"
                            Foreground="{StaticResource TextDataBrush}" IsHitTestVisible="False"/>
 
                 <!-- Touchpad, Share, Options, PS. -->
                 <Rectangle x:Name="TouchpadArea" Canvas.Left="140" Canvas.Top="58" Width="80" Height="34"
-                           RadiusX="6" RadiusY="6" Fill="#3A3A3A"
+                           RadiusX="6" RadiusY="6" Fill="{StaticResource PadIdleBrush}"
                            Stroke="{StaticResource BorderBrush}" StrokeThickness="1"/>
 
                 <Rectangle x:Name="BtnShare" Canvas.Left="100" Canvas.Top="66" Width="26" Height="16"
-                           RadiusX="3" RadiusY="3" Fill="#3A3A3A"/>
+                           RadiusX="3" RadiusY="3" Fill="{StaticResource PadIdleBrush}"/>
                 <TextBlock Text="Share" Canvas.Left="99" Canvas.Top="85" FontSize="8"
                            Foreground="{StaticResource TextLabelBrush}" IsHitTestVisible="False"/>
 
                 <Rectangle x:Name="BtnOptions" Canvas.Left="234" Canvas.Top="66" Width="26" Height="16"
-                           RadiusX="3" RadiusY="3" Fill="#3A3A3A"/>
+                           RadiusX="3" RadiusY="3" Fill="{StaticResource PadIdleBrush}"/>
                 <TextBlock Text="Options" Canvas.Left="228" Canvas.Top="85" FontSize="8"
                            Foreground="{StaticResource TextLabelBrush}" IsHitTestVisible="False"/>
 
                 <Ellipse x:Name="BtnPS" Canvas.Left="168" Canvas.Top="100" Width="24" Height="24"
-                         Fill="#3A3A3A" Stroke="{StaticResource BorderBrush}" StrokeThickness="1"/>
+                         Fill="{StaticResource PadIdleBrush}" Stroke="{StaticResource BorderBrush}" StrokeThickness="1"/>
                 <TextBlock Text="PS" Canvas.Left="172" Canvas.Top="106" FontSize="9"
                            Foreground="{StaticResource TextDataBrush}" IsHitTestVisible="False"/>
 
                 <!-- Cruceta (dpad), cluster centrado en (55,150). -->
                 <Rectangle x:Name="DpadUp" Canvas.Left="47" Canvas.Top="112" Width="16" Height="26"
-                           RadiusX="3" RadiusY="3" Fill="#3A3A3A"/>
+                           RadiusX="3" RadiusY="3" Fill="{StaticResource PadIdleBrush}"/>
                 <Rectangle x:Name="DpadDown" Canvas.Left="47" Canvas.Top="162" Width="16" Height="26"
-                           RadiusX="3" RadiusY="3" Fill="#3A3A3A"/>
+                           RadiusX="3" RadiusY="3" Fill="{StaticResource PadIdleBrush}"/>
                 <Rectangle x:Name="DpadLeft" Canvas.Left="17" Canvas.Top="142" Width="26" Height="16"
-                           RadiusX="3" RadiusY="3" Fill="#3A3A3A"/>
+                           RadiusX="3" RadiusY="3" Fill="{StaticResource PadIdleBrush}"/>
                 <Rectangle x:Name="DpadRight" Canvas.Left="67" Canvas.Top="142" Width="26" Height="16"
-                           RadiusX="3" RadiusY="3" Fill="#3A3A3A"/>
+                           RadiusX="3" RadiusY="3" Fill="{StaticResource PadIdleBrush}"/>
 
                 <!-- Pozos de stick: fijos, no cambian de Fill. Los pulgares se mueven en
                      Update() via Canvas.SetLeft/Top; la posicion aqui es solo el estado
@@ -90,19 +94,19 @@
                          Fill="{StaticResource TextDataBrush}" Stroke="{StaticResource BorderBrush}" StrokeThickness="1"/>
 
                 <!-- Caras: cluster centrado en (305,150), simetrico al dpad. -->
-                <Ellipse x:Name="BtnTriangle" Canvas.Left="293" Canvas.Top="112" Width="24" Height="24" Fill="#3A3A3A"/>
+                <Ellipse x:Name="BtnTriangle" Canvas.Left="293" Canvas.Top="112" Width="24" Height="24" Fill="{StaticResource PadIdleBrush}"/>
                 <TextBlock Text="△" Canvas.Left="300" Canvas.Top="115" FontSize="13"
                            Foreground="{StaticResource TextLabelBrush}" IsHitTestVisible="False"/>
 
-                <Ellipse x:Name="BtnCross" Canvas.Left="293" Canvas.Top="164" Width="24" Height="24" Fill="#3A3A3A"/>
+                <Ellipse x:Name="BtnCross" Canvas.Left="293" Canvas.Top="164" Width="24" Height="24" Fill="{StaticResource PadIdleBrush}"/>
                 <TextBlock Text="✕" Canvas.Left="300" Canvas.Top="167" FontSize="13"
                            Foreground="{StaticResource TextLabelBrush}" IsHitTestVisible="False"/>
 
-                <Ellipse x:Name="BtnSquare" Canvas.Left="269" Canvas.Top="138" Width="24" Height="24" Fill="#3A3A3A"/>
+                <Ellipse x:Name="BtnSquare" Canvas.Left="269" Canvas.Top="138" Width="24" Height="24" Fill="{StaticResource PadIdleBrush}"/>
                 <TextBlock Text="□" Canvas.Left="276" Canvas.Top="141" FontSize="13"
                            Foreground="{StaticResource TextLabelBrush}" IsHitTestVisible="False"/>
 
-                <Ellipse x:Name="BtnCircle" Canvas.Left="317" Canvas.Top="138" Width="24" Height="24" Fill="#3A3A3A"/>
+                <Ellipse x:Name="BtnCircle" Canvas.Left="317" Canvas.Top="138" Width="24" Height="24" Fill="{StaticResource PadIdleBrush}"/>
                 <TextBlock Text="○" Canvas.Left="324" Canvas.Top="141" FontSize="13"
                            Foreground="{StaticResource TextLabelBrush}" IsHitTestVisible="False"/>
 
