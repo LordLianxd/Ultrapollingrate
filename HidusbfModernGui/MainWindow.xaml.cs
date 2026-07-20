@@ -18,6 +18,7 @@ namespace HidusbfModernGui
         private DriverState _driverState = new DriverState();
         private bool _isInitializing = true;
         private bool _overclockBusy;
+        private StreamerWindow? _streamerWindow;
 
         // Mode used to interpret the 31/62 slots. Falls back to NoPatch so the UI
         // shows literal 31Hz/62Hz rather than claiming an overclock we cannot prove.
@@ -62,6 +63,7 @@ namespace HidusbfModernGui
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
             StopVisualizer();
+            _streamerWindow?.Close();
             if (_engineRunning)
             {
                 if (_engineTimer != null)
@@ -657,8 +659,29 @@ namespace HidusbfModernGui
             if (raw == null) return;
             var outState = RemapEngine.Transform(raw, _remap);
             ConfigPadVisual.Update(outState);
+            _streamerWindow?.Pad.Update(outState);
             UpdateCurveLiveDot(raw, outState);
-            // Task 5 anade aqui el streamer
+        }
+
+        // MODO STREAMER: ventana overlay transparente/siempre-encima con solo el
+        // mando, para capturar en OBS. StreamerToggle es un Button normal (no
+        // ToggleButton: InstrumentButton esta definido para TargetType="Button" y
+        // ToggleButton no deriva de Button), asi que el estado abierto/cerrado se
+        // lee de _streamerWindow y el texto del boton se actualiza a mano.
+        private void StreamerToggle_Click(object sender, RoutedEventArgs e)
+        {
+            if (_streamerWindow == null)
+            {
+                _streamerWindow = new StreamerWindow { Owner = this };
+                _streamerWindow.Closed += (_, _) => { _streamerWindow = null; StreamerToggle.Content = "MODO STREAMER"; };
+                _streamerWindow.Show();
+                StreamerToggle.Content = "CERRAR STREAMER";
+                StartVisualizer();   // asegura el feed vivo aunque el foco cambie
+            }
+            else
+            {
+                _streamerWindow.Close();   // el handler Closed limpia la referencia y el texto
+            }
         }
 
         // Mueve el punto vivo de cada canvas a (entrada, salida) segun el stick actual. La entrada
