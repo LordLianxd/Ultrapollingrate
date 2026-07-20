@@ -47,6 +47,10 @@ Todo el código propio vive en `HidusbfModernGui/` (WPF, .NET 9, x64). Núcleo p
 | `DualSenseLight.cs` | Escribe el output report 0x02 (color/LEDs/brillo) al físico. `IsPlayStation` excluye `PID_05C4` (el virtual jamás es objetivo de luz). |
 | `HidDeviceLocator.cs` | De un instance id (USB compuesto **o** el propio nodo HID) a las rutas de interfaz HID (cfgmgr32). |
 | `PollingMeter.cs` | Mide la llegada real de reportes HID del dispositivo seleccionado (mediana/min/max de los huecos). |
+| `PadVisualMath.cs` | Matemática pura de renderizado: conversión de coordenadas del stick a píxeles (offset, escala), cálculo de stick radius, ángulo y magnitud. |
+| `PadVisual.cs` | Dibuja un DualSense nativo en Canvas WPF, actualiza sticks/botones/touchpad en vivo con un `ControllerState` transformado (lo que ve el juego). |
+| `VisualizerFeed.cs` | Feed de datos a ~60 fps: lee el mando físico O bien devuelve un lector propio si el motor está parado (lección L1), aplica `RemapEngine.Transform` para que la visual = salida transformada, coordina con el motor para ceder la fuente al arrancar. |
+| `StreamerWindow.xaml(.cs)` | Ventana overlay transparente: dibuja el mando en vivo sobre fondo 100% transparente (apto para captura OBS), cierra sin parar el engine, visible independientemente del config pad. |
 | `MainWindow.xaml(.cs)` | Toda la UI (una sola ventana WPF): dashboard, sistema/driver, hub del mando (Configurar + Luces). |
 
 ### Persistencia (todo en `%APPDATA%\UltraPolling`)
@@ -93,11 +97,22 @@ Todo el trabajo pesado (ViGEm connect, HidHide, reinicios PnP) corre en hilo de 
 
 **Deuda conocida:** el push al virtual va por `DispatcherTimer` de 8 ms en el hilo de UI (~125 Hz efectivos, con jitter si la UI está ocupada), aunque el físico entregue 8 kHz. Si la respuesta en juego se siente rara tras afinar curvas, la siguiente palanca es mover el push a un hilo propio.
 
-### 3.4 Editor de curvas
+### 3.4 Feed de visualización en vivo (mando + streamer)
+
+El visualizador dibuja el mando transformado (**lo que ve el juego**) a ~60 fps en dos destinos: el centro del configurador (cuando está visible) y la ventana streamer (overlay OBS). Ambos usan el mismo feed:
+
+- **Fuente:** `VisualizerFeed` abre un `DualSenseReader` propio si el motor está **parado**; si el motor está **activo**, cede la fuente a `_padReader` del motor (lección L1: el feed nunca compite por el devnode). 
+- **Transformación:** Cada snapshot aplica `RemapEngine.Transform(estado, _remap)` con las mismas settings que el virtual, garantizando que la visual = la salida del juego.
+- **Temporización:** `DispatcherTimer` a ~60 fps; el feed se activa mientras el tab de Configurar sea visible **o** la ventana streamer esté abierta, y se pausa al ocultar ambas.
+- **Coordinación:** Al arrancar el motor (`StartEngine`), el feed se pausa, `_padReader` toma el control del devnode, y el feed cede su propio lector. Al detener el motor (`StopEngine`), el lector del feed se reinicia si la UI sigue visible.
+
+El dibujo nativo del mando (`PadVisual`) también muestra la diagonal de referencia y un punto en vivo en cada gráfica de curva (RESPUESTA / Lineal / Editor), resolviendo la confusión "es como si Lineal no estuviera activa / los 3 puntos no se entienden" — el punto vivo en la curva demuestra dónde está la entrada actual dentro de los 3 puntos de control.
+
+### 3.5 Editor de curvas
 
 - Los **5 puntos** por stick viven en `RemapSettings.LeftCurvePoints`/`RightCurvePoints`. Extremos (0,0)/(1,1) fijos; índices 1..3 arrastrables sobre el canvas CURVA.
 - **Dos dominios, una conversión:** `CurvePoint.X` vive en el dominio **post-deadzone** (0..1 entre inner y outer); el eje X del canvas es la entrada **cruda** del stick. `DomainToRaw`/`RawToDomain` convierten en la frontera de la UI, así los puntos caen exactamente sobre la línea dibujada con cualquier zona muerta/alcance (lección L4).
-- **Interpolación PCHIP** (Fritsch–Carlson, `InputTransform.ShapeCustom`): pasa exactamente por cada punto, suave, y **sin sobreimpulso** — entre dos puntos la salida nunca se sale del rango de esos puntos. Crítico para que la mira no haga nada que el usuario no dibujó.
+- **Interpolación PCHIP** (Fritsch–Carlson, `InputTransform.ShapeCustom`): pasa exactamente por cada punto, suave, y **sin sobreimpulso** — entre dos puntos la salida nunca se sale del rango de esos puntos. Crítico para que la mira no haga nada que el usuario no dibujó. **El punto vivo en la gráfica (Task VZ4) y la diagonal de referencia demuestran cómo funciona el remapeo en tiempo real.**
 - El orden completo de un stick en el motor: deadzone radial (por magnitud, preserva el ángulo) → reescala [inner,outer]→[0,1] → curva (preset o puntos) → dirección unitaria × magnitud.
 
 ## 4. Tests
