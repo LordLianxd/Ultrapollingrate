@@ -28,14 +28,11 @@ namespace HidusbfModernGui
         {
             InitializeComponent();
 
-            // El feed vive solo mientras el visualizador esta realmente en pantalla: arranca
-            // cuando ConfigPadVisual se hace visible (sin importar por que camino de
-            // navegacion llego el usuario) y para cuando deja de estarlo.
-            ConfigPadVisual.IsVisibleChanged += (s, e) =>
-            {
-                if (ConfigPadVisual.IsVisible) StartVisualizer();
-                else StopVisualizer();
-            };
+            // El feed vive mientras el pad del configurador este visible O la ventana
+            // streamer siga abierta (ver UpdateVisualizerRunState): arranca/para segun ese
+            // estado combinado cada vez que ConfigPadVisual cambia de visibilidad, sin
+            // importar por que camino de navegacion llego el usuario.
+            ConfigPadVisual.IsVisibleChanged += (s, e) => UpdateVisualizerRunState();
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -652,6 +649,14 @@ namespace HidusbfModernGui
             _visualFeed.StopOwnReader();
         }
 
+        // El feed corre si el pad del configurador esta visible O si la ventana streamer esta
+        // abierta (el overlay debe seguir vivo aunque el usuario navegue a otra pestana).
+        private void UpdateVisualizerRunState()
+        {
+            if (ConfigPadVisual.IsVisible || _streamerWindow != null) StartVisualizer();
+            else StopVisualizer();
+        }
+
         private void VisualizerTick(object? sender, EventArgs e)
         {
             // Fuente: el lector del motor si esta activo (no abrimos segundo handle), si no el propio.
@@ -673,16 +678,30 @@ namespace HidusbfModernGui
             if (_streamerWindow == null)
             {
                 _streamerWindow = new StreamerWindow { Owner = this };
-                _streamerWindow.Closed += (_, _) => { _streamerWindow = null; StreamerToggle.Content = "MODO STREAMER"; };
+                _streamerWindow.Closed += (_, _) =>
+                {
+                    _streamerWindow = null;
+                    StreamerToggle.Content = "MODO STREAMER";
+                    StreamerClickThrough.IsChecked = false;
+                    StreamerClickThrough.IsEnabled = false;
+                    UpdateVisualizerRunState();   // para el feed si el pad tampoco esta visible
+                };
                 _streamerWindow.Show();
                 StreamerToggle.Content = "CERRAR STREAMER";
-                StartVisualizer();   // asegura el feed vivo aunque el foco cambie
+                StreamerClickThrough.IsEnabled = true;
+                UpdateVisualizerRunState();   // asegura el feed vivo aunque el foco cambie despues
             }
             else
             {
-                _streamerWindow.Close();   // el handler Closed limpia la referencia y el texto
+                _streamerWindow.Close();   // el handler Closed limpia la referencia, el texto y el checkbox
             }
         }
+
+        // Apaga (o prende) el pasa-clic del overlay desde la ventana principal, que nunca es
+        // ella misma click-through: es la unica via no destructiva de recuperar el toolbar del
+        // overlay una vez que el pasa-clic lo vuelve inalcanzable (ver StreamerWindow.SetClickThrough).
+        private void StreamerClickThrough_Click(object sender, RoutedEventArgs e)
+            => _streamerWindow?.SetClickThrough(StreamerClickThrough.IsChecked == true);
 
         // Mueve el punto vivo de cada canvas a (entrada, salida) segun el stick actual. La entrada
         // es la MAGNITUD cruda del stick (0..1); la salida, la misma curva que dibuja DrawCurve

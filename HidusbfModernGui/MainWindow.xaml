@@ -556,6 +556,14 @@
                                                             <StackPanel x:Name="StreamerRow" Orientation="Horizontal" Margin="0,10,0,0">
                                                                 <Button x:Name="StreamerToggle" Content="MODO STREAMER" Style="{StaticResource InstrumentButton}"
                                                                         Click="StreamerToggle_Click"/>
+                                                                <!-- Apaga el pasa-clic del overlay sin destruirlo: una vez ON desde la barra
+                                                                     del propio streamer, el raton lo atraviesa entero y su ToggleButton deja
+                                                                     de ser alcanzable, asi que esta ventana (nunca click-through) es el unico
+                                                                     camino de vuelta. Solo usable con el streamer abierto. -->
+                                                                <CheckBox x:Name="StreamerClickThrough" Content="Overlay atraviesa clic"
+                                                                          VerticalAlignment="Center" Margin="12,0,0,0" IsEnabled="False"
+                                                                          Foreground="{StaticResource TextDataBrush}"
+                                                                          Click="StreamerClickThrough_Click"/>
                                                             </StackPanel>
                                                         </StackPanel>
                                                     </Border>

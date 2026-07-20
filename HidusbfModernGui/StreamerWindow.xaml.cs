@@ -31,11 +31,19 @@ namespace HidusbfModernGui
         [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr h, int i);
         [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr h, int i, int v);
         private void ClickThrough_Changed(object s, RoutedEventArgs e)
+            => SetClickThrough(ClickThroughToggle.IsChecked == true);
+
+        // Expuesto para que la ventana principal (que nunca es click-through) pueda
+        // apagar el pasa-clic desde afuera: una vez ON desde la barra del propio overlay,
+        // el raton la atraviesa entera y su ToggleButton deja de ser alcanzable, asi que
+        // este es el unico camino no destructivo para volver a OFF.
+        public void SetClickThrough(bool on)
         {
             var h = new WindowInteropHelper(this).Handle;
             int ex = GetWindowLong(h, GWL_EXSTYLE);
-            if (ClickThroughToggle.IsChecked == true) SetWindowLong(h, GWL_EXSTYLE, ex | WS_EX_TRANSPARENT);
+            if (on) SetWindowLong(h, GWL_EXSTYLE, ex | WS_EX_TRANSPARENT);
             else SetWindowLong(h, GWL_EXSTYLE, ex & ~WS_EX_TRANSPARENT);
+            ClickThroughToggle.IsChecked = on;
         }
     }
 }
