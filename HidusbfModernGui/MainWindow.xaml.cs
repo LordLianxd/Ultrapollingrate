@@ -632,7 +632,10 @@ namespace HidusbfModernGui
         // Idempotente.
         private void StartVisualizer()
         {
-            if (!_engineRunning) _visualFeed.StartOwnReader();
+            // _engineBusy tambien: durante el arranque/parada del motor (que reinicia el devnode) no
+            // debemos abrir un lector propio, o su handle muere en el restart (leccion L1). _engineRunning
+            // solo pasa a true/false al terminar el trabajo de fondo, asi que se necesita el guard de busy.
+            if (!_engineRunning && !_engineBusy) _visualFeed.StartOwnReader();
             if (_visualTimer == null)
             {
                 _visualTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(16) };
