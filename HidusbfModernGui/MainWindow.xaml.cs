@@ -477,6 +477,10 @@ namespace HidusbfModernGui
                     ? "Error creando el DS4 virtual: " + result.Error
                     : "Error leyendo el DualSense: " + result.Error;
                 CleanupEngine();
+                // El arranque fallo (p. ej. sin ViGEmBus/HidHide): el fisico sigue visible, asi que
+                // reabrimos el lector propio del visualizador (que StartEngine cerro por la leccion L1),
+                // o el mando en vivo se queda congelado. Espeja la recuperacion de StopEngine.
+                if (ConfigPadVisual.IsVisible) _visualFeed.StartOwnReader();
                 MasterToggleBtn.IsEnabled = true;
                 return;
             }
