@@ -1142,7 +1142,11 @@ namespace HidusbfModernGui
                     var line = new Line
                     {
                         X1 = a.X, Y1 = a.Y, X2 = lx, Y2 = ly,
-                        Stroke = (Brush)FindResource("BorderBrush"), StrokeThickness = 2,
+                        // TextLabelBrush, no BorderBrush: el borde del tema (#1F1F1F) esta
+                        // pensado para separar paneles sobre superficies casi negras, y sobre
+                        // el fondo del diagrama la linea guia era practicamente invisible.
+                        // Una guia que no se ve no guia.
+                        Stroke = (Brush)FindResource("TextLabelBrush"), StrokeThickness = 3,
                         IsHitTestVisible = false,
                     };
                     DiagramCanvas.Children.Add(line);
@@ -1176,12 +1180,35 @@ namespace HidusbfModernGui
             RefreshButtonPills();
         }
 
-        // Fondo del diagrama (Task BT3, todavia no hecha): por ahora siempre null a
-        // proposito, para que el camino de respaldo (PadVisual vectorial, arriba) sea el
-        // que se construye y se ve hoy. Nunca lanza: cuando BT3 la implemente (buscar
-        // diagram.png en la carpeta del skin instalado), un skin roto o ausente debe
-        // seguir cayendo aqui, no tumbar la pagina.
-        private ImageSource? TryLoadDiagramImage() => null;
+        // Fondo del diagrama: diagram.png de la carpeta del skin instalado. Vive FUERA del
+        // repo por la misma razon que el resto del arte del skin (ver DOCUMENTACION.md), asi
+        // que faltar es un caso normal, no un error: entonces se dibuja el mando vectorial.
+        // Nunca lanza - una imagen rota jamas puede dejar la pagina en blanco.
+        private ImageSource? TryLoadDiagramImage()
+        {
+            try
+            {
+                var dir = PadSkinLoader.FindFirstSkinDir(PadSkinLoader.DefaultSkinsRoot);
+                if (dir == null) return null;
+
+                string path = System.IO.Path.Combine(dir, "diagram.png");
+                if (!System.IO.File.Exists(path)) return null;
+
+                var bmp = new System.Windows.Media.Imaging.BitmapImage();
+                bmp.BeginInit();
+                bmp.UriSource = new Uri(path, UriKind.Absolute);
+                // OnLoad: no dejar bloqueado el archivo del usuario ni depender de que siga
+                // ahi despues (puede mover o borrar el skin con la app abierta).
+                bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                bmp.EndInit();
+                bmp.Freeze();
+                return bmp;
+            }
+            catch
+            {
+                return null;
+            }
+        }
 
         // Cada etiqueta dice A QUE envia su boton: su propio nombre si no esta remapeado, el
         // destino si lo esta (y entonces se resalta). Asi se ve el mapa entero de un vistazo,
