@@ -491,18 +491,33 @@ namespace HidusbfModernGui
             }
         }
 
-        // Sub-nav del hub "Mando": Configurar el mando (por defecto) | Luces del mando.
+        // Sub-nav del hub "Mando": Configurar el mando (por defecto) | Luces del mando | Perfiles.
         private void ShowConfigPanel(object sender, RoutedEventArgs e)
         {
             ConfigPanel.Visibility = Visibility.Visible;
             LucesPanel.Visibility = Visibility.Collapsed;
+            PerfilesPanel.Visibility = Visibility.Collapsed;
         }
 
         private void ShowLucesPanel(object sender, RoutedEventArgs e)
         {
             ConfigPanel.Visibility = Visibility.Collapsed;
             LucesPanel.Visibility = Visibility.Visible;
+            PerfilesPanel.Visibility = Visibility.Collapsed;
             RefreshPlayStationDevices();   // igual que hoy al entrar a la luz
+        }
+
+        private void ShowPerfilesPanel(object sender, RoutedEventArgs e)
+        {
+            ConfigPanel.Visibility = Visibility.Collapsed;
+            LucesPanel.Visibility = Visibility.Collapsed;
+            PerfilesPanel.Visibility = Visibility.Visible;
+
+            // Aplicar un perfil escribe la luz, y eso necesita un mando resuelto en
+            // PlayStationList. Sin esta llamada, entrar directo a PERFILES sin pasar por
+            // LUCES dejaria la mitad de luz del perfil sin efecto y en silencio.
+            RefreshPlayStationDevices();
+            LoadGameProfiles();
         }
 
         // ===== Hub del configurador (Task PS3): navegacion + animaciones =====
@@ -1070,7 +1085,6 @@ namespace HidusbfModernGui
                 _updatingRemap = false;
             }
 
-            RefreshRemapProfileList();
             CheckEngineDrivers();
 
             SkinStatusText.Text = ConfigPadVisual.StatusText;
@@ -1754,16 +1768,6 @@ namespace HidusbfModernGui
             RightCurvePoints = new List<CurvePoint>(s.RightCurvePoints),
         };
 
-        private void RefreshRemapProfileList()
-        {
-            RemapProfileList.ItemsSource = null;
-            var visible = _remapProfiles.Where(p => p.Name != LastUsedProfileName).ToList();
-            RemapProfileList.ItemsSource = visible;
-            // Igual que LoadProfiles() (luz): sin esto, CARGAR/BORRAR justo despues de GUARDAR
-            // no encuentran nada seleccionado y no hacen nada, en silencio.
-            if (visible.Count > 0) RemapProfileList.SelectedIndex = 0;
-        }
-
         // Guarda el estado activo bajo el nombre reservado, agrupando rafagas de arrastre
         // (igual que RememberLight/_intentSave para la luz) en una sola escritura a disco.
         private DispatcherTimer? _remapSave;
@@ -1794,73 +1798,10 @@ namespace HidusbfModernGui
             RemapProfileStore.Save(_remapProfiles);
         }
 
-        private void SaveRemapProfile_Click(object sender, RoutedEventArgs e)
-        {
-            string name = RemapProfileName.Text.Trim();
-            if (string.IsNullOrEmpty(name))
-            {
-                LogStatus("Ponle un nombre al perfil del remapeo primero.");
-                return;
-            }
-            if (string.Equals(name, LastUsedProfileName, StringComparison.OrdinalIgnoreCase))
-            {
-                LogStatus("Ese nombre esta reservado. Elige otro.");
-                return;
-            }
-
-            _remapProfiles.RemoveAll(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
-            _remapProfiles.Add(new RemapProfile { Name = name, Settings = CloneRemapSettings(_remap) });
-
-            var result = RemapProfileStore.Save(_remapProfiles);
-            if (!result.Success) { ShowError("Perfil no guardado", result.Error!); return; }
-
-            RefreshRemapProfileList();
-            LogStatus($"Perfil de remapeo '{name}' guardado.");
-
-            // Tambien al instante como "ultimo usado": si el guardado llega a menos de 750 ms
-            // de la ultima edicion, no depende de que el debounce alcance a disparar solo.
-            PersistLastUsedRemap();
-        }
-
-        private void LoadRemapProfile_Click(object sender, RoutedEventArgs e)
-        {
-            if (RemapProfileList.SelectedItem is not RemapProfile p)
-            {
-                LogStatus("Selecciona un perfil de remapeo.");
-                return;
-            }
-
-            try
-            {
-                _updatingRemap = true;
-                _remap = CloneRemapSettings(p.Settings);
-                _remap.Sanitize();   // perfiles viejos con presets retirados -> Lineal (ver RemapSettings)
-                ApplyRemapSettingsToControls();
-            }
-            finally
-            {
-                _updatingRemap = false;
-            }
-
-            LogStatus($"Perfil de remapeo '{p.Name}' cargado.");
-            PersistLastUsedRemap();   // el recien cargado pasa a ser el "ultimo usado"
-        }
-
-        private void DeleteRemapProfile_Click(object sender, RoutedEventArgs e)
-        {
-            if (RemapProfileList.SelectedItem is not RemapProfile p)
-            {
-                LogStatus("Selecciona un perfil de remapeo.");
-                return;
-            }
-
-            _remapProfiles.RemoveAll(x => x.Name == p.Name);
-            var result = RemapProfileStore.Save(_remapProfiles);
-            if (!result.Success) { ShowError("Perfil no borrado", result.Error!); return; }
-
-            RefreshRemapProfileList();
-            LogStatus($"Perfil de remapeo '{p.Name}' borrado. Hay una copia en {RemapProfileStore.Path}.backup");
-        }
+        // Aqui vivian GUARDAR/CARGAR/BORRAR del remapeo. Los perfiles con nombre son ahora
+        // una seccion propia que guarda luz y mando juntos (ver la region PERFILES abajo);
+        // de RemapProfileStore solo queda el pseudo-perfil "__ultimo_usado__" de arriba, que
+        // es el estado en vivo del configurador y no un perfil que el usuario elija.
 
         // Collapses a slider drag into one write. Without it, dragging fires a HID write per
         // pixel of travel - hundreds a second at the device.
@@ -1874,7 +1815,6 @@ namespace HidusbfModernGui
         // a fractional number of colours (still smooth, since ramp colours differ by <=1).
         private DispatcherTimer? _rainbowTimer;
         private RainbowWalker? _rainbowWalker;
-        private List<LightProfile> _profiles = new List<LightProfile>();
 
         private PlayerLedWalker? _playerWalker;
         private double _playerFrameAccumMs;   // acumula ms para avanzar el frame del efecto de LED
@@ -2118,11 +2058,12 @@ namespace HidusbfModernGui
             RememberLight();
         }
 
-        // Construye la intencion actual (color fijo o rainbow) y agenda su guardado.
-        private void RememberLight()
+        // Lee de los controles la intencion de luz que hay puesta ahora mismo (color fijo o
+        // rainbow, mas el efecto de LED). null si los controles aun no existen. La usan el
+        // autoguardado de abajo y GUARDAR de la seccion PERFILES: la misma foto de la luz.
+        private LightIntent? BuildCurrentIntent()
         {
-            if (_updatingLight) return;                 // no persistir cambios programaticos
-            if (PlayerLedList.SelectedItem == null || BrightnessList.SelectedItem == null) return;
+            if (PlayerLedList?.SelectedItem == null || BrightnessList?.SelectedItem == null) return null;
 
             var player = (PlayerLeds)((ComboBoxItem)PlayerLedList.SelectedItem).Tag;
             var brightness = (LedBrightness)((ComboBoxItem)BrightnessList.SelectedItem).Tag;
@@ -2130,7 +2071,7 @@ namespace HidusbfModernGui
             LightIntent intent;
             if (RainbowOn)
             {
-                if (RainbowStyleList.SelectedItem == null) return;
+                if (RainbowStyleList.SelectedItem == null) return null;
                 var style = (RainbowStyle)((ComboBoxItem)RainbowStyleList.SelectedItem).Tag;
                 var lit = CurrentLight();
                 intent = LightIntent.FromRainbow(style, (int)Math.Round(TargetColoursPerSecond), player, brightness);
@@ -2143,6 +2084,16 @@ namespace HidusbfModernGui
 
             intent.PlayerEffect = CurrentPlayerEffect;
             intent.PlayerEffectFps = (int)Math.Round(PlayerEffectFps);
+            return intent;
+        }
+
+        // Construye la intencion actual (color fijo o rainbow) y agenda su guardado.
+        private void RememberLight()
+        {
+            if (_updatingLight) return;                 // no persistir cambios programaticos
+
+            var intent = BuildCurrentIntent();
+            if (intent == null) return;
 
             if (_intentSave == null)
             {
@@ -2216,7 +2167,6 @@ namespace HidusbfModernGui
             LightEmptyState.Visibility = ps.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             LightPanel.Visibility = ps.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
             UpdateSwatch();
-            LoadProfiles();
         }
 
         // Selecting a different controller must not write to it. The user has not asked for a
@@ -2388,117 +2338,277 @@ namespace HidusbfModernGui
             RainbowSpeedText.Text = $"{actual:0.#}/s Â· vuelta {walker.CycleSeconds(TargetColoursPerSecond):0.#} s{suffix}";
         }
 
-        private void LoadProfiles()
-        {
-            _profiles = ProfileStore.Load();
-            ProfileList.ItemsSource = null;
-            ProfileList.ItemsSource = _profiles;
-            if (_profiles.Count > 0) ProfileList.SelectedIndex = 0;
-        }
+        // ===== PERFILES (seccion propia) =====
+        //
+        // Un perfil es UNO: luz + configuracion del mando + tasa. Antes eran dos listas en
+        // dos paginas distintas (LightProfile en Luces, RemapProfile en el configurador),
+        // y en la practica el usuario queria las dos mitades a la vez. Los dos archivos
+        // viejos siguen en disco intactos: la migracion los lee, no los toca.
 
-        private void SaveProfile_Click(object sender, RoutedEventArgs e)
+        private List<GameProfile> _gameProfiles = new();
+
+        // Alto mientras el codigo (no el usuario) repuebla la lista: sin esto, reasignar
+        // ItemsSource dispara SelectionChanged y aplicaria un perfil que nadie eligio.
+        private bool _updatingProfiles;
+
+        // Fila de la lista: el perfil mas el texto que se ve de el. Aparte de GameProfile
+        // para que el modelo que va a JSON no cargue con cadenas de UI.
+        private sealed class GameProfileRow
         {
-            string name = ProfileName.Text.Trim();
-            if (string.IsNullOrEmpty(name))
+            public GameProfileRow(GameProfile profile)
             {
-                LogStatus("Ponle un nombre al perfil primero.");
-                return;
+                Profile = profile;
+                Contents = (profile.Light != null, profile.Remap != null) switch
+                {
+                    (true, true) => "Luz y configuracion del mando",
+                    (true, false) => "Solo luz",
+                    (false, true) => "Solo configuracion del mando",
+                    _ => "Vacio",
+                };
+                RateLabel = profile.Rate switch
+                {
+                    null => "",
+                    0 => "Default",
+                    _ => $"{profile.Rate} Hz",
+                };
             }
 
-            // SetDeviceRate (via ApplyProfile_Click) expects the raw slot that the rate
-            // combo's Tag carries - the same value ApplyRate writes - not ResolvedRate's
-            // display value. On a Low/Full Speed device under a patched driver those
-            // differ: slot 31 resolves to 2000 Hz for the user's eyes, but
-            // TryMapRateToBInterval(2000, Full) is null, because 2000 only exists via
-            // the smuggled slot. Saving ResolvedRate would make the profile unappliable.
-            int? capturedRate = null;
-            bool wantsRate = ProfileIncludesRate.IsChecked == true;
-            if (wantsRate)
+            public GameProfile Profile { get; }
+            public string Name => Profile.Name;
+            public string Contents { get; }
+            public string RateLabel { get; }
+        }
+
+        private void LoadGameProfiles()
+        {
+            _gameProfiles = GameProfileStore.Load();
+
+            // Migracion, una sola vez: si no hay archivo nuevo pero si perfiles viejos, se
+            // funden por nombre y se escriben al nuevo. Los viejos se quedan donde estan.
+            if (_gameProfiles.Count == 0 && !System.IO.File.Exists(GameProfileStore.Path))
             {
-                var rateSource = DevicesListBox.SelectedItem as UsbDeviceModel;
-                if (rateSource?.SelectedRate == null)
+                var migrated = GameProfileStore.Migrate(ProfileStore.Load(), RemapProfileStore.Load());
+                if (migrated.Count > 0)
                 {
-                    LogStatus("No se pudo incluir la tasa: selecciona un dispositivo en Dispositivos con una tasa establecida. Perfil guardado sin tasa.");
+                    var saved = GameProfileStore.Save(migrated);
+                    _gameProfiles = migrated;
+                    LogStatus(saved.Success
+                        ? $"{migrated.Count} perfil(es) de antes migrados al formato unico."
+                        : $"Perfiles migrados en memoria, pero no se pudieron guardar: {saved.Error}");
+                }
+            }
+
+            RefreshGameProfileList();
+        }
+
+        private void RefreshGameProfileList()
+        {
+            _updatingProfiles = true;
+            try
+            {
+                var selected = (GameProfileList.SelectedItem as GameProfileRow)?.Name;
+                GameProfileList.ItemsSource = null;
+                GameProfileList.ItemsSource = _gameProfiles
+                    .OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
+                    .Select(p => new GameProfileRow(p))
+                    .ToList();
+
+                if (selected != null)
+                {
+                    foreach (GameProfileRow row in GameProfileList.Items)
+                        if (string.Equals(row.Name, selected, StringComparison.OrdinalIgnoreCase))
+                        {
+                            GameProfileList.SelectedItem = row;
+                            break;
+                        }
+                }
+            }
+            finally { _updatingProfiles = false; }
+
+            GameProfilesEmpty.Visibility = _gameProfiles.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+            if (GameProfileRate.Items.Count == 0) BuildProfileRateCombo();
+        }
+
+        // Las mismas ranuras que el combo de la pagina de dispositivos, con etiquetas planas:
+        // aqui no hay un dispositivo elegido contra el que calcular alcanzabilidad. Si la tasa
+        // no le sirve al dispositivo, SetDeviceRate lo dice al aplicar el perfil.
+        private void BuildProfileRateCombo()
+        {
+            GameProfileRate.Items.Add(new ComboBoxItem { Content = "Sin tasa", Tag = null });
+            GameProfileRate.Items.Add(new ComboBoxItem { Content = "Default", Tag = 0 });
+            foreach (int slot in new[] { 8000, 4000, 2000, 1000, 500, 250, 125, 62, 31 })
+                GameProfileRate.Items.Add(new ComboBoxItem { Content = $"{slot} Hz", Tag = slot });
+            GameProfileRate.SelectedIndex = 0;
+        }
+
+        // Seleccionar un perfil lo APLICA. No hay boton "Cargar" ni "Aplicar": un perfil que
+        // esta seleccionado pero no aplicado es un estado que solo sirve para confundir - la
+        // lista muestra lo que esta puesto ahora mismo, no una intencion pendiente.
+        private void GameProfile_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_updatingProfiles) return;
+            if (GameProfileList.SelectedItem is not GameProfileRow row) return;
+
+            ApplyGameProfile(row.Profile);
+
+            // La caja de nombre y la tasa siguen a la seleccion, para que GUARDAR encima del
+            // mismo perfil sea escribir el nombre cero veces.
+            GameProfileName.Text = row.Profile.Name;
+            SelectProfileRate(row.Profile.Rate);
+        }
+
+        private void SelectProfileRate(int? rate)
+        {
+            foreach (ComboBoxItem item in GameProfileRate.Items)
+            {
+                if ((int?)item.Tag == rate) { GameProfileRate.SelectedItem = item; return; }
+            }
+            GameProfileRate.SelectedIndex = 0;
+        }
+
+        private int? SelectedProfileRate =>
+            (GameProfileRate.SelectedItem as ComboBoxItem)?.Tag as int?;
+
+        // Aplica SOLO las mitades que el perfil traiga. Un perfil sin luz no cambia la luz.
+        private void ApplyGameProfile(GameProfile p)
+        {
+            var notes = new List<string>();
+
+            if (p.Light != null)
+            {
+                if (PlayStationList.SelectedItem is UsbDeviceModel)
+                {
+                    ApplyProfileLight(p.Light);
+                    notes.Add("luz");
                 }
                 else
                 {
-                    capturedRate = rateSource.SelectedRate;
+                    notes.Add("luz omitida (sin mando)");
                 }
             }
 
-            var c = Picker.SelectedColor;
-            var p = new LightProfile
+            if (p.Remap != null)
             {
-                Name = name,
-                R = c.R, G = c.G, B = c.B,
-                Player = (PlayerLeds)((ComboBoxItem)PlayerLedList.SelectedItem).Tag,
-                Brightness = (LedBrightness)((ComboBoxItem)BrightnessList.SelectedItem).Tag,
-                Rainbow = RainbowCheck.IsChecked == true,
-                Rate = capturedRate
-            };
+                try
+                {
+                    _updatingRemap = true;
+                    _remap = CloneRemapSettings(p.Remap);
+                    _remap.Sanitize();   // perfiles viejos con presets retirados -> Lineal
+                    ApplyRemapSettingsToControls();
+                }
+                finally { _updatingRemap = false; }
 
-            // Same name replaces, rather than silently accumulating duplicates the user cannot
-            // tell apart in the list.
-            _profiles.RemoveAll(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
-            _profiles.Add(p);
+                PersistLastUsedRemap();   // el recien aplicado pasa a ser el "ultimo usado"
+                notes.Add("mando");
+            }
 
-            var result = ProfileStore.Save(_profiles);
-            if (!result.Success) { ShowError("Perfil no guardado", result.Error!); return; }
+            if (p.Rate != null)
+            {
+                // La tasa va al dispositivo elegido en DISPOSITIVOS, que es donde viven las
+                // tasas; aplicarla a otro seria escribir en el equivocado sin avisar.
+                if (DevicesListBox.SelectedItem is UsbDeviceModel target)
+                {
+                    var r = SystemManager.SetDeviceRate(target.InstanceId, target.DriverKey, p.Rate.Value, target.BusSpeed);
+                    // A proposito sin replug automatico: arrancarle el mando del bus al usuario
+                    // por elegir un perfil seria una sorpresa hostil.
+                    notes.Add(r.Success
+                        ? $"tasa {p.Rate} Hz escrita (pulsa RECONECTAR)"
+                        : $"tasa fallida: {r.Error}");
+                }
+                else
+                {
+                    notes.Add("tasa omitida (elige un dispositivo en Dispositivos)");
+                }
+            }
 
-            LoadProfiles();
-            LogStatus($"Perfil '{name}' guardado.");
+            LogStatus(notes.Count == 0
+                ? $"Perfil '{p.Name}' no lleva nada que aplicar."
+                : $"Perfil '{p.Name}' aplicado: {string.Join(", ", notes)}.");
         }
 
-        private void ApplyProfile_Click(object sender, RoutedEventArgs e)
+        // Empuja una intencion de luz a los controles y la aplica al mando. Mismo camino que
+        // usa el arranque para reflejar lo guardado, aqui reutilizado por los perfiles.
+        private void ApplyProfileLight(LightIntent li)
         {
-            if (ProfileList.SelectedItem is not LightProfile p) { LogStatus("Selecciona un perfil."); return; }
-            if (PlayStationList.SelectedItem is not UsbDeviceModel model) { LogStatus("Selecciona un mando."); return; }
-
             _updatingLight = true;
             try
             {
-                Picker.SelectedColor = Color.FromRgb(p.R, p.G, p.B);
-                foreach (ComboBoxItem i in PlayerLedList.Items)
-                    if ((PlayerLeds)i.Tag == p.Player) { PlayerLedList.SelectedItem = i; break; }
-                foreach (ComboBoxItem i in BrightnessList.Items)
-                    if ((LedBrightness)i.Tag == p.Brightness) { BrightnessList.SelectedItem = i; break; }
-                RainbowCheck.IsChecked = p.Rainbow;
+                Picker.SelectedColor = Color.FromRgb(li.R, li.G, li.B);
+                SelectComboByTag(PlayerLedList, li.Player);
+                SelectComboByTag(BrightnessList, li.Brightness);
+                SelectComboByTag(RainbowStyleList, li.Style);
+                RainbowSpeed.Value = Math.Clamp(li.RainbowColoursPerSecond,
+                    (int)RainbowWalker.MinColoursPerSecond, (int)RainbowWalker.MaxColoursPerSecond);
+                SelectComboByTag(PlayerEffectList, li.PlayerEffect);
+                PlayerSpeed.Value = Math.Clamp(li.PlayerEffectFps, 2, 20);
             }
             finally { _updatingLight = false; }
 
             UpdateSwatch();
-            if (!p.Rainbow) ApplyLightNow();
-            else Rainbow_Toggled(sender, e);
 
-            if (p.Rate == null) { LogStatus($"Perfil '{p.Name}' aplicado."); return; }
-
-            // The rate goes to the device selected on the Dashboard, which is where rates live.
-            // Applying it here would otherwise silently target the wrong device.
-            if (DevicesListBox.SelectedItem is not UsbDeviceModel target)
+            // PlayerEffect_Changed se salta el trabajo bajo _updatingLight, asi que el walker
+            // del efecto se rearma aqui, igual que hace el arranque con la intencion guardada.
+            if (li.PlayerEffect != PlayerLedEffect.None)
             {
-                LogStatus($"Perfil '{p.Name}' aplicado (luz). Selecciona un dispositivo en Dispositivos para su tasa.");
+                _playerWalker = new PlayerLedWalker(li.PlayerEffect);
+                _playerFrameIndex = 0;
+                _playerFrameAccumMs = 0;
+            }
+            PlayerSpeed.IsEnabled = PlayerEffectOn;
+            PlayerLedList.IsEnabled = !PlayerEffectOn;
+
+            // Fuera del guard: marcar el check dispara Rainbow_Toggled, que arranca o para el
+            // motor de efectos con todo lo de arriba ya puesto.
+            bool wantsRainbow = li.Kind == LightIntentKind.Rainbow;
+            if (RainbowCheck.IsChecked != wantsRainbow) RainbowCheck.IsChecked = wantsRainbow;
+            else UpdateEffectDriver();
+
+            if (!RainbowOn) ApplyLightNow();   // ya persiste via RememberLight
+            else RememberLight();
+        }
+
+        private void SaveGameProfile_Click(object sender, RoutedEventArgs e)
+        {
+            string name = GameProfileName.Text.Trim();
+            if (string.IsNullOrEmpty(name) && GameProfileList.SelectedItem is GameProfileRow sel)
+                name = sel.Name;
+
+            if (string.IsNullOrEmpty(name)) { LogStatus("Ponle un nombre al perfil primero."); return; }
+            if (string.Equals(name, GameProfileStore.LastUsedPseudoProfile, StringComparison.OrdinalIgnoreCase))
+            {
+                LogStatus("Ese nombre esta reservado. Elige otro.");
                 return;
             }
 
-            var rateResult = SystemManager.SetDeviceRate(target.InstanceId, target.DriverKey, p.Rate.Value, target.BusSpeed);
-            LogStatus(rateResult.Success
-                // Deliberately not auto-replugging: yanking the user's controller off the bus
-                // because they clicked a profile would be a hostile surprise. The detail panel
-                // already shows measured-vs-requested and says to press RECONECTAR.
-                ? $"Perfil '{p.Name}' aplicado. Tasa {p.Rate} Hz escrita: pulsa RECONECTAR para que surta efecto."
-                : $"Perfil '{p.Name}': luz aplicada, pero la tasa fallo: {rateResult.Error}");
+            bool overwrote = _gameProfiles.RemoveAll(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)) > 0;
+            _gameProfiles.Add(new GameProfile
+            {
+                Name = name,
+                Rate = SelectedProfileRate,
+                Light = BuildCurrentIntent(),
+                Remap = CloneRemapSettings(_remap),
+            });
+
+            var result = GameProfileStore.Save(_gameProfiles);
+            if (!result.Success) { ShowError("Perfil no guardado", result.Error!); return; }
+
+            RefreshGameProfileList();
+            // Sobrescribir se avisa en la barra de estado, no con un dialogo: el usuario acaba
+            // de escribir un nombre que ya estaba en la lista que tiene delante.
+            LogStatus(overwrote ? $"Perfil '{name}' sobrescrito." : $"Perfil '{name}' guardado.");
         }
 
-        private void DeleteProfile_Click(object sender, RoutedEventArgs e)
+        private void DeleteGameProfile_Click(object sender, RoutedEventArgs e)
         {
-            if (ProfileList.SelectedItem is not LightProfile p) { LogStatus("Selecciona un perfil."); return; }
+            if (GameProfileList.SelectedItem is not GameProfileRow row) { LogStatus("Selecciona un perfil."); return; }
 
-            _profiles.RemoveAll(x => x.Name == p.Name);
-            var result = ProfileStore.Save(_profiles);
+            _gameProfiles.RemoveAll(x => string.Equals(x.Name, row.Name, StringComparison.OrdinalIgnoreCase));
+            var result = GameProfileStore.Save(_gameProfiles);
             if (!result.Success) { ShowError("Perfil no borrado", result.Error!); return; }
 
-            LoadProfiles();
-            LogStatus($"Perfil '{p.Name}' borrado. Hay una copia en {ProfileStore.Path}.backup");
+            RefreshGameProfileList();
+            LogStatus($"Perfil '{row.Name}' borrado. Hay una copia en {GameProfileStore.Path}.backup");
         }
 
         // Scan and populate the device list
