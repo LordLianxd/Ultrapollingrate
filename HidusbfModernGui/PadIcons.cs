@@ -10,14 +10,17 @@ namespace HidusbfModernGui
     // inventar un icono que nadie reconoce.
     public static class PadIcons
     {
-        // Petalo de la cruceta apuntando ARRIBA, en 24x24: rectangulo de esquinas redondeadas
-        // que termina en punta hacia el centro del mando. Las otras tres direcciones son la
-        // misma forma girada 90/180/270 grados, escrita ya rotada para no depender de
-        // transformaciones en la vista.
-        private const string DpadUp    = "M9,2 H15 A2,2 0 0 1 17,4 V13 L12,18 L7,13 V4 A2,2 0 0 1 9,2 Z";
-        private const string DpadDown  = "M9,22 H15 A2,2 0 0 0 17,20 V11 L12,6 L7,11 V20 A2,2 0 0 0 9,22 Z";
-        private const string DpadLeft  = "M2,9 V15 A2,2 0 0 0 4,17 H13 L18,12 L13,7 H4 A2,2 0 0 0 2,9 Z";
-        private const string DpadRight = "M22,9 V15 A2,2 0 0 1 20,17 H11 L6,12 L11,7 H20 A2,2 0 0 1 22,9 Z";
+        // Flechas de la cruceta: triangulos rellenos, uno por direccion, escritos ya girados
+        // para no depender de transformaciones en la vista.
+        //
+        // Antes eran "petalos" (rectangulo redondeado acabado en punta, como la cruceta real).
+        // Se descartaron en la revision visual: al reducirlos al tamano de una etiqueta se
+        // veian como manchas y las cuatro direcciones no se distinguian. Un triangulo se lee
+        // como flecha a cualquier tamano, que es lo unico que esta etiqueta tiene que decir.
+        private const string DpadUp    = "M12,4 L20,17 H4 Z";
+        private const string DpadDown  = "M12,20 L4,7 H20 Z";
+        private const string DpadLeft  = "M4,12 L17,4 V20 Z";
+        private const string DpadRight = "M20,12 L7,4 V20 Z";
 
         // Simbolos de las caras. Van CALADOS sobre un circulo relleno (IsFilledBadge), como
         // en el mando: el trazo es el hueco, no la figura.

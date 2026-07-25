@@ -1012,6 +1012,11 @@ namespace HidusbfModernGui
         // _pickerSource recuerda que pildora abrio el picker mientras el Popup esta abierto.
         private readonly Dictionary<PadButton, Button> _pills = new();
         private bool _diagramBuilt;
+
+        // true = hay imagen y el panel se pinta claro (tinta negra); false = respaldo
+        // vectorial sobre panel oscuro. Lo fija BuildButtonDiagram y lo leen todos los
+        // colores del diagrama, para que no haya dos criterios distintos.
+        private bool _diagramIsLight;
         private PadButton _pickerSource;
 
         // Nombre reservado bajo el que se autoguarda el ultimo estado (distinto de los
@@ -1128,55 +1133,69 @@ namespace HidusbfModernGui
             if (_diagramBuilt) return;
             _diagramBuilt = true;
 
+            DiagramCanvas.Width = PadDiagram.CanvasWidth;
+            DiagramCanvas.Height = PadDiagram.CanvasHeight;
+
             // Fondo: la imagen del mando si esta disponible; si no, el vectorial en estatico.
+            // UNA bandera gobierna las tres decisiones de color (papel del panel, estilo de
+            // pildora, tinta de las lineas), para que no exista la combinacion imposible de
+            // un panel blanco con un mando dibujado para fondo negro.
             var bg = TryLoadDiagramImage();
+            _diagramIsLight = bg != null;
+
+            DiagramPanel.Background = (Brush)FindResource(_diagramIsLight ? "TextDataBrush" : "SurfaceBrush");
+
             if (bg != null)
             {
                 var img = new Image { Source = bg, Width = PadDiagram.DiagramWidth, Height = PadDiagram.DiagramHeight };
-                Canvas.SetLeft(img, 0); Canvas.SetTop(img, 0);
+                // La imagen va CENTRADA en el lienzo ancho; todo lo medido sobre ella se
+                // desplaza por PadDiagram.AnchorX.
+                Canvas.SetLeft(img, PadDiagram.ImageOffsetX); Canvas.SetTop(img, 0);
                 DiagramCanvas.Children.Add(img);
             }
             else
             {
                 // Sin imagen no se deja la pagina en blanco: se dibuja el mando vectorial,
-                // escalado al lienzo del diagrama (2400x1792). PadVisual escala su Canvas
-                // interno de 360x260 con Stretch=Uniform y lo centra, asi que al forzar
-                // Width/Height a 2400x1792 el resultado llena el lienzo casi entero (el
-                // limitante es el ancho: escala x6.667, alto resultante ~1733 de 1792, un
-                // letterbox de ~30px arriba/abajo) - no queda encogido en una esquina.
+                // escalado al hueco de la imagen (2400x1792) dentro del lienzo. PadVisual
+                // escala su Canvas interno de 360x260 con Stretch=Uniform y lo centra, asi
+                // que al forzar Width/Height a 2400x1792 el resultado llena ese hueco casi
+                // entero (el limitante es el ancho: escala x6.667, alto resultante ~1733 de
+                // 1792, un letterbox de ~30px arriba/abajo) - no queda encogido en una esquina.
                 var fallback = new PadVisual { Width = PadDiagram.DiagramWidth, Height = PadDiagram.DiagramHeight };
-                Canvas.SetLeft(fallback, 0); Canvas.SetTop(fallback, 0);
+                Canvas.SetLeft(fallback, PadDiagram.ImageOffsetX); Canvas.SetTop(fallback, 0);
                 DiagramCanvas.Children.Add(fallback);
             }
 
             foreach (var side in new[] { true, false })
             {
                 var anchors = PadDiagram.Anchors.Where(a => a.Left == side).ToList();
-                var placed = PadDiagram.LayoutLabels(anchors, 70);
+                // minGap 110 y no 70: la etiqueta pasa de 26 a 44 px de cuerpo y ademas lleva
+                // iconos, asi que es bastante mas alta y con el hueco de antes se pisarian.
+                var placed = PadDiagram.LayoutLabels(anchors, 110);
 
                 foreach (var (button, lx, ly) in placed)
                 {
                     var a = anchors.First(z => z.Button == button);
 
-                    // Linea guia: del ancla al borde interior de la columna, a la altura
-                    // repartida.
+                    // Linea guia: del ancla (en coordenadas del lienzo) al borde interior de
+                    // la columna, a la altura repartida.
                     var line = new Line
                     {
-                        X1 = a.X, Y1 = a.Y, X2 = lx, Y2 = ly,
-                        // TextLabelBrush, no BorderBrush: el borde del tema (#1F1F1F) esta
-                        // pensado para separar paneles sobre superficies casi negras, y sobre
-                        // el fondo del diagrama la linea guia era practicamente invisible.
-                        // Una guia que no se ve no guia.
-                        Stroke = (Brush)FindResource("TextLabelBrush"), StrokeThickness = 3,
+                        X1 = PadDiagram.AnchorX(a), Y1 = a.Y, X2 = lx, Y2 = ly,
+                        // Sobre el panel claro la guia va en tinta; sobre el oscuro, en
+                        // TextLabelBrush - no en BorderBrush, que a #1F1F1F era practicamente
+                        // invisible. Una guia que no se ve no guia.
+                        Stroke = (Brush)FindResource(_diagramIsLight ? "BgBrush" : "TextLabelBrush"),
+                        StrokeThickness = _diagramIsLight ? 4 : 3,
                         IsHitTestVisible = false,
                     };
                     DiagramCanvas.Children.Add(line);
 
                     var pill = new Button
                     {
-                        Style = (Style)FindResource("PillButton"),
+                        Style = (Style)FindResource(_diagramIsLight ? "PillButtonInk" : "PillButton"),
                         Tag = button,
-                        FontSize = 26,          // el lienzo mide 2400 px: la tipografia va a esa escala
+                        FontSize = 44,          // el lienzo mide 3600 px: la tipografia va a esa escala
                     };
                     pill.Click += ButtonPill_Click;
                     DiagramCanvas.Children.Add(pill);
@@ -1231,19 +1250,124 @@ namespace HidusbfModernGui
             }
         }
 
-        // Cada etiqueta dice A QUE envia su boton: su propio nombre si no esta remapeado, el
-        // destino si lo esta (y entonces se resalta). Asi se ve el mapa entero de un vistazo,
-        // sin pasar el raton por encima ni abrir nada - esa es la ventaja del diagrama sobre
-        // la lista de combos que reemplaza.
+        // Cada etiqueta dice A QUE envia su boton: solo su propio icono si no esta remapeado,
+        // "origen -> destino" si lo esta (y entonces se resalta). Asi se ve el mapa entero de
+        // un vistazo, sin pasar el raton por encima ni abrir nada - esa es la ventaja del
+        // diagrama sobre la lista de combos que reemplaza.
         private void RefreshButtonPills()
         {
             foreach (var (button, pill) in _pills)
             {
                 bool remapped = _remap.ButtonRemap.TryGetValue(button, out var target) && target != button;
-                pill.Content = $"{FriendlyName(button)}  ->  {FriendlyName(remapped ? target : button)}";
-                pill.Foreground = (Brush)FindResource(remapped ? "TextDataBrush" : "TextLabelBrush");
-                pill.BorderBrush = (Brush)FindResource(remapped ? "TextLabelBrush" : "BorderBrush");
+
+                // Sin remapeo se muestra SOLO el origen: repetir "R2 -> R2" era pedirle al
+                // usuario que comparase dos cadenas para deducir que no pasa nada.
+                pill.Content = BuildPillContent(button, remapped ? target : (PadButton?)null);
+
+                pill.Foreground = Ink;
+                // Remapeado = borde de tinta; sin remapear = borde apagado. Sobre el panel
+                // claro no vale jugar con el blanco, asi que la diferencia es el contraste
+                // del borde, no el color del texto.
+                pill.BorderBrush = _diagramIsLight
+                    ? (Brush)FindResource(remapped ? "BgBrush" : "TextLabelBrush")
+                    : (Brush)FindResource(remapped ? "TextLabelBrush" : "BorderBrush");
+                pill.BorderThickness = new Thickness(remapped ? 4 : 2);
+                pill.ToolTip = remapped
+                    ? $"{FriendlyName(button)} envia {FriendlyName(target)}"
+                    : $"{FriendlyName(button)} sin cambios";
             }
+        }
+
+        // Los dos pinceles del diagrama. Sobre el panel claro la tinta es negra y el papel
+        // blanco; sobre el respaldo oscuro se invierten. Tenerlos aqui evita repetir el
+        // condicional en cada forma que se dibuja.
+        private Brush Ink => (Brush)FindResource(_diagramIsLight ? "BgBrush" : "TextDataBrush");
+        private Brush Paper => (Brush)FindResource(_diagramIsLight ? "TextDataBrush" : "BgBrush");
+
+        // Contenido de una etiqueta: [icono origen]  (->  [icono destino])
+        private UIElement BuildPillContent(PadButton source, PadButton? target)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            row.Children.Add(BuildIcon(source));
+            if (target != null)
+            {
+                row.Children.Add(new TextBlock
+                {
+                    Text = "→",
+                    Margin = new Thickness(10, 0, 10, 0),
+                    FontSize = 32,
+                    Foreground = Ink,
+                    VerticalAlignment = VerticalAlignment.Center,
+                });
+                row.Children.Add(BuildIcon(target.Value));
+            }
+            return row;
+        }
+
+        // Un icono: la forma vectorial, o el texto serigrafiado si ese boton no tiene forma.
+        // Las cuatro caras van CALADAS sobre un circulo relleno, como en el mando: dentro del
+        // circulo el simbolo se dibuja con el color del panel, no con el de la tinta.
+        private UIElement BuildIcon(PadButton b)
+        {
+            string? path = PadIcons.PathOf(b);
+            if (path == null)
+            {
+                // "Keycap": L1/R2/L3 no son texto corrido, son la serigrafia de un boton.
+                // Mono + Black + recuadro para que pesen lo mismo que las insignias redondas
+                // de las caras; con la tipografia de la interfaz se leerian como una palabra
+                // mas de la pantalla.
+                var cap = new TextBlock
+                {
+                    Text = PadIcons.TextOf(b) ?? "-",
+                    FontFamily = (FontFamily)FindResource("MonoFont"),
+                    FontSize = 30,
+                    FontWeight = FontWeights.Black,
+                    Foreground = Ink,
+                    TextAlignment = TextAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+
+                return new Border
+                {
+                    Child = cap,
+                    BorderBrush = Ink,
+                    BorderThickness = new Thickness(2.5),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(12, 5, 12, 5),
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+            }
+
+            var shape = new System.Windows.Shapes.Path
+            {
+                Data = Geometry.Parse(path),
+                Stretch = Stretch.Uniform,
+                Width = 34, Height = 34,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+            };
+
+            if (!PadIcons.IsFilledBadge(b))
+            {
+                // Cruceta, Share/Options y el click del touchpad: trazo de tinta suelto sobre
+                // el panel. Share y Options son lineas abiertas, asi que van a trazo y no a
+                // relleno - rellenarlas las convertiria en manchas.
+                shape.Stroke = Ink;
+                shape.StrokeThickness = 2;
+                if (b is PadButton.DpadUp or PadButton.DpadDown or PadButton.DpadLeft or PadButton.DpadRight)
+                    shape.Fill = Ink;
+                return shape;
+            }
+
+            // Cara: circulo relleno + simbolo calado encima, con el color del papel.
+            shape.Stroke = Paper;
+            shape.StrokeThickness = 2;
+            if (b is PadButton.Square or PadButton.Triangle) shape.Fill = Paper;
+
+            var grid = new Grid { Width = 48, Height = 48 };
+            grid.Children.Add(new System.Windows.Shapes.Ellipse { Fill = Ink });
+            grid.Children.Add(shape);
+            return grid;
         }
 
         // Reutiliza las etiquetas amigables de RemapTargets (Cruz, Circulo, Cuadrado...) en

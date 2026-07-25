@@ -341,6 +341,40 @@
         </Setter>
     </Style>
 
+    <!-- La misma pildora, pero para el panel CLARO del diagrama: el dibujo del mando es
+         line art oscuro sobre papel blanco, asi que ahi la tinta es BgBrush y el papel
+         TextDataBrush - los dos colores que ya estan en la paleta, intercambiados. Al
+         pasar el raton se invierte (fondo tinta, texto papel), que sobre blanco es el
+         resalte natural. Igual que PillButton, el Foreground/BorderBrush del estado
+         REMAPEADO lo pone RefreshButtonPills() en code-behind. -->
+    <Style x:Key="PillButtonInk" TargetType="Button">
+        <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource BgBrush}"/>
+        <Setter Property="Padding" Value="16,8"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="2"
+                            CornerRadius="20"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource BgBrush}"/>
+                            <Setter Property="Foreground" Value="{StaticResource TextDataBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Preset colour swatch. A Button, not the Border+MouseLeftButtonUp it used to
          be, so Tab reaches it and Enter/Space activates it like any other control.
          The ControlTemplate is just the coloured rectangle: this is the one
