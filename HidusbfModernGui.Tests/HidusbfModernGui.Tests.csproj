@@ -38,6 +38,7 @@
     <Compile Include="..\HidusbfModernGui\PadSkin.cs" Link="PadSkin.cs" />
     <Compile Include="..\HidusbfModernGui\PadDiagram.cs" Link="PadDiagram.cs" />
     <Compile Include="..\HidusbfModernGui\GameProfile.cs" Link="GameProfile.cs" />
+    <Compile Include="..\HidusbfModernGui\PadIcons.cs" Link="PadIcons.cs" />
   </ItemGroup>
 
 </Project>
