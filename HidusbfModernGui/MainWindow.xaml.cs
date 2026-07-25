@@ -849,7 +849,21 @@ namespace HidusbfModernGui
 
             RefreshRemapProfileList();
             CheckEngineDrivers();
+
+            SkinStatusText.Text = ConfigPadVisual.StatusText;
         }
+
+        // Task SK3: recarga el skin instalado (por si se instalo/actualizo con la app
+        // abierta) tanto en el pad del configurador como en el del streamer si esta abierto.
+        private void ReloadSkin_Click(object sender, RoutedEventArgs e)
+        {
+            ConfigPadVisual.ReloadSkin();
+            _streamerWindow?.Pad.ReloadSkin();
+            SkinStatusText.Text = ConfigPadVisual.StatusText;
+        }
+
+        private void Calibration_Click(object sender, RoutedEventArgs e)
+            => ConfigPadVisual.ShowCalibration = CalibrationCheck.IsChecked == true;
 
         // Si falta ViGEmBus o HidHide, el interruptor maestro se desactiva y el estado dice
         // exactamente que instalar; sin drivers el mando virtual no puede existir y el juego

@@ -12,7 +12,7 @@ namespace HidusbfModernGui
     // alimenta ademas del de la ventana principal, ver MainWindow.xaml.cs).
     public partial class StreamerWindow : Window
     {
-        public PadVisual Pad => PadControl;   // expuesto para que el feed lo alimente
+        public PadVisualHost Pad => PadControl;   // expuesto para que el feed lo alimente
 
         public StreamerWindow()
         {

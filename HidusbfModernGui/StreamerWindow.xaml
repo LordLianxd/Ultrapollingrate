@@ -6,7 +6,7 @@
         Background="Transparent" Topmost="True" ShowInTaskbar="False"
         SizeToContent="WidthAndHeight" MouseLeftButtonDown="Drag">
     <Grid>
-        <local:PadVisual x:Name="PadControl" Width="360" Height="260"/>
+        <local:PadVisualHost x:Name="PadControl" Width="360" Height="260"/>
         <!-- Barra de opciones: visible al pasar el raton por encima (Trigger IsMouseOver). -->
         <StackPanel x:Name="Toolbar" Orientation="Horizontal" VerticalAlignment="Top"
                     HorizontalAlignment="Right" Background="#AA000000" Opacity="0">
