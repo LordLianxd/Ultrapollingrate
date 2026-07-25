@@ -29,6 +29,17 @@
         <Geometry x:Key="HomeIconPath">M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z</Geometry>
         <Geometry x:Key="SettingsIconPath">M19.14,12.94C19.18,12.63 19.2,12.32 19.2,12C19.2,11.68 19.18,11.37 19.14,11.06L21.32,9.36C21.52,9.2 21.58,8.92 21.45,8.7L19.38,5.1C19.25,4.88 18.98,4.8 18.76,4.89L16.2,5.92C15.67,5.5 15.09,5.17 14.47,4.92L14.08,2.19C14.04,1.96 13.84,1.8 13.6,1.8H9.4C9.16,1.8 8.96,1.96 8.92,2.19L8.53,4.92C7.91,5.17 7.33,5.5 6.8,5.92L4.24,4.89C4.02,4.8 3.75,4.88 3.62,5.1L1.55,8.7C1.42,8.92 1.48,9.2 1.68,9.36L3.86,11.06C3.82,11.37 3.8,11.68 3.8,12C3.8,12.32 3.82,12.63 3.86,12.94L1.68,14.64C1.48,14.8 1.42,15.08 1.55,15.3L3.62,18.9C3.75,19.12 4.02,19.2 4.24,19.11L6.8,18.08C7.33,18.5 7.91,18.83 8.53,19.08L8.92,21.81C8.96,22.04 9.16,22.2 9.4,22.2H13.6C13.84,22.2 14.04,22.04 14.08,21.81L14.47,19.08C15.09,18.83 15.67,18.5 16.2,18.08L18.76,19.11C18.98,19.2 19.25,19.12 19.38,18.9L21.45,15.3C21.58,15.08 21.52,14.8 21.32,14.64L19.14,12.94Z</Geometry>
 
+        <!-- Tarjetas del hub del configurador (Task PS3). EvenOdd (el FillRule por
+             defecto de Path): tres circulos anidados alternan relleno/hueco, dando
+             un aro + un punto central - un stick/joystick simplificado. -->
+        <Geometry x:Key="StickIconPath">M4,12A8,8 0 1,0 20,12A8,8 0 1,0 4,12M6,12A6,6 0 1,0 18,12A6,6 0 1,0 6,12M10,12A2,2 0 1,0 14,12A2,2 0 1,0 10,12Z</Geometry>
+        <!-- Tres barras horizontales de distinto largo: el mismo lenguaje visual que
+             un control de rango/nivel, para "recorrido de los gatillos". -->
+        <Geometry x:Key="TriggerIconPath">M4,6H14V8H4V6M4,11H20V13H4V11M4,16H10V18H4V16Z</Geometry>
+        <!-- Marco redondeado (EvenOdd: rectangulo exterior menos uno interior) que
+             representa la superficie del touchpad. -->
+        <Geometry x:Key="TouchpadIconPath">M4,5H20A1,1 0 0,1 21,6V18A1,1 0 0,1 20,19H4A1,1 0 0,1 3,18V6A1,1 0 0,1 4,5M5,7V17H19V7H5Z</Geometry>
+
         <!-- Botones de ventana (minimizar / maximizar / cerrar). Van arriba a la derecha,
              donde los busca todo el mundo. Se quedan en el gris del tema: el rojo de
              Windows al pasar por Cerrar seria el unico color de toda la app. -->
@@ -530,6 +541,17 @@
                                         </StackPanel>
                                     </Border>
 
+                                    <!-- Aviso anticheat (Task PS3): vivia arriba del todo en el configurador; se
+                                         muda a Ajustes porque es informacion de riesgo, no un control que se
+                                         consulte a cada rato. Texto sin cambios. -->
+                                    <TextBlock Text="RIESGO Y ANTICHEAT" Style="{StaticResource SectionHeading}" Margin="0,20,0,0"/>
+                                    <Border Background="{StaticResource SurfaceBrush}"
+                                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                            Padding="14" Margin="0,8,0,0">
+                                        <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap"
+                                                   Text="El mando virtual (ViGEm) y HidHide son detectables por anticheat de nucleo (Ricochet, Vanguard, EAC, BattlEye) aunque no hagas trampa: algunos banean solo por la presencia de ViGEm. Ideal para un jugador o juegos sin anticheat; jugar online es bajo tu propio riesgo por el mecanismo, no por la intencion. Sin garantias, los baneos van por oleadas. No hay macros, emulacion de teclado o raton, ni auto-aim: esto solo reconfigura el mando."/>
+                                    </Border>
+
                                 </StackPanel>
                             </ScrollViewer>
                         </TabItem>
@@ -551,358 +573,158 @@
                                 </StackPanel>
 
                                 <Grid Grid.Row="1">
-                                    <!-- Configurador del mando: panel con pestanas propias a todo el ancho
-                                         (el diagrama estilizado se quito por verse tosco). Los controles
-                                         reales (Task 4) llenan los cuatro contenedores vacios de abajo. -->
+                                    <!-- Configurador del mando: hub de tarjetas + sub-paginas (Task PS3),
+                                         modelo "PlayStation Accessories". Ver ConfigPanel abajo. -->
                                     <Grid x:Name="ConfigPanel">
-                                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                            <Grid Margin="24">
-                                                <!-- Panel derecho: aviso anticheat honesto + pestanas propias. -->
-                                                <StackPanel>
+                                        <!-- Hub de tarjetas (Task PS3): antes esto era una columna larga con
+                                             pestanas propias. Ahora es un hub (mando virtual + mando en vivo +
+                                             4 tarjetas) mas 4 sub-paginas superpuestas, alternadas por
+                                             visibilidad igual que el resto de la app; un unico sitio
+                                             (UpdateConfigPages, code-behind) decide cual se ve. -->
+                                        <Grid x:Name="ConfigHub">
+                                            <Grid.RenderTransform>
+                                                <TranslateTransform/>
+                                            </Grid.RenderTransform>
+                                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                                <StackPanel Margin="24">
                                                     <TextBlock Text="CONFIGURAR EL MANDO" Style="{StaticResource SectionHeading}"/>
-
-                                                    <Border Background="{StaticResource SurfaceBrush}"
-                                                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                                                            Padding="14" Margin="0,8,0,20">
-                                                        <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap"
-                                                                   Text="El mando virtual (ViGEm) y HidHide son detectables por anticheat de nucleo (Ricochet, Vanguard, EAC, BattlEye) aunque no hagas trampa: algunos banean solo por la presencia de ViGEm. Ideal para un jugador o juegos sin anticheat; jugar online es bajo tu propio riesgo por el mecanismo, no por la intencion. Sin garantias, los baneos van por oleadas. No hay macros, emulacion de teclado o raton, ni auto-aim: esto solo reconfigura el mando."/>
-                                                    </Border>
 
                                                     <!-- Interruptor maestro (Task 14). Apagado por defecto = mando NATIVO:
                                                          el juego ve el DualSense fisico y la app no toca nada. Encendido =
                                                          fisico oculto (HidHide) + DS4 virtual (ViGEm) con los ajustes de
                                                          abajo aplicados en vivo. El estado de al lado lee el driver real
-                                                         (IsHiding/Connected), no una bandera. -->
+                                                         (IsHiding/Connected), no una bandera. La explicacion larga que antes
+                                                         vivia siempre visible ahora esta en el "?" (Task PS3): se consulta,
+                                                         no se lee cada vez. -->
                                                     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                            BorderThickness="1" Padding="18" Margin="0,0,0,20">
+                                                            BorderThickness="1" Padding="18" Margin="0,8,0,20">
                                                         <StackPanel>
-                                                            <TextBlock Text="MANDO VIRTUAL" Style="{StaticResource SectionHeading}"/>
-                                                            <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,8,0,12"
-                                                                       Text="Activa el mando virtual para que los ajustes de abajo (sticks, gatillos, touchpad, botones) se apliquen al juego: el DualSense fisico se oculta y el juego ve un DS4 virtual con tu configuracion. Desactivalo para volver al mando nativo tal cual. Requiere los drivers ViGEmBus y HidHide (Nefarius), instalados aparte."/>
+                                                            <Grid>
+                                                                <TextBlock Text="MANDO VIRTUAL" Style="{StaticResource SectionHeading}" VerticalAlignment="Center"/>
+                                                                <Button x:Name="MasterHelpBtn" Style="{StaticResource RoundIconButton}"
+                                                                        HorizontalAlignment="Right" Click="MasterHelp_Click" ToolTip="Que hace esto">
+                                                                    <TextBlock Text="?" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextDataBrush}"/>
+                                                                </Button>
+                                                                <Popup x:Name="MasterHelpPopup" PlacementTarget="{Binding ElementName=MasterHelpBtn}"
+                                                                       Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="None"
+                                                                       Opened="AnimatePopupOpen">
+                                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                            BorderThickness="1" Padding="14" MaxWidth="300">
+                                                                        <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Foreground="{StaticResource TextDataBrush}"
+                                                                                   Text="Activa el mando virtual para que los ajustes de abajo (sticks, gatillos, touchpad, botones) se apliquen al juego: el DualSense fisico se oculta y el juego ve un DS4 virtual con tu configuracion. Desactivalo para volver al mando nativo tal cual. Requiere los drivers ViGEmBus y HidHide (Nefarius), instalados aparte."/>
+                                                                    </Border>
+                                                                </Popup>
+                                                            </Grid>
                                                             <Button x:Name="MasterToggleBtn" Content="ACTIVAR MANDO VIRTUAL"
                                                                     Style="{StaticResource InstrumentButton}" HorizontalAlignment="Left"
-                                                                    Click="MasterToggle_Click"/>
+                                                                    Margin="0,12,0,0" Click="MasterToggle_Click"/>
                                                             <TextBlock x:Name="MasterStatusText" Style="{StaticResource DataText}" TextWrapping="Wrap"
                                                                        Margin="0,12,0,0" Text="MANDO NATIVO - el juego ve tu DualSense fisico, sin transformar."/>
                                                         </StackPanel>
                                                     </Border>
 
-                                                    <!-- Mando en vivo (Task VZ3): la salida TRANSFORMADA (post ajustes de abajo) del
-                                                         DualSense fisico, en vivo a ~60fps. Visible con cualquier pestana abierta:
-                                                         VisualizerFeed decide la fuente (lector propio con el motor apagado,
-                                                         _padReader del motor cuando esta encendido). -->
+                                                    <!-- Mando en vivo (Task VZ3), ahora grande y protagonista del hub (Task PS3):
+                                                         la salida TRANSFORMADA (post ajustes de abajo) del DualSense fisico, en
+                                                         vivo a ~60fps. VisualizerFeed decide la fuente (lector propio con el motor
+                                                         apagado, _padReader del motor cuando esta encendido). La tuerca agrupa lo
+                                                         que antes eran controles sueltos (skin, calibracion, streamer). -->
                                                     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
                                                             BorderThickness="1" Padding="18" Margin="0,0,0,20">
                                                         <StackPanel>
-                                                            <TextBlock Text="MANDO EN VIVO (salida al juego)" Style="{StaticResource SectionHeading}"/>
-                                                            <local:PadVisualHost x:Name="ConfigPadVisual" Height="240" Margin="0,10,0,0"/>
+                                                            <Grid>
+                                                                <TextBlock Text="MANDO EN VIVO (salida al juego)" Style="{StaticResource SectionHeading}" VerticalAlignment="Center"/>
+                                                                <Button x:Name="LiveGearBtn" Style="{StaticResource RoundIconButton}"
+                                                                        HorizontalAlignment="Right" Click="LiveOptions_Click" ToolTip="Opciones del mando en vivo">
+                                                                    <Path Data="{StaticResource SettingsIconPath}" Fill="{StaticResource TextLabelBrush}"
+                                                                          Width="14" Height="14" Stretch="Uniform"/>
+                                                                </Button>
+                                                                <Popup x:Name="LiveOptionsPopup" PlacementTarget="{Binding ElementName=LiveGearBtn}"
+                                                                       Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="None"
+                                                                       Opened="AnimatePopupOpen">
+                                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                            BorderThickness="1" Padding="16" MinWidth="260">
+                                                                        <StackPanel>
+                                                                            <!-- Estado del skin (Task SK3): que se esta dibujando (skin instalado o el
+                                                                                 vectorial) y control para recargar tras instalar/actualizar uno. -->
+                                                                            <TextBlock x:Name="SkinStatusText" Style="{StaticResource FieldLabel}"/>
+                                                                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                                                                <Button Content="RECARGAR SKIN" Style="{StaticResource InstrumentButton}"
+                                                                                        Click="ReloadSkin_Click"/>
+                                                                                <CheckBox x:Name="CalibrationCheck" Content="Modo calibracion"
+                                                                                          VerticalAlignment="Center" Margin="12,0,0,0"
+                                                                                          Foreground="{StaticResource TextDataBrush}"
+                                                                                          Click="Calibration_Click"/>
+                                                                            </StackPanel>
+                                                                            <!-- Fila de modo streamer: overlay transparente para OBS, ver StreamerWindow. -->
+                                                                            <StackPanel x:Name="StreamerRow" Orientation="Horizontal" Margin="0,10,0,0">
+                                                                                <Button x:Name="StreamerToggle" Content="MODO STREAMER" Style="{StaticResource InstrumentButton}"
+                                                                                        Click="StreamerToggle_Click"/>
+                                                                                <!-- Apaga el pasa-clic del overlay sin destruirlo: una vez ON desde la barra
+                                                                                     del propio streamer, el raton lo atraviesa entero y su ToggleButton deja
+                                                                                     de ser alcanzable, asi que esta ventana (nunca click-through) es el unico
+                                                                                     camino de vuelta. Solo usable con el streamer abierto. -->
+                                                                                <CheckBox x:Name="StreamerClickThrough" Content="Overlay atraviesa clic"
+                                                                                          VerticalAlignment="Center" Margin="12,0,0,0" IsEnabled="False"
+                                                                                          Foreground="{StaticResource TextDataBrush}"
+                                                                                          Click="StreamerClickThrough_Click"/>
+                                                                            </StackPanel>
+                                                                        </StackPanel>
+                                                                    </Border>
+                                                                </Popup>
+                                                            </Grid>
+                                                            <local:PadVisualHost x:Name="ConfigPadVisual" MinHeight="360" Margin="0,10,0,0"/>
                                                             <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,8,0,0"
                                                                        Text="Muestra lo que el juego recibe tras tus ajustes. Con el mando virtual apagado tambien se mueve (para configurar antes de activar)."/>
-                                                            <!-- Estado del skin (Task SK3): que se esta dibujando (skin instalado o el
-                                                                 vectorial) y control para recargar tras instalar/actualizar uno. -->
-                                                            <TextBlock x:Name="SkinStatusText" Style="{StaticResource FieldLabel}" Margin="0,8,0,0"/>
-                                                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                                                <Button Content="RECARGAR SKIN" Style="{StaticResource InstrumentButton}"
-                                                                        Click="ReloadSkin_Click"/>
-                                                                <CheckBox x:Name="CalibrationCheck" Content="Modo calibracion"
-                                                                          VerticalAlignment="Center" Margin="12,0,0,0"
-                                                                          Foreground="{StaticResource TextDataBrush}"
-                                                                          Click="Calibration_Click"/>
-                                                            </StackPanel>
-                                                            <!-- Fila de modo streamer: overlay transparente para OBS, ver StreamerWindow. -->
-                                                            <StackPanel x:Name="StreamerRow" Orientation="Horizontal" Margin="0,10,0,0">
-                                                                <Button x:Name="StreamerToggle" Content="MODO STREAMER" Style="{StaticResource InstrumentButton}"
-                                                                        Click="StreamerToggle_Click"/>
-                                                                <!-- Apaga el pasa-clic del overlay sin destruirlo: una vez ON desde la barra
-                                                                     del propio streamer, el raton lo atraviesa entero y su ToggleButton deja
-                                                                     de ser alcanzable, asi que esta ventana (nunca click-through) es el unico
-                                                                     camino de vuelta. Solo usable con el streamer abierto. -->
-                                                                <CheckBox x:Name="StreamerClickThrough" Content="Overlay atraviesa clic"
-                                                                          VerticalAlignment="Center" Margin="12,0,0,0" IsEnabled="False"
-                                                                          Foreground="{StaticResource TextDataBrush}"
-                                                                          Click="StreamerClickThrough_Click"/>
-                                                            </StackPanel>
                                                         </StackPanel>
                                                     </Border>
 
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <Button x:Name="StickTabBtn" Content="STICKS" Style="{StaticResource InstrumentButton}"
-                                                                Click="ShowStickTab" Margin="0,0,8,0"/>
-                                                        <Button x:Name="GatilloTabBtn" Content="GATILLOS" Style="{StaticResource InstrumentButton}"
-                                                                Click="ShowGatilloTab" Margin="0,0,8,0"/>
-                                                        <Button x:Name="TouchpadTabBtn" Content="TOUCHPAD" Style="{StaticResource InstrumentButton}"
-                                                                Click="ShowTouchpadTab" Margin="0,0,8,0"/>
-                                                        <Button x:Name="BotonTabBtn" Content="BOTONES" Style="{StaticResource InstrumentButton}"
-                                                                Click="ShowBotonTab"/>
-                                                    </StackPanel>
-
-                                                    <Grid Margin="0,16,0,0">
-                                                        <!-- Los cuatro contenedores alternan por visibilidad (ShowStickTab etc.);
-                                                             cada uno edita _remap y persiste via el debounce/CARGAR/GUARDAR de abajo. -->
-                                                        <Grid x:Name="TabSticks">
+                                                    <!-- Las cuatro tarjetas del hub (Task PS3): icono + titulo + frase, modelo
+                                                         "PlayStation Accessories". Cada Click entra a su sub-pagina via
+                                                         GoToPage(); primero entender, luego ajustar. -->
+                                                    <UniformGrid Columns="2" Margin="0,0,0,20">
+                                                        <Button Style="{StaticResource HubCard}" Margin="0,0,6,6" Click="GoToBotones_Click">
                                                             <StackPanel>
-                                                                <Button x:Name="HelpToggleBtn" Content="¿CÓMO FUNCIONA?" Style="{StaticResource InstrumentButton}"
-                                                                        HorizontalAlignment="Left" Margin="0,0,0,12" Click="ToggleHelpPanel_Click"/>
-
-                                                                <Border x:Name="HelpPanel" Visibility="Collapsed" Background="{StaticResource BgBrush}"
-                                                                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8"
-                                                                        Padding="16" Margin="0,0,0,16">
-                                                                    <StackPanel>
-                                                                        <TextBlock Text="GUÍA DE CURVAS DE RESPUESTA" Style="{StaticResource SectionHeading}" Foreground="{StaticResource TextDataBrush}" Margin="0,0,0,12"/>
-                                                                        <TextBlock TextWrapping="Wrap" Style="{StaticResource FieldLabel}" Foreground="{StaticResource TextDataBrush}" Margin="0,0,0,8"
-                                                                                   Text="La curva de respuesta define cómo se traduce la inclinación física de tu stick (entrada) al movimiento en el juego (salida)."/>
-
-                                                                        <BulletDecorator Margin="0,4,0,4">
-                                                                            <BulletDecorator.Bullet>
-                                                                                <Ellipse Width="8" Height="8" Fill="#66BB6A" Stroke="White" StrokeThickness="1" Margin="0,3,8,0"/>
-                                                                            </BulletDecorator.Bullet>
-                                                                            <TextBlock TextWrapping="Wrap" Style="{StaticResource FieldLabel}" Foreground="{StaticResource TextMutedBrush}"
-                                                                                       Text="Punto Verde (Zona Baja): Controla los pequeños movimientos. Ideal para micro-ajustes y precisión al apuntar a larga distancia. Bajarlo da más precisión."/>
-                                                                        </BulletDecorator>
-
-                                                                        <BulletDecorator Margin="0,4,0,4">
-                                                                            <BulletDecorator.Bullet>
-                                                                                <Ellipse Width="8" Height="8" Fill="#FFCA28" Stroke="White" StrokeThickness="1" Margin="0,3,8,0"/>
-                                                                            </BulletDecorator.Bullet>
-                                                                            <TextBlock TextWrapping="Wrap" Style="{StaticResource FieldLabel}" Foreground="{StaticResource TextMutedBrush}"
-                                                                                       Text="Punto Ámbar (Zona Media): Transición suave entre precisión y giros rápidos. Define la progresividad general de la respuesta."/>
-                                                                        </BulletDecorator>
-
-                                                                        <BulletDecorator Margin="0,4,0,12">
-                                                                            <BulletDecorator.Bullet>
-                                                                                <Ellipse Width="8" Height="8" Fill="#EF5350" Stroke="White" StrokeThickness="1" Margin="0,3,8,0"/>
-                                                                            </BulletDecorator.Bullet>
-                                                                            <TextBlock TextWrapping="Wrap" Style="{StaticResource FieldLabel}" Foreground="{StaticResource TextMutedBrush}"
-                                                                                       Text="Punto Rojo (Zona Alta): Controla la respuesta cerca del límite físico del stick. Subirlo garantiza que alcances la velocidad máxima de giro antes."/>
-                                                                        </BulletDecorator>
-
-                                                                        <TextBlock TextWrapping="Wrap" Style="{StaticResource FieldLabel}" Foreground="{StaticResource TextDataBrush}"
-                                                                                   Text="CONSEJO: En modo 'Lineal', la entrada equivale directamente a la salida. En modo 'Editor', arrastra los puntos con el ratón directamente en el gráfico para diseñar tu propia curva personalizada (por ejemplo, con una zona central plana para mejor precisión)."/>
-                                                                    </StackPanel>
-                                                                </Border>
-
-                                                                <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                        BorderThickness="1" Padding="18" Margin="0,0,0,16">
-                                                                    <StackPanel>
-                                                                        <TextBlock Text="STICK IZQUIERDO" Style="{StaticResource SectionHeading}"/>
-
-                                                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                                                            <TextBlock Text="ZONA MUERTA" Style="{StaticResource FieldLabel}"
-                                                                                       VerticalAlignment="Center" Width="100"/>
-                                                                            <Slider x:Name="LeftDeadzoneSlider" Minimum="0" Maximum="30" Value="0" Width="160"
-                                                                                    IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
-                                                                                    ValueChanged="LeftDeadzone_Changed"/>
-                                                                            <TextBlock x:Name="LeftDeadzoneText" Text="0%" Style="{StaticResource DataText}"
-                                                                                       VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                                                        </StackPanel>
-
-                                                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                                                            <TextBlock Text="RESPUESTA" Style="{StaticResource FieldLabel}"
-                                                                                       VerticalAlignment="Center" Width="100"/>
-                                                                            <ComboBox x:Name="LeftCurveList" Width="190"
-                                                                                      SelectionChanged="LeftCurve_Changed"/>
-                                                                        </StackPanel>
-
-
-
-                                                                        <TextBlock Text="CURVA (entrada -&gt; salida)" Style="{StaticResource FieldLabel}" Margin="0,14,0,6"/>
-                                                                        <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                                BorderThickness="1" Width="220" Height="100" HorizontalAlignment="Left">
-                                                                            <Canvas x:Name="LeftCurveCanvas" Width="220" Height="100" ClipToBounds="True"
-                                                                                    Background="Transparent"
-                                                                                    MouseLeftButtonDown="LeftCurveCanvas_MouseDown"
-                                                                                    MouseMove="LeftCurveCanvas_MouseMove"
-                                                                                    MouseLeftButtonUp="LeftCurveCanvas_MouseUp">
-                                                                                <Line x:Name="LeftCurveRef" X1="0" Y1="100" X2="220" Y2="0"
-                                                                                      Stroke="{StaticResource BorderBrush}" StrokeThickness="1" StrokeDashArray="3 3" Opacity="0.5"/>
-                                                                                <Polyline x:Name="LeftCurveLine" Stroke="{StaticResource TextDataBrush}" StrokeThickness="1.5"/>
-                                                                                <Ellipse x:Name="LeftCurveLiveDot" Width="7" Height="7" Fill="White" Visibility="Collapsed"/>
-                                                                            </Canvas>
-                                                                        </Border>
-
-                                                                        <TextBlock Text="MIS CURVAS" Style="{StaticResource FieldLabel}" Margin="0,12,0,6"/>
-                                                                        <StackPanel Orientation="Horizontal">
-                                                                            <ComboBox x:Name="LeftSavedCurveList" Width="140" DisplayMemberPath="Name" Margin="0,0,8,0"/>
-                                                                            <Button Content="CARGAR" Style="{StaticResource InstrumentButton}" Click="LoadLeftCurve_Click" Margin="0,0,8,0"/>
-                                                                            <Button Content="BORRAR" Style="{StaticResource InstrumentButton}" Click="DeleteLeftCurve_Click"/>
-                                                                        </StackPanel>
-                                                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                                                            <TextBox x:Name="LeftCurveName" Width="140" Background="{StaticResource SurfaceAltBrush}"
-                                                                                     Foreground="{StaticResource TextDataBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                                     BorderThickness="1" Padding="6,4" FontFamily="{StaticResource UiFont}" Margin="0,0,8,0"/>
-                                                                            <Button Content="GUARDAR CURVA" Style="{StaticResource InstrumentButton}" Click="SaveLeftCurve_Click"/>
-                                                                        </StackPanel>
-
-                                                                        <Button x:Name="LeftAdvancedToggle" Content="AVANZADO" Style="{StaticResource InstrumentButton}"
-                                                                                HorizontalAlignment="Left" Margin="0,14,0,0" Click="ToggleLeftAdvanced"/>
-                                                                        <StackPanel x:Name="LeftAdvancedPanel" Visibility="Collapsed" Margin="0,10,0,0">
-                                                                            <StackPanel Orientation="Horizontal">
-                                                                                <TextBlock Text="ALCANCE" Style="{StaticResource FieldLabel}"
-                                                                                           VerticalAlignment="Center" Width="100"/>
-                                                                                <Slider x:Name="LeftReachSlider" Minimum="70" Maximum="100" Value="100" Width="160"
-                                                                                        IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
-                                                                                        ValueChanged="LeftReach_Changed"/>
-                                                                                <TextBlock x:Name="LeftReachText" Text="100%" Style="{StaticResource DataText}"
-                                                                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                                                            </StackPanel>
-                                                                        </StackPanel>
-                                                                    </StackPanel>
-                                                                </Border>
-
-                                                                <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                        BorderThickness="1" Padding="18">
-                                                                    <StackPanel>
-                                                                        <TextBlock Text="STICK DERECHO" Style="{StaticResource SectionHeading}"/>
-
-                                                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                                                            <TextBlock Text="ZONA MUERTA" Style="{StaticResource FieldLabel}"
-                                                                                       VerticalAlignment="Center" Width="100"/>
-                                                                            <Slider x:Name="RightDeadzoneSlider" Minimum="0" Maximum="30" Value="0" Width="160"
-                                                                                    IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
-                                                                                    ValueChanged="RightDeadzone_Changed"/>
-                                                                            <TextBlock x:Name="RightDeadzoneText" Text="0%" Style="{StaticResource DataText}"
-                                                                                       VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                                                        </StackPanel>
-
-                                                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                                                            <TextBlock Text="RESPUESTA" Style="{StaticResource FieldLabel}"
-                                                                                       VerticalAlignment="Center" Width="100"/>
-                                                                            <ComboBox x:Name="RightCurveList" Width="190"
-                                                                                      SelectionChanged="RightCurve_Changed"/>
-                                                                        </StackPanel>
-
-
-
-                                                                        <TextBlock Text="CURVA (entrada -&gt; salida)" Style="{StaticResource FieldLabel}" Margin="0,14,0,6"/>
-                                                                        <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                                BorderThickness="1" Width="220" Height="100" HorizontalAlignment="Left">
-                                                                            <Canvas x:Name="RightCurveCanvas" Width="220" Height="100" ClipToBounds="True"
-                                                                                    Background="Transparent"
-                                                                                    MouseLeftButtonDown="RightCurveCanvas_MouseDown"
-                                                                                    MouseMove="RightCurveCanvas_MouseMove"
-                                                                                    MouseLeftButtonUp="RightCurveCanvas_MouseUp">
-                                                                                <Line x:Name="RightCurveRef" X1="0" Y1="100" X2="220" Y2="0"
-                                                                                      Stroke="{StaticResource BorderBrush}" StrokeThickness="1" StrokeDashArray="3 3" Opacity="0.5"/>
-                                                                                <Polyline x:Name="RightCurveLine" Stroke="{StaticResource TextDataBrush}" StrokeThickness="1.5"/>
-                                                                                <Ellipse x:Name="RightCurveLiveDot" Width="7" Height="7" Fill="White" Visibility="Collapsed"/>
-                                                                            </Canvas>
-                                                                        </Border>
-
-                                                                        <TextBlock Text="MIS CURVAS" Style="{StaticResource FieldLabel}" Margin="0,12,0,6"/>
-                                                                        <StackPanel Orientation="Horizontal">
-                                                                            <ComboBox x:Name="RightSavedCurveList" Width="140" DisplayMemberPath="Name" Margin="0,0,8,0"/>
-                                                                            <Button Content="CARGAR" Style="{StaticResource InstrumentButton}" Click="LoadRightCurve_Click" Margin="0,0,8,0"/>
-                                                                            <Button Content="BORRAR" Style="{StaticResource InstrumentButton}" Click="DeleteRightCurve_Click"/>
-                                                                        </StackPanel>
-                                                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                                                            <TextBox x:Name="RightCurveName" Width="140" Background="{StaticResource SurfaceAltBrush}"
-                                                                                     Foreground="{StaticResource TextDataBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                                     BorderThickness="1" Padding="6,4" FontFamily="{StaticResource UiFont}" Margin="0,0,8,0"/>
-                                                                            <Button Content="GUARDAR CURVA" Style="{StaticResource InstrumentButton}" Click="SaveRightCurve_Click"/>
-                                                                        </StackPanel>
-
-                                                                        <Button x:Name="RightAdvancedToggle" Content="AVANZADO" Style="{StaticResource InstrumentButton}"
-                                                                                HorizontalAlignment="Left" Margin="0,14,0,0" Click="ToggleRightAdvanced"/>
-                                                                        <StackPanel x:Name="RightAdvancedPanel" Visibility="Collapsed" Margin="0,10,0,0">
-                                                                            <StackPanel Orientation="Horizontal">
-                                                                                <TextBlock Text="ALCANCE" Style="{StaticResource FieldLabel}"
-                                                                                           VerticalAlignment="Center" Width="100"/>
-                                                                                <Slider x:Name="RightReachSlider" Minimum="70" Maximum="100" Value="100" Width="160"
-                                                                                        IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
-                                                                                        ValueChanged="RightReach_Changed"/>
-                                                                                <TextBlock x:Name="RightReachText" Text="100%" Style="{StaticResource DataText}"
-                                                                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                                                            </StackPanel>
-                                                                        </StackPanel>
-                                                                    </StackPanel>
-                                                                </Border>
-
+                                                                <Path Data="{StaticResource GamepadIconPath}" Fill="{StaticResource TextDataBrush}"
+                                                                      Width="26" Height="26" Stretch="Uniform" HorizontalAlignment="Left"/>
+                                                                <TextBlock Text="ASIGNACION DE BOTONES" Style="{StaticResource SectionHeading}"
+                                                                           Foreground="{StaticResource TextDataBrush}" TextWrapping="Wrap" Margin="0,14,0,0"/>
+                                                                <TextBlock Text="Cambia lo que envia cada boton del mando." Style="{StaticResource FieldLabel}"
+                                                                           TextWrapping="Wrap" Margin="0,6,0,0"/>
                                                             </StackPanel>
-                                                        </Grid>
-                                                        <Grid x:Name="TabGatillos" Visibility="Collapsed">
+                                                        </Button>
+                                                        <Button Style="{StaticResource HubCard}" Margin="6,0,0,6" Click="GoToSticks_Click">
                                                             <StackPanel>
-
-                                                                <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                        BorderThickness="1" Padding="18" Margin="0,0,0,16">
-                                                                    <StackPanel>
-                                                                        <TextBlock Text="L2 - PUNTO DE DISPARO" Style="{StaticResource SectionHeading}"/>
-                                                                        <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,6,0,12"
-                                                                                   Text="Hair trigger: por debajo del punto no se activa; en el punto o mas, se activa a fondo de inmediato. En 0% el gatillo queda progresivo, sin efecto."/>
-                                                                        <StackPanel Orientation="Horizontal">
-                                                                            <Slider x:Name="L2PointSlider" Minimum="0" Maximum="100" Value="0" Width="220"
-                                                                                    IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
-                                                                                    ValueChanged="L2Point_Changed"/>
-                                                                            <TextBlock x:Name="L2PointText" Text="0%" Style="{StaticResource DataText}"
-                                                                                       VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                                                        </StackPanel>
-                                                                        <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                                BorderThickness="1" Height="10" Width="220" HorizontalAlignment="Left" Margin="0,10,0,0">
-                                                                            <Rectangle x:Name="L2PointBar" Fill="{StaticResource TextDataBrush}"
-                                                                                       HorizontalAlignment="Left" Width="0"/>
-                                                                        </Border>
-                                                                    </StackPanel>
-                                                                </Border>
-
-                                                                <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                        BorderThickness="1" Padding="18">
-                                                                    <StackPanel>
-                                                                        <TextBlock Text="R2 - PUNTO DE DISPARO" Style="{StaticResource SectionHeading}"/>
-                                                                        <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,6,0,12"
-                                                                                   Text="Mismo hair trigger que L2, para el gatillo derecho."/>
-                                                                        <StackPanel Orientation="Horizontal">
-                                                                            <Slider x:Name="R2PointSlider" Minimum="0" Maximum="100" Value="0" Width="220"
-                                                                                    IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
-                                                                                    ValueChanged="R2Point_Changed"/>
-                                                                            <TextBlock x:Name="R2PointText" Text="0%" Style="{StaticResource DataText}"
-                                                                                       VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                                                        </StackPanel>
-                                                                        <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                                BorderThickness="1" Height="10" Width="220" HorizontalAlignment="Left" Margin="0,10,0,0">
-                                                                            <Rectangle x:Name="R2PointBar" Fill="{StaticResource TextDataBrush}"
-                                                                                       HorizontalAlignment="Left" Width="0"/>
-                                                                        </Border>
-                                                                    </StackPanel>
-                                                                </Border>
-
+                                                                <Path Data="{StaticResource StickIconPath}" Fill="{StaticResource TextDataBrush}"
+                                                                      Width="26" Height="26" Stretch="Uniform" HorizontalAlignment="Left"/>
+                                                                <TextBlock Text="SENSIBILIDAD Y ZONA MUERTA" Style="{StaticResource SectionHeading}"
+                                                                           Foreground="{StaticResource TextDataBrush}" TextWrapping="Wrap" Margin="0,14,0,0"/>
+                                                                <TextBlock Text="Ajusta la respuesta y la zona muerta de cada stick." Style="{StaticResource FieldLabel}"
+                                                                           TextWrapping="Wrap" Margin="0,6,0,0"/>
                                                             </StackPanel>
-                                                        </Grid>
-                                                        <Grid x:Name="TabTouchpad" Visibility="Collapsed">
+                                                        </Button>
+                                                        <Button Style="{StaticResource HubCard}" Margin="0,6,6,0" Click="GoToGatillos_Click">
                                                             <StackPanel>
-                                                                <TextBlock Text="ZONAS DEL TOUCHPAD" Style="{StaticResource SectionHeading}"/>
-                                                                <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,6,0,12"
-                                                                           Text="Un toque en cada cuadrante del touchpad puede enviar un boton. Ninguno lo deja sin efecto."/>
-                                                                <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                        BorderThickness="1" Padding="18">
-                                                                    <Grid x:Name="TouchZoneGrid">
-                                                                        <Grid.ColumnDefinitions>
-                                                                            <ColumnDefinition Width="*"/>
-                                                                            <ColumnDefinition Width="*"/>
-                                                                        </Grid.ColumnDefinitions>
-                                                                        <Grid.RowDefinitions>
-                                                                            <RowDefinition/>
-                                                                            <RowDefinition/>
-                                                                        </Grid.RowDefinitions>
-                                                                        <!-- Las 4 celdas (label + ComboBox por zona) las llena BuildTouchZoneCombos(). -->
-                                                                    </Grid>
-                                                                </Border>
+                                                                <Path Data="{StaticResource TriggerIconPath}" Fill="{StaticResource TextDataBrush}"
+                                                                      Width="26" Height="26" Stretch="Uniform" HorizontalAlignment="Left"/>
+                                                                <TextBlock Text="RECORRIDO DE LOS GATILLOS" Style="{StaticResource SectionHeading}"
+                                                                           Foreground="{StaticResource TextDataBrush}" TextWrapping="Wrap" Margin="0,14,0,0"/>
+                                                                <TextBlock Text="El punto de disparo de L2 y R2." Style="{StaticResource FieldLabel}"
+                                                                           TextWrapping="Wrap" Margin="0,6,0,0"/>
                                                             </StackPanel>
-                                                        </Grid>
-                                                        <Grid x:Name="TabBotones" Visibility="Collapsed">
+                                                        </Button>
+                                                        <Button Style="{StaticResource HubCard}" Margin="6,6,0,0" Click="GoToTouchpad_Click">
                                                             <StackPanel>
-                                                                <TextBlock Text="REMAPEO DE BOTONES" Style="{StaticResource SectionHeading}"/>
-                                                                <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,6,0,12"
-                                                                           Text="Cada boton de origen envia el boton de destino elegido. Dejalo igual para no remapearlo."/>
-                                                                <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                        BorderThickness="1" Padding="18">
-                                                                    <StackPanel x:Name="BotonRows">
-                                                                        <!-- Una fila (label + ComboBox) por boton remapeable; las llena BuildButtonRemapRows(). -->
-                                                                    </StackPanel>
-                                                                </Border>
+                                                                <Path Data="{StaticResource TouchpadIconPath}" Fill="{StaticResource TextDataBrush}"
+                                                                      Width="26" Height="26" Stretch="Uniform" HorizontalAlignment="Left"/>
+                                                                <TextBlock Text="ZONAS DEL TOUCHPAD" Style="{StaticResource SectionHeading}"
+                                                                           Foreground="{StaticResource TextDataBrush}" TextWrapping="Wrap" Margin="0,14,0,0"/>
+                                                                <TextBlock Text="Que boton envia cada cuadrante del touchpad." Style="{StaticResource FieldLabel}"
+                                                                           TextWrapping="Wrap" Margin="0,6,0,0"/>
                                                             </StackPanel>
-                                                        </Grid>
-                                                    </Grid>
+                                                        </Button>
+                                                    </UniformGrid>
 
-                                                    <TextBlock Text="PERFILES DEL REMAPEO" Style="{StaticResource SectionHeading}" Margin="0,20,0,0"/>
+                                                    <TextBlock Text="PERFILES DEL REMAPEO" Style="{StaticResource SectionHeading}"/>
                                                     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
                                                             BorderThickness="1" Padding="18" Margin="0,8,0,0">
                                                         <StackPanel>
@@ -923,10 +745,405 @@
                                                             </StackPanel>
                                                         </StackPanel>
                                                     </Border>
-
                                                 </StackPanel>
+                                            </ScrollViewer>
+                                        </Grid>
+
+                                        <!-- ===== Sub-paginas (Task PS3): cada una es cabecera (atras + titulo + "?")
+                                             + el contenido EXACTO que antes vivia en las pestanas propias del
+                                             configurador (mismos x:Name, mismos handlers; el rediseno de cada
+                                             una es tarea aparte). Overlaid sobre ConfigHub; UpdateConfigPages()
+                                             decide cual se ve. ===== -->
+
+                                        <Grid x:Name="PageBotones" Visibility="Collapsed">
+                                            <Grid.RenderTransform>
+                                                <TranslateTransform/>
+                                            </Grid.RenderTransform>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <Grid Grid.Row="0" Margin="24,20,24,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Button Grid.Column="0" Style="{StaticResource RoundIconButton}" Click="ConfigBack_Click" ToolTip="Volver">
+                                                    <TextBlock Text="&#8249;" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextDataBrush}"/>
+                                                </Button>
+                                                <TextBlock Grid.Column="1" Text="Asignacion de botones" Style="{StaticResource SectionHeading}"
+                                                           FontSize="13" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                                                <Button x:Name="BotonesHelpBtn" Grid.Column="2" Style="{StaticResource RoundIconButton}" Click="BotonesHelp_Click" ToolTip="Ayuda">
+                                                    <TextBlock Text="?" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextDataBrush}"/>
+                                                </Button>
+                                                <Popup x:Name="BotonesHelpPopup" Grid.Column="2" PlacementTarget="{Binding ElementName=BotonesHelpBtn}"
+                                                       Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="None"
+                                                       Opened="AnimatePopupOpen">
+                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                            BorderThickness="1" Padding="14" MaxWidth="280">
+                                                        <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Foreground="{StaticResource TextDataBrush}"
+                                                                   Text="Cada boton de origen envia el boton de destino elegido. Dejalo igual para no remapearlo."/>
+                                                    </Border>
+                                                </Popup>
                                             </Grid>
-                                        </ScrollViewer>
+                                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                                <StackPanel Margin="24">
+                                                    <TextBlock Text="REMAPEO DE BOTONES" Style="{StaticResource SectionHeading}"/>
+                                                    <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,6,0,12"
+                                                               Text="Cada boton de origen envia el boton de destino elegido. Dejalo igual para no remapearlo."/>
+                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                            BorderThickness="1" Padding="18">
+                                                        <StackPanel x:Name="BotonRows">
+                                                            <!-- Una fila (label + ComboBox) por boton remapeable; las llena BuildButtonRemapRows(). -->
+                                                        </StackPanel>
+                                                    </Border>
+                                                </StackPanel>
+                                            </ScrollViewer>
+                                        </Grid>
+
+                                        <Grid x:Name="PageSticks" Visibility="Collapsed">
+                                            <Grid.RenderTransform>
+                                                <TranslateTransform/>
+                                            </Grid.RenderTransform>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <Grid Grid.Row="0" Margin="24,20,24,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Button Grid.Column="0" Style="{StaticResource RoundIconButton}" Click="ConfigBack_Click" ToolTip="Volver">
+                                                    <TextBlock Text="&#8249;" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextDataBrush}"/>
+                                                </Button>
+                                                <TextBlock Grid.Column="1" Text="Sensibilidad y zona muerta de los sticks" Style="{StaticResource SectionHeading}"
+                                                           FontSize="13" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                                                <Button x:Name="SticksHelpBtn" Grid.Column="2" Style="{StaticResource RoundIconButton}" Click="SticksHelp_Click" ToolTip="Ayuda">
+                                                    <TextBlock Text="?" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextDataBrush}"/>
+                                                </Button>
+                                                <Popup x:Name="SticksHelpPopup" Grid.Column="2" PlacementTarget="{Binding ElementName=SticksHelpBtn}"
+                                                       Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="None"
+                                                       Opened="AnimatePopupOpen">
+                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                            BorderThickness="1" Padding="14" MaxWidth="280">
+                                                        <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Foreground="{StaticResource TextDataBrush}"
+                                                                   Text="Zona muerta, respuesta y curva por stick. El boton COMO FUNCIONA de abajo explica los tres puntos de la curva."/>
+                                                    </Border>
+                                                </Popup>
+                                            </Grid>
+                                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                                <StackPanel Margin="24">
+                                                    <Button x:Name="HelpToggleBtn" Content="¿CÓMO FUNCIONA?" Style="{StaticResource InstrumentButton}"
+                                                            HorizontalAlignment="Left" Margin="0,0,0,12" Click="ToggleHelpPanel_Click"/>
+
+                                                    <Border x:Name="HelpPanel" Visibility="Collapsed" Background="{StaticResource BgBrush}"
+                                                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8"
+                                                            Padding="16" Margin="0,0,0,16">
+                                                        <StackPanel>
+                                                            <TextBlock Text="GUÍA DE CURVAS DE RESPUESTA" Style="{StaticResource SectionHeading}" Foreground="{StaticResource TextDataBrush}" Margin="0,0,0,12"/>
+                                                            <TextBlock TextWrapping="Wrap" Style="{StaticResource FieldLabel}" Foreground="{StaticResource TextDataBrush}" Margin="0,0,0,8"
+                                                                       Text="La curva de respuesta define cómo se traduce la inclinación física de tu stick (entrada) al movimiento en el juego (salida)."/>
+
+                                                            <BulletDecorator Margin="0,4,0,4">
+                                                                <BulletDecorator.Bullet>
+                                                                    <Ellipse Width="8" Height="8" Fill="#66BB6A" Stroke="White" StrokeThickness="1" Margin="0,3,8,0"/>
+                                                                </BulletDecorator.Bullet>
+                                                                <TextBlock TextWrapping="Wrap" Style="{StaticResource FieldLabel}" Foreground="{StaticResource TextMutedBrush}"
+                                                                           Text="Punto Verde (Zona Baja): Controla los pequeños movimientos. Ideal para micro-ajustes y precisión al apuntar a larga distancia. Bajarlo da más precisión."/>
+                                                            </BulletDecorator>
+
+                                                            <BulletDecorator Margin="0,4,0,4">
+                                                                <BulletDecorator.Bullet>
+                                                                    <Ellipse Width="8" Height="8" Fill="#FFCA28" Stroke="White" StrokeThickness="1" Margin="0,3,8,0"/>
+                                                                </BulletDecorator.Bullet>
+                                                                <TextBlock TextWrapping="Wrap" Style="{StaticResource FieldLabel}" Foreground="{StaticResource TextMutedBrush}"
+                                                                           Text="Punto Ámbar (Zona Media): Transición suave entre precisión y giros rápidos. Define la progresividad general de la respuesta."/>
+                                                            </BulletDecorator>
+
+                                                            <BulletDecorator Margin="0,4,0,12">
+                                                                <BulletDecorator.Bullet>
+                                                                    <Ellipse Width="8" Height="8" Fill="#EF5350" Stroke="White" StrokeThickness="1" Margin="0,3,8,0"/>
+                                                                </BulletDecorator.Bullet>
+                                                                <TextBlock TextWrapping="Wrap" Style="{StaticResource FieldLabel}" Foreground="{StaticResource TextMutedBrush}"
+                                                                           Text="Punto Rojo (Zona Alta): Controla la respuesta cerca del límite físico del stick. Subirlo garantiza que alcances la velocidad máxima de giro antes."/>
+                                                            </BulletDecorator>
+
+                                                            <TextBlock TextWrapping="Wrap" Style="{StaticResource FieldLabel}" Foreground="{StaticResource TextDataBrush}"
+                                                                       Text="CONSEJO: En modo 'Lineal', la entrada equivale directamente a la salida. En modo 'Editor', arrastra los puntos con el ratón directamente en el gráfico para diseñar tu propia curva personalizada (por ejemplo, con una zona central plana para mejor precisión)."/>
+                                                        </StackPanel>
+                                                    </Border>
+
+                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                            BorderThickness="1" Padding="18" Margin="0,0,0,16">
+                                                        <StackPanel>
+                                                            <TextBlock Text="STICK IZQUIERDO" Style="{StaticResource SectionHeading}"/>
+
+                                                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                                                <TextBlock Text="ZONA MUERTA" Style="{StaticResource FieldLabel}"
+                                                                           VerticalAlignment="Center" Width="100"/>
+                                                                <Slider x:Name="LeftDeadzoneSlider" Minimum="0" Maximum="30" Value="0" Width="160"
+                                                                        IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
+                                                                        ValueChanged="LeftDeadzone_Changed"/>
+                                                                <TextBlock x:Name="LeftDeadzoneText" Text="0%" Style="{StaticResource DataText}"
+                                                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                            </StackPanel>
+
+                                                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                                                <TextBlock Text="RESPUESTA" Style="{StaticResource FieldLabel}"
+                                                                           VerticalAlignment="Center" Width="100"/>
+                                                                <ComboBox x:Name="LeftCurveList" Width="190"
+                                                                          SelectionChanged="LeftCurve_Changed"/>
+                                                            </StackPanel>
+
+                                                            <TextBlock Text="CURVA (entrada -&gt; salida)" Style="{StaticResource FieldLabel}" Margin="0,14,0,6"/>
+                                                            <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                    BorderThickness="1" Width="220" Height="100" HorizontalAlignment="Left">
+                                                                <Canvas x:Name="LeftCurveCanvas" Width="220" Height="100" ClipToBounds="True"
+                                                                        Background="Transparent"
+                                                                        MouseLeftButtonDown="LeftCurveCanvas_MouseDown"
+                                                                        MouseMove="LeftCurveCanvas_MouseMove"
+                                                                        MouseLeftButtonUp="LeftCurveCanvas_MouseUp">
+                                                                    <Line x:Name="LeftCurveRef" X1="0" Y1="100" X2="220" Y2="0"
+                                                                          Stroke="{StaticResource BorderBrush}" StrokeThickness="1" StrokeDashArray="3 3" Opacity="0.5"/>
+                                                                    <Polyline x:Name="LeftCurveLine" Stroke="{StaticResource TextDataBrush}" StrokeThickness="1.5"/>
+                                                                    <Ellipse x:Name="LeftCurveLiveDot" Width="7" Height="7" Fill="White" Visibility="Collapsed"/>
+                                                                </Canvas>
+                                                            </Border>
+
+                                                            <TextBlock Text="MIS CURVAS" Style="{StaticResource FieldLabel}" Margin="0,12,0,6"/>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <ComboBox x:Name="LeftSavedCurveList" Width="140" DisplayMemberPath="Name" Margin="0,0,8,0"/>
+                                                                <Button Content="CARGAR" Style="{StaticResource InstrumentButton}" Click="LoadLeftCurve_Click" Margin="0,0,8,0"/>
+                                                                <Button Content="BORRAR" Style="{StaticResource InstrumentButton}" Click="DeleteLeftCurve_Click"/>
+                                                            </StackPanel>
+                                                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                                                <TextBox x:Name="LeftCurveName" Width="140" Background="{StaticResource SurfaceAltBrush}"
+                                                                         Foreground="{StaticResource TextDataBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                         BorderThickness="1" Padding="6,4" FontFamily="{StaticResource UiFont}" Margin="0,0,8,0"/>
+                                                                <Button Content="GUARDAR CURVA" Style="{StaticResource InstrumentButton}" Click="SaveLeftCurve_Click"/>
+                                                            </StackPanel>
+
+                                                            <Button x:Name="LeftAdvancedToggle" Content="AVANZADO" Style="{StaticResource InstrumentButton}"
+                                                                    HorizontalAlignment="Left" Margin="0,14,0,0" Click="ToggleLeftAdvanced"/>
+                                                            <StackPanel x:Name="LeftAdvancedPanel" Visibility="Collapsed" Margin="0,10,0,0">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="ALCANCE" Style="{StaticResource FieldLabel}"
+                                                                               VerticalAlignment="Center" Width="100"/>
+                                                                    <Slider x:Name="LeftReachSlider" Minimum="70" Maximum="100" Value="100" Width="160"
+                                                                            IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
+                                                                            ValueChanged="LeftReach_Changed"/>
+                                                                    <TextBlock x:Name="LeftReachText" Text="100%" Style="{StaticResource DataText}"
+                                                                               VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                                </StackPanel>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </Border>
+
+                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                            BorderThickness="1" Padding="18">
+                                                        <StackPanel>
+                                                            <TextBlock Text="STICK DERECHO" Style="{StaticResource SectionHeading}"/>
+
+                                                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                                                <TextBlock Text="ZONA MUERTA" Style="{StaticResource FieldLabel}"
+                                                                           VerticalAlignment="Center" Width="100"/>
+                                                                <Slider x:Name="RightDeadzoneSlider" Minimum="0" Maximum="30" Value="0" Width="160"
+                                                                        IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
+                                                                        ValueChanged="RightDeadzone_Changed"/>
+                                                                <TextBlock x:Name="RightDeadzoneText" Text="0%" Style="{StaticResource DataText}"
+                                                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                            </StackPanel>
+
+                                                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                                                <TextBlock Text="RESPUESTA" Style="{StaticResource FieldLabel}"
+                                                                           VerticalAlignment="Center" Width="100"/>
+                                                                <ComboBox x:Name="RightCurveList" Width="190"
+                                                                          SelectionChanged="RightCurve_Changed"/>
+                                                            </StackPanel>
+
+                                                            <TextBlock Text="CURVA (entrada -&gt; salida)" Style="{StaticResource FieldLabel}" Margin="0,14,0,6"/>
+                                                            <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                    BorderThickness="1" Width="220" Height="100" HorizontalAlignment="Left">
+                                                                <Canvas x:Name="RightCurveCanvas" Width="220" Height="100" ClipToBounds="True"
+                                                                        Background="Transparent"
+                                                                        MouseLeftButtonDown="RightCurveCanvas_MouseDown"
+                                                                        MouseMove="RightCurveCanvas_MouseMove"
+                                                                        MouseLeftButtonUp="RightCurveCanvas_MouseUp">
+                                                                    <Line x:Name="RightCurveRef" X1="0" Y1="100" X2="220" Y2="0"
+                                                                          Stroke="{StaticResource BorderBrush}" StrokeThickness="1" StrokeDashArray="3 3" Opacity="0.5"/>
+                                                                    <Polyline x:Name="RightCurveLine" Stroke="{StaticResource TextDataBrush}" StrokeThickness="1.5"/>
+                                                                    <Ellipse x:Name="RightCurveLiveDot" Width="7" Height="7" Fill="White" Visibility="Collapsed"/>
+                                                                </Canvas>
+                                                            </Border>
+
+                                                            <TextBlock Text="MIS CURVAS" Style="{StaticResource FieldLabel}" Margin="0,12,0,6"/>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <ComboBox x:Name="RightSavedCurveList" Width="140" DisplayMemberPath="Name" Margin="0,0,8,0"/>
+                                                                <Button Content="CARGAR" Style="{StaticResource InstrumentButton}" Click="LoadRightCurve_Click" Margin="0,0,8,0"/>
+                                                                <Button Content="BORRAR" Style="{StaticResource InstrumentButton}" Click="DeleteRightCurve_Click"/>
+                                                            </StackPanel>
+                                                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                                                <TextBox x:Name="RightCurveName" Width="140" Background="{StaticResource SurfaceAltBrush}"
+                                                                         Foreground="{StaticResource TextDataBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                         BorderThickness="1" Padding="6,4" FontFamily="{StaticResource UiFont}" Margin="0,0,8,0"/>
+                                                                <Button Content="GUARDAR CURVA" Style="{StaticResource InstrumentButton}" Click="SaveRightCurve_Click"/>
+                                                            </StackPanel>
+
+                                                            <Button x:Name="RightAdvancedToggle" Content="AVANZADO" Style="{StaticResource InstrumentButton}"
+                                                                    HorizontalAlignment="Left" Margin="0,14,0,0" Click="ToggleRightAdvanced"/>
+                                                            <StackPanel x:Name="RightAdvancedPanel" Visibility="Collapsed" Margin="0,10,0,0">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="ALCANCE" Style="{StaticResource FieldLabel}"
+                                                                               VerticalAlignment="Center" Width="100"/>
+                                                                    <Slider x:Name="RightReachSlider" Minimum="70" Maximum="100" Value="100" Width="160"
+                                                                            IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
+                                                                            ValueChanged="RightReach_Changed"/>
+                                                                    <TextBlock x:Name="RightReachText" Text="100%" Style="{StaticResource DataText}"
+                                                                               VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                                </StackPanel>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </StackPanel>
+                                            </ScrollViewer>
+                                        </Grid>
+
+                                        <Grid x:Name="PageGatillos" Visibility="Collapsed">
+                                            <Grid.RenderTransform>
+                                                <TranslateTransform/>
+                                            </Grid.RenderTransform>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <Grid Grid.Row="0" Margin="24,20,24,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Button Grid.Column="0" Style="{StaticResource RoundIconButton}" Click="ConfigBack_Click" ToolTip="Volver">
+                                                    <TextBlock Text="&#8249;" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextDataBrush}"/>
+                                                </Button>
+                                                <TextBlock Grid.Column="1" Text="Recorrido de los gatillos" Style="{StaticResource SectionHeading}"
+                                                           FontSize="13" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                                                <Button x:Name="GatillosHelpBtn" Grid.Column="2" Style="{StaticResource RoundIconButton}" Click="GatillosHelp_Click" ToolTip="Ayuda">
+                                                    <TextBlock Text="?" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextDataBrush}"/>
+                                                </Button>
+                                                <Popup x:Name="GatillosHelpPopup" Grid.Column="2" PlacementTarget="{Binding ElementName=GatillosHelpBtn}"
+                                                       Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="None"
+                                                       Opened="AnimatePopupOpen">
+                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                            BorderThickness="1" Padding="14" MaxWidth="280">
+                                                        <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Foreground="{StaticResource TextDataBrush}"
+                                                                   Text="Hair trigger por gatillo: por debajo del punto no se activa; en el punto o mas, se activa a fondo de inmediato."/>
+                                                    </Border>
+                                                </Popup>
+                                            </Grid>
+                                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                                <StackPanel Margin="24">
+                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                            BorderThickness="1" Padding="18" Margin="0,0,0,16">
+                                                        <StackPanel>
+                                                            <TextBlock Text="L2 - PUNTO DE DISPARO" Style="{StaticResource SectionHeading}"/>
+                                                            <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,6,0,12"
+                                                                       Text="Hair trigger: por debajo del punto no se activa; en el punto o mas, se activa a fondo de inmediato. En 0% el gatillo queda progresivo, sin efecto."/>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <Slider x:Name="L2PointSlider" Minimum="0" Maximum="100" Value="0" Width="220"
+                                                                        IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
+                                                                        ValueChanged="L2Point_Changed"/>
+                                                                <TextBlock x:Name="L2PointText" Text="0%" Style="{StaticResource DataText}"
+                                                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                            </StackPanel>
+                                                            <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                    BorderThickness="1" Height="10" Width="220" HorizontalAlignment="Left" Margin="0,10,0,0">
+                                                                <Rectangle x:Name="L2PointBar" Fill="{StaticResource TextDataBrush}"
+                                                                           HorizontalAlignment="Left" Width="0"/>
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </Border>
+
+                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                            BorderThickness="1" Padding="18">
+                                                        <StackPanel>
+                                                            <TextBlock Text="R2 - PUNTO DE DISPARO" Style="{StaticResource SectionHeading}"/>
+                                                            <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,6,0,12"
+                                                                       Text="Mismo hair trigger que L2, para el gatillo derecho."/>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <Slider x:Name="R2PointSlider" Minimum="0" Maximum="100" Value="0" Width="220"
+                                                                        IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
+                                                                        ValueChanged="R2Point_Changed"/>
+                                                                <TextBlock x:Name="R2PointText" Text="0%" Style="{StaticResource DataText}"
+                                                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                            </StackPanel>
+                                                            <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                    BorderThickness="1" Height="10" Width="220" HorizontalAlignment="Left" Margin="0,10,0,0">
+                                                                <Rectangle x:Name="R2PointBar" Fill="{StaticResource TextDataBrush}"
+                                                                           HorizontalAlignment="Left" Width="0"/>
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </StackPanel>
+                                            </ScrollViewer>
+                                        </Grid>
+
+                                        <Grid x:Name="PageTouchpad" Visibility="Collapsed">
+                                            <Grid.RenderTransform>
+                                                <TranslateTransform/>
+                                            </Grid.RenderTransform>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <Grid Grid.Row="0" Margin="24,20,24,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Button Grid.Column="0" Style="{StaticResource RoundIconButton}" Click="ConfigBack_Click" ToolTip="Volver">
+                                                    <TextBlock Text="&#8249;" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextDataBrush}"/>
+                                                </Button>
+                                                <TextBlock Grid.Column="1" Text="Zonas del touchpad" Style="{StaticResource SectionHeading}"
+                                                           FontSize="13" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                                                <Button x:Name="TouchpadHelpBtn" Grid.Column="2" Style="{StaticResource RoundIconButton}" Click="TouchpadHelp_Click" ToolTip="Ayuda">
+                                                    <TextBlock Text="?" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextDataBrush}"/>
+                                                </Button>
+                                                <Popup x:Name="TouchpadHelpPopup" Grid.Column="2" PlacementTarget="{Binding ElementName=TouchpadHelpBtn}"
+                                                       Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="None"
+                                                       Opened="AnimatePopupOpen">
+                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                            BorderThickness="1" Padding="14" MaxWidth="280">
+                                                        <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Foreground="{StaticResource TextDataBrush}"
+                                                                   Text="Un toque en cada cuadrante del touchpad puede enviar un boton. Ninguno lo deja sin efecto."/>
+                                                    </Border>
+                                                </Popup>
+                                            </Grid>
+                                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                                <StackPanel Margin="24">
+                                                    <TextBlock Text="ZONAS DEL TOUCHPAD" Style="{StaticResource SectionHeading}"/>
+                                                    <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,6,0,12"
+                                                               Text="Un toque en cada cuadrante del touchpad puede enviar un boton. Ninguno lo deja sin efecto."/>
+                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                            BorderThickness="1" Padding="18">
+                                                        <Grid x:Name="TouchZoneGrid">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition/>
+                                                                <RowDefinition/>
+                                                            </Grid.RowDefinitions>
+                                                            <!-- Las 4 celdas (label + ComboBox por zona) las llena BuildTouchZoneCombos(). -->
+                                                        </Grid>
+                                                    </Border>
+                                                </StackPanel>
+                                            </ScrollViewer>
+                                        </Grid>
                                     </Grid>
 
                                     <Grid x:Name="LucesPanel" Visibility="Collapsed">

@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -20,6 +21,11 @@ namespace HidusbfModernGui
         private bool _isInitializing = true;
         private bool _overclockBusy;
         private StreamerWindow? _streamerWindow;
+
+        // Navegacion del configurador (Task PS3): hub de tarjetas <-> 4 sub-paginas.
+        // Logica pura en ConfigNav (probada aparte); este campo es el unico estado de
+        // navegacion, y UpdateConfigPages() el unico sitio que traduce Current a Visibility.
+        private readonly ConfigNav _configNav = new();
 
         // Mode used to interpret the 31/62 slots. Falls back to NoPatch so the UI
         // shows literal 31Hz/62Hz rather than claiming an overclock we cannot prove.
@@ -482,40 +488,133 @@ namespace HidusbfModernGui
             RefreshPlayStationDevices();   // igual que hoy al entrar a la luz
         }
 
-        // Pestanas propias del configurador (Sticks/Gatillos/Touchpad/Botones), mismo
-        // patron de visibilidad que ShowConfigPanel/ShowLucesPanel. Los controles reales
-        // de cada contenedor (Task 4) editan _remap; esto solo alterna cual se ve.
-        private void ShowStickTab(object sender, RoutedEventArgs e)
+        // ===== Hub del configurador (Task PS3): navegacion + animaciones =====
+        //
+        // Las 4 tarjetas del hub entran a su pagina; ConfigBack_Click vuelve. Un unico
+        // sitio (UpdateConfigPages) decide que Grid se ve, asi que no hay dos caminos que
+        // puedan dejar dos paginas visibles a la vez.
+        private void GoToBotones_Click(object sender, RoutedEventArgs e) => GoToPage(ConfigPage.Botones);
+        private void GoToSticks_Click(object sender, RoutedEventArgs e) => GoToPage(ConfigPage.Sticks);
+        private void GoToGatillos_Click(object sender, RoutedEventArgs e) => GoToPage(ConfigPage.Gatillos);
+        private void GoToTouchpad_Click(object sender, RoutedEventArgs e) => GoToPage(ConfigPage.Touchpad);
+
+        private void GoToPage(ConfigPage page)
         {
-            TabSticks.Visibility = Visibility.Visible;
-            TabGatillos.Visibility = Visibility.Collapsed;
-            TabTouchpad.Visibility = Visibility.Collapsed;
-            TabBotones.Visibility = Visibility.Collapsed;
+            _configNav.Go(page);
+            UpdateConfigPages();
         }
 
-        private void ShowGatilloTab(object sender, RoutedEventArgs e)
+        private void ConfigBack_Click(object sender, RoutedEventArgs e)
         {
-            TabSticks.Visibility = Visibility.Collapsed;
-            TabGatillos.Visibility = Visibility.Visible;
-            TabTouchpad.Visibility = Visibility.Collapsed;
-            TabBotones.Visibility = Visibility.Collapsed;
+            _configNav.Back();
+            UpdateConfigPages();
         }
 
-        private void ShowTouchpadTab(object sender, RoutedEventArgs e)
+        private void UpdateConfigPages()
         {
-            TabSticks.Visibility = Visibility.Collapsed;
-            TabGatillos.Visibility = Visibility.Collapsed;
-            TabTouchpad.Visibility = Visibility.Visible;
-            TabBotones.Visibility = Visibility.Collapsed;
+            var target = _configNav.Current;
+
+            ConfigHub.Visibility      = Vis(ConfigPage.Hub);
+            PageBotones.Visibility    = Vis(ConfigPage.Botones);
+            PageSticks.Visibility     = Vis(ConfigPage.Sticks);
+            PageGatillos.Visibility   = Vis(ConfigPage.Gatillos);
+            PageTouchpad.Visibility   = Vis(ConfigPage.Touchpad);
+
+            Visibility Vis(ConfigPage p) => target == p ? Visibility.Visible : Visibility.Collapsed;
+
+            // Navegacion de un solo nivel (hub <-> pagina, ver ConfigNav): la direccion
+            // sale sola de si el destino es el hub (volviendo, desde la izquierda) o una
+            // pagina (entrando, desde la derecha).
+            Grid entering = target switch
+            {
+                ConfigPage.Botones  => PageBotones,
+                ConfigPage.Sticks   => PageSticks,
+                ConfigPage.Gatillos => PageGatillos,
+                ConfigPage.Touchpad => PageTouchpad,
+                _                   => ConfigHub,
+            };
+            AnimatePageEnter(entering, fromRight: target != ConfigPage.Hub);
+
+            // El mando es el protagonista (plan de animacion): al volver al hub, ademas
+            // del deslizamiento generico de la pagina, tiene su propio fade+escala.
+            if (target == ConfigPage.Hub) AnimateLivePadEnter();
         }
 
-        private void ShowBotonTab(object sender, RoutedEventArgs e)
+        private static readonly Duration PageTransitionDuration = new Duration(TimeSpan.FromMilliseconds(160));
+        private static readonly Duration LivePadEnterDuration = new Duration(TimeSpan.FromMilliseconds(220));
+        private static readonly Duration PopupOpenDuration = new Duration(TimeSpan.FromMilliseconds(120));
+
+        // Fade 0->1 + deslizamiento de 18px (desde la derecha al entrar a una pagina,
+        // desde la izquierda al volver al hub), 160ms CubicEase EaseOut - la capa de
+        // animacion del plan. Solo la pagina ENTRANTE se anima; la saliente ya esta
+        // Collapsed en el mismo UpdateConfigPages(), sin transicion de salida.
+        private void AnimatePageEnter(Grid grid, bool fromRight)
         {
-            TabSticks.Visibility = Visibility.Collapsed;
-            TabGatillos.Visibility = Visibility.Collapsed;
-            TabTouchpad.Visibility = Visibility.Collapsed;
-            TabBotones.Visibility = Visibility.Visible;
+            if (grid.RenderTransform is not TranslateTransform tt)
+            {
+                tt = new TranslateTransform();
+                grid.RenderTransform = tt;
+            }
+            double startX = fromRight ? 18 : -18;
+            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+
+            tt.BeginAnimation(TranslateTransform.XProperty,
+                new DoubleAnimation(startX, 0, PageTransitionDuration) { EasingFunction = ease });
+            grid.BeginAnimation(UIElement.OpacityProperty,
+                new DoubleAnimation(0, 1, PageTransitionDuration) { EasingFunction = ease });
         }
+
+        // "El mando es el protagonista": al entrar al hub, el mando en vivo tiene su
+        // propio fade + escala 0.98->1.0 en 220ms, encima del deslizamiento generico
+        // de ConfigHub. Nunca se aplica a Update()/VisualizerTick - eso es entrada en
+        // vivo del mando, y esa regla no se toca.
+        private void AnimateLivePadEnter()
+        {
+            if (ConfigPadVisual.RenderTransform is not ScaleTransform st)
+            {
+                st = new ScaleTransform(1, 1);
+                ConfigPadVisual.RenderTransform = st;
+                ConfigPadVisual.RenderTransformOrigin = new Point(0.5, 0.5);
+            }
+            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+            st.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0.98, 1.0, LivePadEnterDuration) { EasingFunction = ease });
+            st.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0.98, 1.0, LivePadEnterDuration) { EasingFunction = ease });
+            ConfigPadVisual.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, LivePadEnterDuration) { EasingFunction = ease });
+        }
+
+        // Fade + escala 0.96->1.0 en 120ms para cualquier Popup de ayuda/opciones del
+        // configurador (la "?" del hub y de cada pagina, la tuerca del mando en vivo).
+        // Un unico handler, cableado por XAML a Popup.Opened en los seis popups: cada
+        // uno anima su propio Child, asi que no hace falta un metodo por popup.
+        private void AnimatePopupOpen(object sender, EventArgs e)
+        {
+            if (sender is not Popup popup || popup.Child is not FrameworkElement content) return;
+
+            if (content.RenderTransform is not ScaleTransform scale)
+            {
+                scale = new ScaleTransform(0.96, 0.96);
+                content.RenderTransform = scale;
+                content.RenderTransformOrigin = new Point(0.5, 0.5);
+            }
+            content.Opacity = 0;
+            scale.ScaleX = 0.96;
+            scale.ScaleY = 0.96;
+
+            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+            content.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, PopupOpenDuration) { EasingFunction = ease });
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0.96, 1.0, PopupOpenDuration) { EasingFunction = ease });
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0.96, 1.0, PopupOpenDuration) { EasingFunction = ease });
+        }
+
+        // Toggles de los popups "?"/tuerca: un Popup no tiene un Click propio, asi que
+        // cada boton redondo alterna IsOpen a mano. StaysOpen="False" en el XAML cierra
+        // solo al perder foco/clic fuera; este toggle es lo que lo ABRE.
+        private void MasterHelp_Click(object sender, RoutedEventArgs e) => MasterHelpPopup.IsOpen = !MasterHelpPopup.IsOpen;
+        private void LiveOptions_Click(object sender, RoutedEventArgs e) => LiveOptionsPopup.IsOpen = !LiveOptionsPopup.IsOpen;
+        private void BotonesHelp_Click(object sender, RoutedEventArgs e) => BotonesHelpPopup.IsOpen = !BotonesHelpPopup.IsOpen;
+        private void SticksHelp_Click(object sender, RoutedEventArgs e) => SticksHelpPopup.IsOpen = !SticksHelpPopup.IsOpen;
+        private void GatillosHelp_Click(object sender, RoutedEventArgs e) => GatillosHelpPopup.IsOpen = !GatillosHelpPopup.IsOpen;
+        private void TouchpadHelp_Click(object sender, RoutedEventArgs e) => TouchpadHelpPopup.IsOpen = !TouchpadHelpPopup.IsOpen;
 
         // ===== MOTOR DEL MANDO VIRTUAL (interruptor maestro, Tasks 6/7/14) =====
         //
@@ -759,11 +858,17 @@ namespace HidusbfModernGui
             _visualFeed.StopOwnReader();
         }
 
-        // El feed corre si el pad del configurador esta visible O si la ventana streamer esta
-        // abierta (el overlay debe seguir vivo aunque el usuario navegue a otra pestana).
+        // El feed corre si ALGUNA pagina del configurador esta visible (Task PS3: el mando
+        // en vivo vive solo en el hub, asi que ConfigPadVisual.IsVisible ya no basta - se
+        // apagaria al entrar a una sub-pagina como Botones o Gatillos) O si la ventana
+        // streamer sigue abierta (el overlay debe seguir vivo aunque el usuario navegue a
+        // otra pestana). ConfigPanel es el padre comun del hub y las 4 sub-paginas, asi
+        // que su IsVisible ya capta "estamos en Mando > Configurar", sea cual sea la
+        // pagina interna. ConfigPadVisual.Update() seguir corriendo con el pad Collapsed
+        // es inofensivo (actualizar un control invisible es barato y no dibuja nada).
         private void UpdateVisualizerRunState()
         {
-            if (ConfigPadVisual.IsVisible || _streamerWindow != null) StartVisualizer();
+            if (ConfigPanel.IsVisible || _streamerWindow != null) StartVisualizer();
             else StopVisualizer();
         }
 
