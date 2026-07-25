@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -114,7 +115,73 @@ namespace HidusbfModernGui
                 _deviceChangeDebounce.Stop();
                 _deviceChangeDebounce.Start();
             }
+            else if (msg == WM_GETMINMAXINFO)
+            {
+                LimitMaximizeToWorkArea(hwnd, lParam);
+            }
             return IntPtr.Zero;
+        }
+
+        // ===== Maximizar sin tapar la barra de tareas =====
+        //
+        // Una ventana sin chrome (WindowStyle=None + AllowsTransparency) se maximiza al
+        // MONITOR entero, tapando la barra de tareas: Windows solo respeta el area de trabajo
+        // en ventanas con marco estandar. La solucion es responder a WM_GETMINMAXINFO con el
+        // tamano y la posicion del area de trabajo del monitor donde esta la ventana - asi
+        // tambien funciona bien en multi-monitor y con la barra en cualquier borde.
+        private const int WM_GETMINMAXINFO = 0x0024;
+        private const int MONITOR_DEFAULTTONEAREST = 0x2;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct POINT { public int X; public int Y; }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MINMAXINFO
+        {
+            public POINT ptReserved, ptMaxSize, ptMaxPosition, ptMinTrackSize, ptMaxTrackSize;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RECT { public int Left, Top, Right, Bottom; }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MONITORINFO
+        {
+            public int cbSize;
+            public RECT rcMonitor;
+            public RECT rcWork;
+            public int dwFlags;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr MonitorFromWindow(IntPtr hwnd, int dwFlags);
+
+        [DllImport("user32.dll")]
+        private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+        private static void LimitMaximizeToWorkArea(IntPtr hwnd, IntPtr lParam)
+        {
+            try
+            {
+                IntPtr monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+                if (monitor == IntPtr.Zero) return;
+
+                var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+                if (!GetMonitorInfo(monitor, ref mi)) return;
+
+                var mmi = Marshal.PtrToStructure<MINMAXINFO>(lParam);
+                // Coordenadas relativas al monitor, no al escritorio virtual.
+                mmi.ptMaxPosition.X = mi.rcWork.Left - mi.rcMonitor.Left;
+                mmi.ptMaxPosition.Y = mi.rcWork.Top - mi.rcMonitor.Top;
+                mmi.ptMaxSize.X = mi.rcWork.Right - mi.rcWork.Left;
+                mmi.ptMaxSize.Y = mi.rcWork.Bottom - mi.rcWork.Top;
+                Marshal.StructureToPtr(mmi, lParam, true);
+            }
+            catch
+            {
+                // Si algo falla aqui, Windows usa su calculo por defecto (tapa la barra de
+                // tareas): feo, pero jamas debe impedir que la ventana se maximice.
+            }
         }
 
         private readonly PollingMeter _meter = new PollingMeter();
@@ -241,15 +308,54 @@ namespace HidusbfModernGui
         // Window controls
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.ButtonState == MouseButtonState.Pressed)
+            if (e.ButtonState != MouseButtonState.Pressed) return;
+
+            // Doble clic en la barra = maximizar/restaurar, como en cualquier ventana.
+            if (e.ClickCount == 2) { ToggleMaximize(); return; }
+
+            // Arrastrar una ventana maximizada la restaura y la deja "colgando" del cursor en
+            // la misma posicion relativa, que es lo que hace Windows.
+            if (WindowState == WindowState.Maximized)
             {
-                DragMove();
+                double ratio = ActualWidth > 0 ? e.GetPosition(this).X / ActualWidth : 0.5;
+                var screen = PointToScreen(e.GetPosition(this));
+                WindowState = WindowState.Normal;
+                Left = screen.X - RestoreBounds.Width * ratio;
+                Top = screen.Y - 26;   // el cursor queda dentro de la barra de titulo
             }
+
+            // DragMove lanza si el boton ya se solto entre el evento y esta llamada (puede
+            // pasar justo al restaurar); no es motivo para tumbar la app.
+            try { DragMove(); } catch (InvalidOperationException) { }
         }
 
         private void MinimizeButton_Click(object sender, RoutedEventArgs e)
         {
             WindowState = WindowState.Minimized;
+        }
+
+        private void MaximizeButton_Click(object sender, RoutedEventArgs e) => ToggleMaximize();
+
+        private void ToggleMaximize()
+            => WindowState = WindowState == WindowState.Maximized
+                ? WindowState.Normal
+                : WindowState.Maximized;
+
+        // El chrome es propio (WindowStyle=None), asi que el aspecto de "maximizada" hay que
+        // pintarlo a mano: sin margen ni esquinas redondeadas, o quedan franjas de escritorio
+        // a los lados y el redondeo flotando en mitad de la pantalla.
+        protected override void OnStateChanged(EventArgs e)
+        {
+            base.OnStateChanged(e);
+            if (RootBorder == null) return;   // aun no se ha parseado el XAML
+
+            bool max = WindowState == WindowState.Maximized;
+            RootBorder.CornerRadius = new CornerRadius(max ? 0 : 28);
+            SurfaceBorder.CornerRadius = new CornerRadius(max ? 0 : 24);
+            SurfaceBorder.Margin = new Thickness(max ? 0 : 16);
+
+            MaxIcon.Data = (Geometry)FindResource(max ? "RestoreIconPath" : "MaxIconPath");
+            MaximizeBtn.ToolTip = max ? "Restaurar" : "Maximizar";
         }
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)

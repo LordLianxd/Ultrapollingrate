@@ -19,6 +19,8 @@
         <!-- SVG Icon Geometries. Only the ones a live Path still binds to. -->
         <Geometry x:Key="CloseIconPath">M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z</Geometry>
         <Geometry x:Key="MinIconPath">M20,14H4V12H20V14Z</Geometry>
+        <Geometry x:Key="MaxIconPath">M4,4H20V20H4V4M6,8V18H18V8H6Z</Geometry>
+        <Geometry x:Key="RestoreIconPath">M4,8H8V4H20V16H16V20H4V8M16,8V14H18V6H10V8H16M6,12V18H14V12H6Z</Geometry>
         <Geometry x:Key="MouseIconPath">M12,2A7,7 0 0,0 5,9V15A7,7 0 0,0 12,22A7,7 0 0,0 19,15V9A7,7 0 0,0 12,2M17,15A5,5 0 0,1 12,20A5,5 0 0,1 7,15V14H17V15M17,12.5H7V9A5,5 0 0,1 11,4.1V11H13V4.1A5,5 0 0,1 17,9V12.5Z</Geometry>
         <Geometry x:Key="KeyboardIconPath">M19,4H5A2,2 0 0,0 3,6V18A2,2 0 0,0 5,20H19A2,2 0 0,0 21,18V6A2,2 0 0,0 19,4M19,18H5V6H19V18M6,8H8V10H6V8M9,8H11V10H9V8M12,8H14V10H12V8M15,8H17V10H15V8M6,11H8V13H6V11M9,11H11V13H9V11M12,11H14V13H12V11M15,11H17V13H15V11M8,14H16V16H8V14Z</Geometry>
         <Geometry x:Key="GamepadIconPath">M21,6H3C1.9,6 1,6.9 1,8V16C1,17.1 1.9,18 3,18H21C22.1,18 23,17.1 23,16V8C23,6.9 22.1,6 21,6M6,15H4V13H2V11H4V9H6V11H8V13H6V15M15,11A1.5,1.5 0 1,1 16.5,9.5A1.5,1.5 0 0,1 15,11M19,14A1.5,1.5 0 1,1 20.5,12.5A1.5,1.5 0 0,1 19,14Z</Geometry>
@@ -26,6 +28,31 @@
         <Geometry x:Key="RefreshIconPath">M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z</Geometry>
         <Geometry x:Key="HomeIconPath">M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z</Geometry>
         <Geometry x:Key="SettingsIconPath">M19.14,12.94C19.18,12.63 19.2,12.32 19.2,12C19.2,11.68 19.18,11.37 19.14,11.06L21.32,9.36C21.52,9.2 21.58,8.92 21.45,8.7L19.38,5.1C19.25,4.88 18.98,4.8 18.76,4.89L16.2,5.92C15.67,5.5 15.09,5.17 14.47,4.92L14.08,2.19C14.04,1.96 13.84,1.8 13.6,1.8H9.4C9.16,1.8 8.96,1.96 8.92,2.19L8.53,4.92C7.91,5.17 7.33,5.5 6.8,5.92L4.24,4.89C4.02,4.8 3.75,4.88 3.62,5.1L1.55,8.7C1.42,8.92 1.48,9.2 1.68,9.36L3.86,11.06C3.82,11.37 3.8,11.68 3.8,12C3.8,12.32 3.82,12.63 3.86,12.94L1.68,14.64C1.48,14.8 1.42,15.08 1.55,15.3L3.62,18.9C3.75,19.12 4.02,19.2 4.24,19.11L6.8,18.08C7.33,18.5 7.91,18.83 8.53,19.08L8.92,21.81C8.96,22.04 9.16,22.2 9.4,22.2H13.6C13.84,22.2 14.04,22.04 14.08,21.81L14.47,19.08C15.09,18.83 15.67,18.5 16.2,18.08L18.76,19.11C18.98,19.2 19.25,19.12 19.38,18.9L21.45,15.3C21.58,15.08 21.52,14.8 21.32,14.64L19.14,12.94Z</Geometry>
+
+        <!-- Botones de ventana (minimizar / maximizar / cerrar). Van arriba a la derecha,
+             donde los busca todo el mundo. Se quedan en el gris del tema: el rojo de
+             Windows al pasar por Cerrar seria el unico color de toda la app. -->
+        <Style x:Key="WindowButton" TargetType="Button">
+            <Setter Property="Width" Value="42"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="{StaticResource SurfaceAltBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <!-- Custom Scrollbar -->
         <Style x:Key="ScrollBarThumbStyle" TargetType="Thumb">
@@ -73,10 +100,12 @@
         </Style>
     </Window.Resources>
 
-    <!-- Outer Window Border with soft margins and dropshadow -->
-    <Border Background="{StaticResource BgBrush}" BorderThickness="0" CornerRadius="28">
+    <!-- Outer Window Border with soft margins and dropshadow. Al maximizar, el code-behind
+         pone a cero el margen y el redondeo de ambos bordes: si no, la ventana "maximizada"
+         deja franjas de escritorio a los lados y las esquinas redondeadas quedan flotando. -->
+    <Border x:Name="RootBorder" Background="{StaticResource BgBrush}" BorderThickness="0" CornerRadius="28">
         <!-- Main instrument surface inside -->
-        <Border Background="{StaticResource SurfaceBrush}" CornerRadius="24" Margin="16" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+        <Border x:Name="SurfaceBorder" Background="{StaticResource SurfaceBrush}" CornerRadius="24" Margin="16" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
             <Border.Effect>
                 <DropShadowEffect Color="#000000" BlurRadius="25" ShadowDepth="2" Opacity="0.18"/>
             </Border.Effect>
@@ -106,14 +135,6 @@
                             </Button>
                         </StackPanel>
 
-                        <StackPanel VerticalAlignment="Bottom" Margin="0,0,0,16">
-                            <Button Style="{StaticResource SidebarButton}" Click="MinimizeButton_Click" ToolTip="Minimizar">
-                                <Path Data="{StaticResource MinIconPath}" Fill="{StaticResource TextLabelBrush}" Stretch="Uniform" Width="12" Height="12"/>
-                            </Button>
-                            <Button Style="{StaticResource SidebarButton}" Click="CloseButton_Click" ToolTip="Cerrar">
-                                <Path Data="{StaticResource CloseIconPath}" Fill="{StaticResource TextLabelBrush}" Stretch="Uniform" Width="12" Height="12"/>
-                            </Button>
-                        </StackPanel>
                     </Grid>
                 </Border>
 
@@ -130,10 +151,28 @@
                          disappear, it moved. The sticky amber warning in the status bar is still
                          the channel that tells the user the driver is capped. -->
                     <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Height="52" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-                        <!-- Bars are generated in code-behind: forty of them hand-written here
-                             would be unreadable, and each needs its own duration and phase. -->
-                        <Canvas x:Name="HeaderSpectrum" ClipToBounds="True" Background="Transparent"
-                                IsHitTestVisible="False"/>
+                        <Grid>
+                            <!-- Bars are generated in code-behind: forty of them hand-written here
+                                 would be unreadable, and each needs its own duration and phase. -->
+                            <Canvas x:Name="HeaderSpectrum" ClipToBounds="True" Background="Transparent"
+                                    IsHitTestVisible="False"/>
+
+                            <!-- Minimizar / Maximizar / Cerrar, arriba a la derecha (el sitio
+                                 estandar). Los Button consumen su propio MouseLeftButtonDown, asi
+                                 que pulsarlos no arrastra la ventana. -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                        Margin="0,0,10,0">
+                                <Button Style="{StaticResource WindowButton}" Click="MinimizeButton_Click" ToolTip="Minimizar">
+                                    <Path Data="{StaticResource MinIconPath}" Fill="{StaticResource TextLabelBrush}" Stretch="Uniform" Width="13" Height="13"/>
+                                </Button>
+                                <Button x:Name="MaximizeBtn" Style="{StaticResource WindowButton}" Click="MaximizeButton_Click" ToolTip="Maximizar">
+                                    <Path x:Name="MaxIcon" Data="{StaticResource MaxIconPath}" Fill="{StaticResource TextLabelBrush}" Stretch="Uniform" Width="13" Height="13"/>
+                                </Button>
+                                <Button Style="{StaticResource WindowButton}" Click="CloseButton_Click" ToolTip="Cerrar">
+                                    <Path Data="{StaticResource CloseIconPath}" Fill="{StaticResource TextLabelBrush}" Stretch="Uniform" Width="13" Height="13"/>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
                     </Border>
 
                     <!-- Content TabControl (Headers hidden) -->
