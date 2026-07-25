@@ -2582,9 +2582,18 @@ namespace HidusbfModernGui
                 var filter = SystemManager.SetFilterActive(model.InstanceId, false);
                 if (!filter.Success) { LogStatus($"No se pudo quitar el filtro: {filter.Error}"); return; }
 
+                // Borrar tambien la tasa escrita (rate 0 = DeleteValue("bInterval")). Quitar
+                // solo el filtro deja el dispositivo funcionando por defecto HOY, pero el
+                // valor sigue en el registro: si el filtro se reactiva por cualquier via
+                // -esta app, la GUI original de hidusbf, otra herramienta- la tasa vieja
+                // vuelve sola. "Restablecer valores" tiene que dejar limpio lo que
+                // APLICAR CAMBIOS escribio, que son las dos cosas.
+                var rate = SystemManager.SetDeviceRate(model.InstanceId, model.DriverKey, 0, model.BusSpeed);
+                if (!rate.Success) { LogStatus($"No se pudo borrar la tasa guardada: {rate.Error}"); return; }
+
                 var replug = await SystemManager.ReplugDevice(model.InstanceId);
                 if (!replug.Success) { LogStatus($"Reconexion fallida: {replug.Error}"); return; }
-                LogStatus($"{model.Name} restablecido a su estado por defecto.");
+                LogStatus($"{model.Name} restablecido: filtro quitado y tasa borrada.");
             }
             finally
             {

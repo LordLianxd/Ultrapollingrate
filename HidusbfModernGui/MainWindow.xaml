@@ -185,10 +185,18 @@
 
                         <!-- PAGE 0: DASHBOARD -->
                         <TabItem Header="Dashboard">
-                            <Grid Margin="24,20,24,10">
+                            <!-- MaxWidth + centrado: maximizada a 1920 las dos columnas se
+                                 estiraban y cada fila quedaba con medio metro de hueco entre
+                                 el nombre del dispositivo y su tasa. Con un ancho maximo el
+                                 contenido sigue denso y legible en cualquier pantalla, y el
+                                 espacio de mas se reparte a los lados en vez de dentro.
+                                 El panel de detalle pasa a ancho FIJO: su contenido (numero
+                                 grande, tabla de campos, combo) no mejora por ser mas ancho,
+                                 asi que todo el ancho extra va a la lista, que si lo usa. -->
+                            <Grid Margin="24,20,24,10" MaxWidth="1500" HorizontalAlignment="Center">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="2*"/> <!-- Main operations -->
-                                    <ColumnDefinition Width="1*"/> <!-- Monitor & Graph -->
+                                    <ColumnDefinition Width="*"/>   <!-- Main operations -->
+                                    <ColumnDefinition Width="430"/> <!-- Monitor & Graph -->
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Left Area -->
@@ -399,12 +407,11 @@
                                                 Click="ApplyOverclock_Click"
                                                 ToolTip="Activa el filtro, escribe la tasa elegida y reconecta el dispositivo (los tres pasos encadenados). Es lo unico que aplica el overclock al 100%."/>
 
-                                        <Button x:Name="ResetOverclockBtn" Content="Restablecer valores"
+                                        <Button x:Name="ResetOverclockBtn" Content="RESTABLECER VALORES"
+                                                Style="{StaticResource SecondaryButton}"
                                                 Click="ResetOverclock_Click"
-                                                Background="Transparent" BorderThickness="0" Cursor="Hand"
-                                                Foreground="{StaticResource TextLabelBrush}"
-                                                HorizontalAlignment="Left" Padding="0" Margin="0,10,0,0" FontSize="11"
-                                                ToolTip="Quita el filtro y reconecta, dejando el dispositivo en su estado por defecto."/>
+                                                HorizontalAlignment="Left" Margin="0,10,0,0"
+                                                ToolTip="Quita el filtro, borra la tasa guardada en el registro y reconecta: deja el dispositivo como estaba antes de tocarlo."/>
                                     </StackPanel>
                                 </Grid>
                             </Grid>

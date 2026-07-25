@@ -300,6 +300,15 @@
         </Setter>
     </Style>
 
+    <!-- Hermano secundario de InstrumentButton: misma tipografia, mismo alto y mismo
+         recuadro, pero sin relleno, para acciones de segundo plano (RESTABLECER VALORES)
+         que antes iban como texto suelto y no parecian pulsables. Al pasar el raton se
+         rellena igual que el primario: la unica diferencia es el estado de reposo. -->
+    <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource InstrumentButton}">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource TextLabelBrush}"/>
+    </Style>
+
     <!-- Preset colour swatch. A Button, not the Border+MouseLeftButtonUp it used to
          be, so Tab reaches it and Enter/Space activates it like any other control.
          The ControlTemplate is just the coloured rectangle: this is the one
