@@ -36,6 +36,7 @@
     <Compile Include="..\HidusbfModernGui\CurveLibraryStore.cs" Link="CurveLibraryStore.cs" />
     <Compile Include="..\HidusbfModernGui\PadVisualMath.cs" Link="PadVisualMath.cs" />
     <Compile Include="..\HidusbfModernGui\PadSkin.cs" Link="PadSkin.cs" />
+    <Compile Include="..\HidusbfModernGui\PadDiagram.cs" Link="PadDiagram.cs" />
   </ItemGroup>
 
 </Project>
