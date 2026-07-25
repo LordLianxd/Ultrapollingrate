@@ -141,9 +141,6 @@
                             <Button Style="{StaticResource SidebarButton}" Click="SettingsNavBtn_Click" ToolTip="Sistema">
                                 <Path Data="{StaticResource SettingsIconPath}" Fill="{StaticResource TextLabelBrush}" Stretch="Uniform" Width="18" Height="18"/>
                             </Button>
-                            <Button Style="{StaticResource SidebarButton}" Click="RefreshDevicesBtn_Click" ToolTip="Refrescar">
-                                <Path Data="{StaticResource RefreshIconPath}" Fill="{StaticResource TextLabelBrush}" Stretch="Uniform" Width="18" Height="18"/>
-                            </Button>
                         </StackPanel>
 
                     </Grid>
@@ -217,12 +214,21 @@
                                         <RowDefinition Height="*"/>    <!-- Devices List -->
                                     </Grid.RowDefinitions>
 
-                                    <!-- Device list heading -->
-                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="16,0,0,10">
-                                        <TextBlock Text="DISPOSITIVOS" Style="{StaticResource SectionHeading}"/>
-                                        <TextBlock x:Name="DeviceCountText" Text="0" Style="{StaticResource DataText}"
-                                                   FontSize="11" Foreground="{StaticResource TextLabelBrush}" Margin="10,0,0,0"/>
-                                    </StackPanel>
+                                    <!-- Device list heading. El boton de refrescar vive AQUI, junto a la lista
+                                         que refresca, y no en la barra lateral: alli era un icono sin contexto
+                                         que solo tenia sentido en esta pagina. -->
+                                    <Grid Grid.Row="0" Margin="16,0,0,10">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="DISPOSITIVOS" Style="{StaticResource SectionHeading}"/>
+                                            <TextBlock x:Name="DeviceCountText" Text="0" Style="{StaticResource DataText}"
+                                                       FontSize="11" Foreground="{StaticResource TextLabelBrush}" Margin="10,0,0,0"/>
+                                        </StackPanel>
+                                        <Button Style="{StaticResource RoundIconButton}" Click="RefreshDevicesBtn_Click"
+                                                HorizontalAlignment="Right" VerticalAlignment="Center" ToolTip="Volver a escanear los dispositivos USB">
+                                            <Path Data="{StaticResource RefreshIconPath}" Fill="{StaticResource TextLabelBrush}"
+                                                  Stretch="Uniform" Width="13" Height="13"/>
+                                        </Button>
+                                    </Grid>
 
                                     <!-- Loading indicator. The scan is a PowerShell round trip (~1s), so
                                          this is a real wait, not a fake one staged to look busy. Three
@@ -636,7 +642,10 @@
                                                             BorderThickness="1" Padding="18" Margin="0,0,0,20">
                                                         <StackPanel>
                                                             <Grid>
-                                                                <TextBlock Text="MANDO EN VIVO (salida al juego)" Style="{StaticResource SectionHeading}" VerticalAlignment="Center"/>
+                                                                <!-- Sin encabezado: un mando dibujado no necesita un cartel encima
+                                                                     diciendo que es un mando. Lo que la frase larga explicaba (que se
+                                                                     mueve con el motor apagado) se descubre moviendo el stick. -->
+
                                                                 <Button x:Name="LiveGearBtn" Style="{StaticResource RoundIconButton}"
                                                                         HorizontalAlignment="Right" Click="LiveOptions_Click" ToolTip="Opciones del mando en vivo">
                                                                     <Path Data="{StaticResource SettingsIconPath}" Fill="{StaticResource TextLabelBrush}"
@@ -682,8 +691,6 @@
                                                                  tarjetas del hub fuera de la vista. Con alto fijo el mando es el
                                                                  protagonista (antes 240) pero el hub entero sigue cabiendo. -->
                                                             <local:PadVisualHost x:Name="ConfigPadVisual" Height="300" Margin="0,10,0,0"/>
-                                                            <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,8,0,0"
-                                                                       Text="Muestra lo que el juego recibe tras tus ajustes. Con el mando virtual apagado tambien se mueve (para configurar antes de activar)."/>
                                                         </StackPanel>
                                                     </Border>
 

@@ -52,6 +52,13 @@ namespace HidusbfModernGui
             BuildHeaderSpectrum();
             BuildLoadingIndicator();
             RefreshStatus();
+
+            // La luz guardada se aplica AQUI, antes del escaneo: el usuario ve su color a la
+            // vez que la ventana. Antes colgaba del final de RefreshDevicesList(), que es una
+            // llamada a PowerShell de ~1 s - un escaneo de dispositivos que encender una luz
+            // no necesita para nada.
+            ApplySavedLightNow();
+
             RefreshDevicesList();
             BuildRemapControls();
             _isInitializing = false;
@@ -2497,8 +2504,34 @@ namespace HidusbfModernGui
         // Scan and populate the device list
         private bool _intentReapplied;
 
-        // Reaplica la ultima intencion de luz al primer DualSense presente. Se llama una
-        // vez, desde el fin del escaneo (cuando _allDevices ya esta poblada).
+        // Camino RAPIDO, el del arranque: aplica la luz guardada sin esperar a nada. Resuelve
+        // el mando enumerando HID en-proceso (milisegundos) en vez de leer _allDevices, que
+        // no existe hasta que termina el escaneo de PowerShell.
+        private void ApplySavedLightNow()
+        {
+            try
+            {
+                var intent = IntentStore.Load();
+                if (intent == null) { _intentReapplied = true; return; }
+
+                string? id = HidHideControl.FindPhysicalGamepadInstanceId();
+                if (id == null) return;   // sin mando aun: lo recoge ReapplyIntent o el replug
+
+                DualSenseLight.Apply(id, intent.ToLightState());
+                _intentReapplied = true;
+                LogStatus("Color del mando restaurado de la ultima sesion.");
+            }
+            catch
+            {
+                // Encender una luz jamas puede impedir que la app abra; si falla, el camino
+                // lento de ReapplyIntent lo intenta de nuevo al terminar el escaneo.
+            }
+        }
+
+        // Camino LENTO, la RED de reconexion: reaplica la intencion cuando aparece un mando
+        // que no estaba al arrancar (replug, o encendido despues de abrir la app). Lo llama
+        // el final del escaneo; _intentReapplied evita que pise al camino rapido de arriba.
+        // Los dos existen a proposito: no fusionarlos.
         private void ReapplyIntent()
         {
             if (_intentReapplied) return;
