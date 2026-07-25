@@ -35,6 +35,7 @@ Todo el código propio vive en `HidusbfModernGui/` (WPF, .NET 9, x64). Núcleo p
 | `RemapEngine.cs` | `Transform(estado, settings)` — la función pura que enchufa todo lo anterior: entra el estado físico, sale el estado que se empuja al virtual. |
 | `RemapProfileStore.cs` / `ProfileStore` / `IntentStore` | Persistencia JSON en `%APPDATA%\UltraPolling` (escritura atómica + `.backup`). |
 | `OpResult.cs` | Resultado uniforme `(Success, Error)` de toda operación que puede fallar. |
+| `PadSkin.cs` | Modelo y carga de skins: manifiesto `skin.json`, mapeo de partes (coordenadas, sprites, estados alternativos), carga desde disco. |
 
 ### Capa de E/S (verificada a mano, con hardware)
 
@@ -49,6 +50,8 @@ Todo el código propio vive en `HidusbfModernGui/` (WPF, .NET 9, x64). Núcleo p
 | `PollingMeter.cs` | Mide la llegada real de reportes HID del dispositivo seleccionado (mediana/min/max de los huecos). |
 | `PadVisualMath.cs` | Matemática pura de renderizado: conversión de coordenadas del stick a píxeles (offset, escala), cálculo de stick radius, ángulo y magnitud. |
 | `PadVisual.cs` | Dibuja un DualSense nativo en Canvas WPF, actualiza sticks/botones/touchpad en vivo con un `ControllerState` transformado (lo que ve el juego). |
+| `SkinnedPadVisual.cs` | Renderiza un mando con skin (sprites + coordenadas), reutiliza la lógica de posicionamiento de sticks/botones. Degrada a `PadVisual` si el skin es inválido. |
+| `PadVisualHost.cs` | Contenedor que elige entre `PadVisual` (vector) y `SkinnedPadVisual` (imagen + sprites) según el skin disponible. Mantiene la lógica unificada, el feed indiferente al backend de dibujo. |
 | `VisualizerFeed.cs` | Feed de datos a ~60 fps: lee el mando físico O bien devuelve un lector propio si el motor está parado (lección L1), aplica `RemapEngine.Transform` para que la visual = salida transformada, coordina con el motor para ceder la fuente al arrancar. |
 | `StreamerWindow.xaml(.cs)` | Ventana overlay transparente: dibuja el mando en vivo sobre fondo 100% transparente (apto para captura OBS), cierra sin parar el engine, visible independientemente del config pad. |
 | `MainWindow.xaml(.cs)` | Toda la UI (una sola ventana WPF): dashboard, sistema/driver, hub del mando (Configurar + Luces). |
@@ -114,6 +117,29 @@ El dibujo nativo del mando (`PadVisual`) también muestra la diagonal de referen
 - **Dos dominios, una conversión:** `CurvePoint.X` vive en el dominio **post-deadzone** (0..1 entre inner y outer); el eje X del canvas es la entrada **cruda** del stick. `DomainToRaw`/`RawToDomain` convierten en la frontera de la UI, así los puntos caen exactamente sobre la línea dibujada con cualquier zona muerta/alcance (lección L4).
 - **Interpolación PCHIP** (Fritsch–Carlson, `InputTransform.ShapeCustom`): pasa exactamente por cada punto, suave, y **sin sobreimpulso** — entre dos puntos la salida nunca se sale del rango de esos puntos. Crítico para que la mira no haga nada que el usuario no dibujó. **El punto vivo en la gráfica (Task VZ4) y la diagonal de referencia demuestran cómo funciona el remapeo en tiempo real.**
 - El orden completo de un stick en el motor: deadzone radial (por magnitud, preserva el ángulo) → reescala [inner,outer]→[0,1] → curva (preset o puntos) → dirección unitaria × magnitud.
+
+### 3.6 Skins del visualizador
+
+El mando se dibuja con dos backends: un vector nativo (`PadVisual`, siempre disponible) y opcionalmente un skin con imágenes (`SkinnedPadVisual`). El formato es simple y fuera del repo:
+
+**Estructura y manifiesto:**
+- Carpeta: `%APPDATA%\UltraPolling\skins\<nombre>\`
+- Archivo de manifiesto: `skin.json` (define partes: sticks, botones, touchpad, zonas)
+- Cada parte especifica: `File` (imagen PNG donde vive), `Src` (rectángulo de la imagen en píxeles de la base), `Dst` (dónde se coloca en el canvas), y opcionalmente `Src2` (segundo sprite para estado alterno, ej: stick presionado)
+- Las coordenadas son en **píxeles de la imagen base** (no escaladas)
+
+**Degradación elegante:**
+- Una parte con coordenadas inválidas se descarta silenciosamente (ese stick/botón no dibuja)
+- Un skin inválido (JSON corrupto, imágenes faltantes, manifiesto mal formado) cae atrás al vector nativo
+- La app **nunca crashea** por un skin: el visualizador siempre dibuja algo
+
+**Modo de calibración:**
+- Botón RECARGAR SKIN en vivo (no requiere reiniciar)
+- Modo de calibración visual: muestra cajas magenta sobre cada parte con etiqueta (debugging)
+- El creador de skins verifica la geometría en real time contra el estado del mando
+
+**Razón legal:**
+El arte de un skin es intelectual propiedad del autor — ilustraciones, fotogramas, texturas, etc. Incluir skins terceros en este repo significaría **redistribuir arte ajeno sin permiso**. Por eso viven **fuera del repo**, en `%APPDATA%`: cada usuario instala el arte que quiere usar, y quien comparte o recrea un skin asume la responsabilidad legal de sus permisos. El código de carga (`PadSkin.cs`, `SkinnedPadVisual`) es MIT; el arte, responsabilidad del instalador.
 
 ## 4. Tests
 

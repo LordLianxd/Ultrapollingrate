@@ -33,3 +33,9 @@ obj/
 # Packaging output. Rebuilt by package.ps1; a 150 MB self-contained bundle has no
 # business in git - the same reason UltraPolling.exe is ignored at the root.
 /dist/
+
+# Skins del visualizador: arte de terceros, NUNCA se redistribuye desde este repo.
+skins/
+**/skins/
+*.skin.json
+scraped_controller_assets/
