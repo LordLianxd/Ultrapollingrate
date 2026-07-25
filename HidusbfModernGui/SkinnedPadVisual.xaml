@@ -1,0 +1,15 @@
+<UserControl x:Class="HidusbfModernGui.SkinnedPadVisual"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- RootSurface: mismo patron que PadVisual (Background alterna entre SurfaceBrush y
+         transparente via StreamerBackground en el code-behind). El Board (Canvas) empieza
+         vacio: la base y las partes se crean en codigo porque dependen del manifiesto del
+         skin cargado en tiempo de ejecucion, a diferencia del Canvas de PadVisual que tiene
+         geometria fija en este XAML. Load() fija Width/Height del Board segun BaseWidth/
+         BaseHeight del skin. -->
+    <Border x:Name="RootSurface" Background="{StaticResource SurfaceBrush}">
+        <Viewbox Stretch="Uniform">
+            <Canvas x:Name="Board"/>
+        </Viewbox>
+    </Border>
+</UserControl>
