@@ -57,7 +57,14 @@ namespace HidusbfModernGui
             Board.Height = skin.BaseHeight;
 
             var baseSrc = TryLoadBitmap(Path.Combine(skin.Directory, skin.BaseFile));
-            if (baseSrc == null) return false;
+            if (baseSrc == null)
+            {
+                // Sin base no hay skin: se deja el control en estado limpio (sin _skin) para
+                // que un Update() posterior no crea que hay algo cargado. El host cae al
+                // mando vectorial al ver el false.
+                _skin = null;
+                return false;
+            }
 
             _baseImage = new Image { Source = baseSrc, Width = skin.BaseWidth, Height = skin.BaseHeight };
             Canvas.SetLeft(_baseImage, 0);
