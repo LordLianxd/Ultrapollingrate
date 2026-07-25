@@ -618,8 +618,12 @@
                                                             <Button x:Name="MasterToggleBtn" Content="ACTIVAR MANDO VIRTUAL"
                                                                     Style="{StaticResource InstrumentButton}" HorizontalAlignment="Left"
                                                                     Margin="0,12,0,0" Click="MasterToggle_Click"/>
+                                                            <!-- Vacio y sin ocupar sitio con el motor apagado: el boton de al lado
+                                                                 ya dice ACTIVAR MANDO VIRTUAL, asi que una frase explicando que
+                                                                 no esta activo es ruido. Reaparece cuando SI hay algo que contar:
+                                                                 motor encendido (fisico oculto / virtual / reportes) o un error. -->
                                                             <TextBlock x:Name="MasterStatusText" Style="{StaticResource DataText}" TextWrapping="Wrap"
-                                                                       Margin="0,12,0,0" Text="MANDO NATIVO - el juego ve tu DualSense fisico, sin transformar."/>
+                                                                       Margin="0,12,0,0" Text="" Visibility="Collapsed"/>
                                                         </StackPanel>
                                                     </Border>
 
@@ -672,7 +676,12 @@
                                                                     </Border>
                                                                 </Popup>
                                                             </Grid>
-                                                            <local:PadVisualHost x:Name="ConfigPadVisual" MinHeight="360" Margin="0,10,0,0"/>
+                                                            <!-- Alto ACOTADO, no minimo: el Viewbox de dentro escala al ancho
+                                                                 disponible, asi que un MinHeight sin techo hacia que a pantalla
+                                                                 completa el mando midiera ~1700 px de ancho y enterrara las
+                                                                 tarjetas del hub fuera de la vista. Con alto fijo el mando es el
+                                                                 protagonista (antes 240) pero el hub entero sigue cabiendo. -->
+                                                            <local:PadVisualHost x:Name="ConfigPadVisual" Height="300" Margin="0,10,0,0"/>
                                                             <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,8,0,0"
                                                                        Text="Muestra lo que el juego recibe tras tus ajustes. Con el mando virtual apagado tambien se mueve (para configurar antes de activar)."/>
                                                         </StackPanel>

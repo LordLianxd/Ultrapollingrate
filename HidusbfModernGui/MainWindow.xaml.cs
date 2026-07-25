@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -340,6 +340,16 @@ namespace HidusbfModernGui
             WindowState = WindowState.Minimized;
         }
 
+        // Un texto vacio no debe dejar un hueco en la tarjeta: si no hay nada que decir, la
+        // linea desaparece. Unico punto por el que pasa el estado del interruptor maestro.
+        private void SetMasterStatus(string text)
+        {
+            if (MasterStatusText == null) return;
+            MasterStatusText.Text = text;
+            MasterStatusText.Visibility = string.IsNullOrWhiteSpace(text)
+                ? Visibility.Collapsed : Visibility.Visible;
+        }
+
         private void MaximizeButton_Click(object sender, RoutedEventArgs e) => ToggleMaximize();
 
         private void ToggleMaximize()
@@ -655,7 +665,7 @@ namespace HidusbfModernGui
         private async Task StartEngine()
         {
             MasterToggleBtn.IsEnabled = false;
-            MasterStatusText.Text = "Aplicando...";
+            SetMasterStatus("Aplicando...");
 
             _padVirtual = new VirtualPad();
             _padReader = new DualSenseReader();
@@ -678,9 +688,9 @@ namespace HidusbfModernGui
 
             if (!result.Success)
             {
-                MasterStatusText.Text = result.FailedStage == "virtual"
+                SetMasterStatus(result.FailedStage == "virtual"
                     ? "Error creando el DS4 virtual: " + result.Error
-                    : "Error leyendo el DualSense: " + result.Error;
+                    : "Error leyendo el DualSense: " + result.Error);
                 CleanupEngine();
                 // El arranque fallo (p. ej. sin ViGEmBus/HidHide): el fisico sigue visible, asi que
                 // reabrimos el lector propio del visualizador (que StartEngine cerro por la leccion L1),
@@ -766,7 +776,7 @@ namespace HidusbfModernGui
             string virt = _padVirtual.Connected ? "virtual ACTIVO" : "virtual inactivo";
             string reportes = $"{_padReader.ReportsRead} reportes leidos";
             string extra = _hideError == null ? "" : $"  (HidHide no oculto: {_hideError})";
-            MasterStatusText.Text = $"MANDO VIRTUAL ACTIVO - {fisico} / {virt} / {reportes}{extra}";
+            SetMasterStatus($"MANDO VIRTUAL ACTIVO - {fisico} / {virt} / {reportes}{extra}");
         }
 
         // Trabajo puro de dispositivo (sin tocar ningun control de UI): revierte HidHide
@@ -790,7 +800,7 @@ namespace HidusbfModernGui
         private async Task StopEngine()
         {
             MasterToggleBtn.IsEnabled = false;
-            MasterStatusText.Text = "Deteniendo...";
+            SetMasterStatus("Deteniendo...");
 
             // El timer del passthrough vive y muere en el hilo de UI; pararlo aqui, antes
             // del trabajo pesado de fondo, deja de empujar reportes al virtual de inmediato.
@@ -807,9 +817,11 @@ namespace HidusbfModernGui
             _engineBusy = false;
 
             MasterToggleBtn.Content = "ACTIVAR MANDO VIRTUAL";
-            MasterStatusText.Text = revertErr == null
-                ? "MANDO NATIVO - el juego ve tu DualSense fisico, sin transformar."
-                : $"MANDO NATIVO (revert parcial: {revertErr}). Revisa joy.cpl.";
+            // Estado apagado = sin texto (el boton ya lo dice). Un revert PARCIAL si se
+            // cuenta: ahi el mando pudo quedar en un estado raro y el usuario debe saberlo.
+            SetMasterStatus(revertErr == null
+                ? ""
+                : $"Revert parcial: {revertErr}. Revisa joy.cpl.");
             CleanupEngine();
             // El fisico volvio a estar visible: si el visualizador sigue en pantalla,
             // recupera su propia fuente (antes usaba _padReader, que ya no existe).
@@ -1088,8 +1100,8 @@ namespace HidusbfModernGui
             MasterToggleBtn.IsEnabled = false;
             string faltan = (!vigem && !hidhide) ? "ViGEmBus y HidHide"
                           : !vigem ? "ViGEmBus" : "HidHide";
-            MasterStatusText.Text = $"Falta instalar {faltan} (drivers de Nefarius). Sin eso no hay " +
-                                    "mando virtual; el juego sigue viendo tu DualSense nativo.";
+            SetMasterStatus($"Falta instalar {faltan} (drivers de Nefarius). Sin eso no hay " +
+                            "mando virtual; el juego sigue viendo tu DualSense nativo.");
         }
 
         private void BuildButtonRemapRows()
@@ -1458,7 +1470,7 @@ namespace HidusbfModernGui
 
         // Colores fijos de los 3 puntos del editor - la UNICA excepcion de color del tema
         // monocromo, pedida explicitamente: cada punto tiene identidad propia y la ayuda
-        // ("¿COMO FUNCIONA?") los nombra por color. El indice es el contrato:
+        // ("Â¿COMO FUNCIONA?") los nombra por color. El indice es el contrato:
         //   0 = VERDE  zona baja  (movimientos finos, punteria)
         //   1 = AMBAR  zona media (transicion apuntar<->girar)
         //   2 = ROJO   zona alta  (giros rapidos, tope)
@@ -2225,8 +2237,8 @@ namespace HidusbfModernGui
 
             var walker = new RainbowWalker(CurrentRainbowStyle);
             double actual = RainbowWalker.ActualColoursPerSecond(TargetColoursPerSecond);
-            string suffix = RainbowWalker.ShowsEveryColour(TargetColoursPerSecond) ? "" : " · varios colores/cuadro";
-            RainbowSpeedText.Text = $"{actual:0.#}/s · vuelta {walker.CycleSeconds(TargetColoursPerSecond):0.#} s{suffix}";
+            string suffix = RainbowWalker.ShowsEveryColour(TargetColoursPerSecond) ? "" : " Â· varios colores/cuadro";
+            RainbowSpeedText.Text = $"{actual:0.#}/s Â· vuelta {walker.CycleSeconds(TargetColoursPerSecond):0.#} s{suffix}";
         }
 
         private void LoadProfiles()
@@ -2967,3 +2979,4 @@ namespace HidusbfModernGui
         }
     }
 }
+
