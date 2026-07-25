@@ -15,6 +15,7 @@
 
   <!-- Link the pure logic directly so the tests do not pull in WPF. -->
   <ItemGroup>
+    <Compile Include="..\HidusbfModernGui\ConfigNav.cs" Link="ConfigNav.cs" />
     <Compile Include="..\HidusbfModernGui\PollingCore.cs" Link="PollingCore.cs" />
     <Compile Include="..\HidusbfModernGui\UsbDeviceModel.cs" Link="UsbDeviceModel.cs" />
     <Compile Include="..\HidusbfModernGui\HidDeviceLocator.cs" Link="HidDeviceLocator.cs" />
