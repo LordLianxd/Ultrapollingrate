@@ -100,6 +100,59 @@ public class PadSkinTests : IDisposable
     }
 
     [Fact]
+    public void Load_NullParts_LoadsWithZeroParts()
+    {
+        // Manifiesto valido salvo por "Parts": null explicito: el System.Text.Json pisa
+        // el inicializador del campo y deja Parts en null. El skin debe cargar igual,
+        // sin partes, en vez de rechazarse con un error generico.
+        const string json = """
+        {
+          "Name": "SinPartes",
+          "BaseFile": "base.png",
+          "BaseWidth": 1050,
+          "BaseHeight": 850,
+          "Parts": null
+        }
+        """;
+        var dir = WriteSkin(json, "base.png");
+        var (skin, err) = PadSkinLoader.Load(dir);
+
+        Assert.Null(err);
+        Assert.NotNull(skin);
+        Assert.Empty(skin!.Parts);
+    }
+
+    [Fact]
+    public void Load_NonPositiveStickRadius_FallsBackTo20()
+    {
+        var json = ValidJson.Replace("\"StickRadius\": 22", "\"StickRadius\": 0");
+        var dir = WriteSkin(json, "base.png", "sticks.png", "faces.png");
+        var (skin, err) = PadSkinLoader.Load(dir);
+
+        Assert.Null(err);
+        Assert.NotNull(skin);
+        Assert.Equal(20, skin!.StickRadius, 3);
+    }
+
+    [Fact]
+    public void Load_MissingName_FallsBackToFolderName()
+    {
+        const string json = """
+        {
+          "BaseFile": "base.png",
+          "BaseWidth": 1050,
+          "BaseHeight": 850
+        }
+        """;
+        var dir = WriteSkin(json, "base.png");
+        var (skin, err) = PadSkinLoader.Load(dir);
+
+        Assert.Null(err);
+        Assert.NotNull(skin);
+        Assert.Equal(Path.GetFileName(dir), skin!.Name);
+    }
+
+    [Fact]
     public void FindFirstSkinDir_PicksDirectoryContainingManifest()
     {
         string root = Path.Combine(_dir, "skins");

@@ -94,7 +94,10 @@ namespace HidusbfModernGui
 
                 // Partes: se descarta la que apunte a un archivo inexistente o traiga
                 // rectangulos invalidos, en vez de invalidar el skin entero.
-                skin.Parts = skin.Parts
+                // OJO: System.Text.Json pisa el inicializador "= new()" con null si el
+                // manifiesto trae "Parts": null explicito - sin este null-coalesce, un
+                // skin por lo demas valido se rechazaba entero por una NullReferenceException.
+                skin.Parts = (skin.Parts ?? new())
                     .Where(kv => kv.Value != null
                               && !string.IsNullOrWhiteSpace(kv.Value.File)
                               && File.Exists(Path.Combine(dir, kv.Value.File))
