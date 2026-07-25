@@ -32,6 +32,35 @@ El plan anterior (`2026-07-25-rediseno-ui-mando.md`) queda **superado por este**
 
 ---
 
+## Capa de animación (prioridad explícita del usuario)
+
+El movimiento no es decoración aquí: es lo que separa "una ventana con controles" de la
+sensación de la app de Sony. Reglas para **todas** las tareas de este plan:
+
+- **Transición de página (hub ↔ sub-página):** la entrante aparece con *fade* de 0→1 y un
+  desplazamiento de 18 px (desde la derecha al entrar, desde la izquierda al volver);
+  la saliente hace lo inverso. **160 ms**, `CubicEase EaseOut`. Se implementa con un
+  `Storyboard` por página en `Theme.xaml` disparado desde `UpdateConfigPages()`.
+- **Tarjetas del hub:** al pasar el ratón, `ScaleTransform` 1.0→1.02 y el borde sube a
+  `TextLabelBrush`, **120 ms**. Al pulsar, 0.98 durante 80 ms. Da la sensación de tarjeta
+  física sin mover el layout (el `RenderTransform` no reflowea).
+- **Popups (ayuda "?", opciones de la tuerca, lista de destinos):** *fade* + escala
+  0.96→1.0 desde el punto de anclaje, **120 ms**.
+- **Barras y marcas en vivo** (profundidad del gatillo, marcas Desde/Hasta): la marca del
+  rango se anima al cambiarla (**100 ms**), pero **la barra de recorrido NO**: va pegada al
+  dato.
+- **El mando es el protagonista.** Al entrar al hub, aparece con *fade* + escala 0.98→1.0
+  en **220 ms**. En la página de sticks, el stick que se está ajustando se resalta y el
+  otro baja a 40 % de opacidad (**150 ms**) — el mismo recurso que usa la referencia para
+  decir "estás tocando este".
+
+**La regla que NO se rompe:** *nunca animar la respuesta a la entrada del mando*. Los
+pulgares, los botones que se encienden y el relleno de los gatillos van **al instante**,
+sin transición. Una animación de 100 ms ahí sería una mentira: el visualizador estaría
+diciendo que hay una latencia que el motor no tiene, y este mando corre a 8000 Hz
+justamente para que no la haya. Se anima el **mobiliario** (navegación, tarjetas, paneles),
+nunca el **instrumento**.
+
 ## Global Constraints
 
 - UI en **español**, tema **monocromo** (excepciones vigentes: los 3 puntos del editor de curvas y el arte de un skin). El "crudo vs ajustado" de la Task 5 usa **blanco y gris**, no dos colores nuevos.
