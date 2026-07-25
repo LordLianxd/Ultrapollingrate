@@ -798,17 +798,32 @@
                                             </Grid>
                                             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                                 <StackPanel Margin="24">
-                                                    <TextBlock Text="REMAPEO DE BOTONES" Style="{StaticResource SectionHeading}"/>
-                                                    <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,6,0,12"
-                                                               Text="Cada boton de origen envia el boton de destino elegido. Dejalo igual para no remapearlo."/>
-                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                            BorderThickness="1" Padding="18">
-                                                        <StackPanel x:Name="BotonRows">
-                                                            <!-- Una fila (label + ComboBox) por boton remapeable; las llena BuildButtonRemapRows(). -->
-                                                        </StackPanel>
-                                                    </Border>
+                                                    <!-- El diagrama entero (imagen/respaldo vectorial + 16 lineas guia + 16
+                                                         pildoras) se construye una sola vez en BuildButtonDiagram(): son 16
+                                                         grupos y escribirlos a mano aqui seria ilegible y se desincronizaria
+                                                         de la tabla de anclas de PadDiagram. El Viewbox escala el lienzo de
+                                                         base fija (2400x1792, igual que PadDiagram.DiagramWidth/Height) sin
+                                                         deformarlo. -->
+                                                    <Viewbox Stretch="Uniform" MaxHeight="700">
+                                                        <Canvas x:Name="DiagramCanvas" Width="2400" Height="1792"/>
+                                                    </Viewbox>
+                                                    <Button Content="RESTABLECER" Style="{StaticResource SecondaryButton}"
+                                                            Click="ResetButtonRemap_Click" HorizontalAlignment="Left" Margin="0,16,0,0"/>
                                                 </StackPanel>
                                             </ScrollViewer>
+
+                                            <!-- Picker de destino (Step 5): un Popup unico reutilizado para las 16
+                                                 pildoras (en vez de 16 popups o un archivo XAML aparte); ButtonPill_Click
+                                                 lo ancla a la pildora pulsada y rellena su lista la primera vez. -->
+                                            <Popup x:Name="ButtonPickerPopup" Placement="Bottom" StaysOpen="False" AllowsTransparency="True"
+                                                   PopupAnimation="None" Opened="AnimatePopupOpen">
+                                                <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                        BorderThickness="1" Padding="4" MinWidth="170" MaxHeight="360">
+                                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                                        <StackPanel x:Name="ButtonPickerList"/>
+                                                    </ScrollViewer>
+                                                </Border>
+                                            </Popup>
                                         </Grid>
 
                                         <Grid x:Name="PageSticks" Visibility="Collapsed">

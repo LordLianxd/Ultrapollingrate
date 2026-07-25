@@ -524,6 +524,11 @@ namespace HidusbfModernGui
         {
             var target = _configNav.Current;
 
+            // El diagrama (Task BT2) se construye la primera vez que se entra a la pagina,
+            // no en Window_Loaded: 16 grupos de Shape/Button de mas no cuestan nada mientras
+            // el usuario no visite BOTONES, y BuildButtonDiagram() es idempotente.
+            if (target == ConfigPage.Botones) BuildButtonDiagram();
+
             ConfigHub.Visibility      = Vis(ConfigPage.Hub);
             PageBotones.Visibility    = Vis(ConfigPage.Botones);
             PageSticks.Visibility     = Vis(ConfigPage.Sticks);
@@ -977,8 +982,15 @@ namespace HidusbfModernGui
         private bool _remapControlsBuilt;
         private List<RemapProfile> _remapProfiles = new();
         private List<SavedCurve> _savedCurves = new();
-        private readonly List<(PadButton Source, ComboBox Combo)> _buttonRemapRows = new();
         private readonly List<(TouchZone Zone, ComboBox Combo)> _touchZoneRows = new();
+
+        // Diagrama de botones (Task BT2): construido una sola vez (_diagramBuilt) al entrar
+        // por primera vez a PageBotones. _pills mapea cada boton de origen a su pildora, para
+        // que RefreshButtonPills() pueda actualizar texto/resalte sin reconstruir nada.
+        // _pickerSource recuerda que pildora abrio el picker mientras el Popup esta abierto.
+        private readonly Dictionary<PadButton, Button> _pills = new();
+        private bool _diagramBuilt;
+        private PadButton _pickerSource;
 
         // Nombre reservado bajo el que se autoguarda el ultimo estado (distinto de los
         // perfiles con nombre que el usuario ve en RemapProfileList), para que cerrar y
@@ -1012,27 +1024,9 @@ namespace HidusbfModernGui
             ("Touchpad (click)", PadButton.TouchpadClick),
         };
 
-        // Botones de origen remapeables (excluye PS y el click del touchpad, que no son
-        // fuente de remapeo aqui).
-        private static readonly (string Label, PadButton Value)[] RemappableButtons =
-        {
-            ("Cruz", PadButton.Cross),
-            ("Circulo", PadButton.Circle),
-            ("Cuadrado", PadButton.Square),
-            ("Triangulo", PadButton.Triangle),
-            ("Cruceta arriba", PadButton.DpadUp),
-            ("Cruceta abajo", PadButton.DpadDown),
-            ("Cruceta izquierda", PadButton.DpadLeft),
-            ("Cruceta derecha", PadButton.DpadRight),
-            ("L1", PadButton.L1),
-            ("R1", PadButton.R1),
-            ("L2", PadButton.L2),
-            ("R2", PadButton.R2),
-            ("L3", PadButton.L3),
-            ("R3", PadButton.R3),
-            ("Compartir", PadButton.Share),
-            ("Opciones", PadButton.Options),
-        };
+        // Los 16 botones de origen remapeables (excluye PS y el click del touchpad) ya no
+        // necesitan su propia lista aqui: son exactamente PadDiagram.Anchors, que
+        // BuildButtonDiagram() recorre directamente.
 
         private static readonly (string Label, TouchZone Value)[] TouchZones =
         {
@@ -1050,7 +1044,6 @@ namespace HidusbfModernGui
             if (_remapControlsBuilt) return;
             _remapControlsBuilt = true;
 
-            BuildButtonRemapRows();
             BuildTouchZoneCombos();
             BuildCurveLists();
             RefreshCurveLibraryLists();
@@ -1104,31 +1097,164 @@ namespace HidusbfModernGui
                             "mando virtual; el juego sigue viendo tu DualSense nativo.");
         }
 
-        private void BuildButtonRemapRows()
+        // ===== Diagrama de botones (Task BT2) =====
+        //
+        // Se construye una sola vez: la imagen y las 16 lineas no cambian, solo el texto de
+        // las etiquetas (RefreshButtonPills) y su resalte. La llama UpdateConfigPages() al
+        // entrar a PageBotones por primera vez; _diagramBuilt la hace idempotente.
+        private void BuildButtonDiagram()
         {
-            BotonRows.Children.Clear();
-            _buttonRemapRows.Clear();
+            if (_diagramBuilt) return;
+            _diagramBuilt = true;
 
-            foreach (var (label, source) in RemappableButtons)
+            // Fondo: la imagen del mando si esta disponible; si no, el vectorial en estatico.
+            var bg = TryLoadDiagramImage();
+            if (bg != null)
             {
-                var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
-                row.Children.Add(new TextBlock
-                {
-                    Text = label,
-                    Style = (Style)FindResource("FieldLabel"),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Width = 140
-                });
-
-                var combo = new ComboBox { Width = 170, Tag = source };
-                foreach (var (targetLabel, targetValue) in RemapTargets)
-                    combo.Items.Add(new ComboBoxItem { Content = targetLabel, Tag = targetValue });
-                combo.SelectionChanged += ButtonRemapCombo_Changed;
-                row.Children.Add(combo);
-
-                BotonRows.Children.Add(row);
-                _buttonRemapRows.Add((source, combo));
+                var img = new Image { Source = bg, Width = PadDiagram.DiagramWidth, Height = PadDiagram.DiagramHeight };
+                Canvas.SetLeft(img, 0); Canvas.SetTop(img, 0);
+                DiagramCanvas.Children.Add(img);
             }
+            else
+            {
+                // Sin imagen no se deja la pagina en blanco: se dibuja el mando vectorial,
+                // escalado al lienzo del diagrama (2400x1792). PadVisual escala su Canvas
+                // interno de 360x260 con Stretch=Uniform y lo centra, asi que al forzar
+                // Width/Height a 2400x1792 el resultado llena el lienzo casi entero (el
+                // limitante es el ancho: escala x6.667, alto resultante ~1733 de 1792, un
+                // letterbox de ~30px arriba/abajo) - no queda encogido en una esquina.
+                var fallback = new PadVisual { Width = PadDiagram.DiagramWidth, Height = PadDiagram.DiagramHeight };
+                Canvas.SetLeft(fallback, 0); Canvas.SetTop(fallback, 0);
+                DiagramCanvas.Children.Add(fallback);
+            }
+
+            foreach (var side in new[] { true, false })
+            {
+                var anchors = PadDiagram.Anchors.Where(a => a.Left == side).ToList();
+                var placed = PadDiagram.LayoutLabels(anchors, 70);
+
+                foreach (var (button, lx, ly) in placed)
+                {
+                    var a = anchors.First(z => z.Button == button);
+
+                    // Linea guia: del ancla al borde interior de la columna, a la altura
+                    // repartida.
+                    var line = new Line
+                    {
+                        X1 = a.X, Y1 = a.Y, X2 = lx, Y2 = ly,
+                        Stroke = (Brush)FindResource("BorderBrush"), StrokeThickness = 2,
+                        IsHitTestVisible = false,
+                    };
+                    DiagramCanvas.Children.Add(line);
+
+                    var pill = new Button
+                    {
+                        Style = (Style)FindResource("PillButton"),
+                        Tag = button,
+                        FontSize = 26,          // el lienzo mide 2400 px: la tipografia va a esa escala
+                    };
+                    pill.Click += ButtonPill_Click;
+                    DiagramCanvas.Children.Add(pill);
+                    _pills[button] = pill;
+
+                    // La etiqueta se ancla por su borde interior: la columna izquierda crece
+                    // hacia la izquierda, la derecha hacia la derecha. Se centra en vertical
+                    // sobre su Y. OJO: se reposiciona en SizeChanged, no en Loaded - Loaded
+                    // solo dispara una vez, pero RefreshButtonPills() cambia el texto (y por
+                    // tanto el ancho) cada vez que el remapeo cambia, y una pildora mas ancha
+                    // reposicionada solo en Loaded quedaria descuadrada de su columna.
+                    // SizeChanged cubre tambien el primer layout (0 -> tamaño real), asi que
+                    // no hace falta Loaded ademas.
+                    pill.SizeChanged += (_, _) =>
+                    {
+                        Canvas.SetLeft(pill, side ? lx - pill.ActualWidth : lx);
+                        Canvas.SetTop(pill, ly - pill.ActualHeight / 2);
+                    };
+                }
+            }
+
+            RefreshButtonPills();
+        }
+
+        // Fondo del diagrama (Task BT3, todavia no hecha): por ahora siempre null a
+        // proposito, para que el camino de respaldo (PadVisual vectorial, arriba) sea el
+        // que se construye y se ve hoy. Nunca lanza: cuando BT3 la implemente (buscar
+        // diagram.png en la carpeta del skin instalado), un skin roto o ausente debe
+        // seguir cayendo aqui, no tumbar la pagina.
+        private ImageSource? TryLoadDiagramImage() => null;
+
+        // Cada etiqueta dice A QUE envia su boton: su propio nombre si no esta remapeado, el
+        // destino si lo esta (y entonces se resalta). Asi se ve el mapa entero de un vistazo,
+        // sin pasar el raton por encima ni abrir nada - esa es la ventaja del diagrama sobre
+        // la lista de combos que reemplaza.
+        private void RefreshButtonPills()
+        {
+            foreach (var (button, pill) in _pills)
+            {
+                bool remapped = _remap.ButtonRemap.TryGetValue(button, out var target) && target != button;
+                pill.Content = $"{FriendlyName(button)}  ->  {FriendlyName(remapped ? target : button)}";
+                pill.Foreground = (Brush)FindResource(remapped ? "TextDataBrush" : "TextLabelBrush");
+                pill.BorderBrush = (Brush)FindResource(remapped ? "TextLabelBrush" : "BorderBrush");
+            }
+        }
+
+        // Reutiliza las etiquetas amigables de RemapTargets (Cruz, Circulo, Cuadrado...) en
+        // vez de inventar un segundo juego de nombres para el diagrama.
+        private static string FriendlyName(PadButton button)
+        {
+            foreach (var (label, value) in RemapTargets)
+                if (value == button) return label;
+            return button.ToString();
+        }
+
+        // Picker de destino (Step 5): un Popup unico reutilizado para las 16 pildoras -
+        // ButtonPickerList se rellena la primera vez que se abre y luego solo se reancla.
+        // _pickerSource recuerda que pildora lo abrio (el Popup no tiene un DataContext
+        // propio del origen).
+        private void ButtonPill_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button pill || pill.Tag is not PadButton source) return;
+            _pickerSource = source;
+
+            if (ButtonPickerList.Children.Count == 0)
+            {
+                foreach (var (label, value) in RemapTargets)
+                {
+                    var item = new Button
+                    {
+                        Content = label,
+                        Tag = value,
+                        Style = (Style)FindResource("InstrumentButton"),
+                        HorizontalAlignment = HorizontalAlignment.Stretch,
+                        Margin = new Thickness(0, 0, 0, 2),
+                    };
+                    item.Click += ButtonPickerItem_Click;
+                    ButtonPickerList.Children.Add(item);
+                }
+            }
+
+            ButtonPickerPopup.PlacementTarget = pill;
+            ButtonPickerPopup.IsOpen = true;
+        }
+
+        private void ButtonPickerItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button item || item.Tag is not PadButton target) return;
+            ButtonPickerPopup.IsOpen = false;
+
+            var source = _pickerSource;
+            if (target == PadButton.None || target == source) _remap.ButtonRemap.Remove(source);   // identidad: no se guarda
+            else _remap.ButtonRemap[source] = target;
+
+            RememberRemap();
+            RefreshButtonPills();
+        }
+
+        private void ResetButtonRemap_Click(object sender, RoutedEventArgs e)
+        {
+            _remap.ButtonRemap.Clear();
+            RememberRemap();
+            RefreshButtonPills();
         }
 
         private void BuildTouchZoneCombos()
@@ -1246,8 +1372,7 @@ namespace HidusbfModernGui
             L2PointSlider.Value = _remap.L2PointPct;
             R2PointSlider.Value = _remap.R2PointPct;
 
-            foreach (var (source, combo) in _buttonRemapRows)
-                SelectComboByTag(combo, _remap.ButtonRemap.TryGetValue(source, out var target) ? target : source);
+            RefreshButtonPills();   // no-op si el diagrama aun no se construyo (_pills vacio)
 
             foreach (var (zone, combo) in _touchZoneRows)
                 SelectComboByTag(combo, _remap.TouchZoneMap.TryGetValue(zone, out var target) ? target : PadButton.None);
@@ -1381,18 +1506,6 @@ namespace HidusbfModernGui
         {
             HelpPanel.Visibility = HelpPanel.Visibility == Visibility.Visible
                 ? Visibility.Collapsed : Visibility.Visible;
-        }
-
-        private void ButtonRemapCombo_Changed(object sender, SelectionChangedEventArgs e)
-        {
-            if (_updatingRemap) return;
-            if (sender is not ComboBox { Tag: PadButton source, SelectedItem: ComboBoxItem item }) return;
-
-            var target = (PadButton)item.Tag;
-            if (target == source) _remap.ButtonRemap.Remove(source);   // identidad: no se guarda
-            else _remap.ButtonRemap[source] = target;
-
-            RememberRemap();
         }
 
         private void TouchZoneCombo_Changed(object sender, SelectionChangedEventArgs e)

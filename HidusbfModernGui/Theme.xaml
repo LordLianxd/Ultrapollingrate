@@ -309,6 +309,38 @@
         <Setter Property="Foreground" Value="{StaticResource TextLabelBrush}"/>
     </Style>
 
+    <!-- Pildora de etiqueta del diagrama de botones (Task BT2), modelo "PlayStation
+         Accessories": una excepcion deliberada a "sin pildoras redondeadas" de arriba,
+         porque aqui la pildora ES la etiqueta flotante junto a su linea guia, no un
+         boton de accion mas. Foreground y BorderBrush NO se fijan aqui (ni en un
+         trigger): son el estado de REMAPEADO/no-remapeado del modelo, no del control,
+         y los pone RefreshButtonPills() en code-behind tras cada cambio. -->
+    <Style x:Key="PillButton" TargetType="Button">
+        <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
+        <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}"/>
+        <Setter Property="Padding" Value="12,6"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="16"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource BorderBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Preset colour swatch. A Button, not the Border+MouseLeftButtonUp it used to
          be, so Tab reaches it and Enter/Space activates it like any other control.
          The ControlTemplate is just the coloured rectangle: this is the one
