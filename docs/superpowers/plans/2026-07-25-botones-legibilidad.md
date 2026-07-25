@@ -105,20 +105,22 @@ public static double AnchorX(PadAnchor a) => a.X + ImageOffsetX;
 
 ---
 
-### Task 2: Iconos en las etiquetas (TDD)
+### Task 2: Iconos vectoriales de botón (TDD)
 
 **Files:**
-- Create: `HidusbfModernGui/PadGlyphs.cs`
+- Create: `HidusbfModernGui/PadIcons.cs`
 - Modify: `HidusbfModernGui.Tests/HidusbfModernGui.Tests.csproj`
-- Test: `HidusbfModernGui.Tests/PadGlyphsTests.cs`
+- Test: `HidusbfModernGui.Tests/PadIconsTests.cs`
 
 **Interfaces:**
-- Produces: `PadGlyphs.Of(PadButton) -> string` — el símbolo de cada botón: `✕ ○ □ △` para las caras, `▲ ▼ ◀ ▶` para la cruceta, y el propio nombre corto (`L1`, `R2`, `L3`, …) para hombros, gatillos y sticks, que ya son iconográficos de por sí. `Share`/`Options` usan `⧉` y `≡` (los símbolos que llevan serigrafiados). Consumido por `RefreshButtonPills`.
+- Produces: `PadIcons.PathOf(PadButton) -> string?` (los datos de un `Geometry` en un lienzo de 24×24, o `null` si ese botón se representa con texto); `PadIcons.TextOf(PadButton) -> string?` (`"L1"`, `"R2"`, `"L3"`… o `null` si tiene icono); `PadIcons.IsFilledBadge(PadButton) -> bool` (true en las cuatro caras: van dentro de un círculo relleno con el símbolo calado, como la referencia). Consumido por `RefreshButtonPills`.
 
-**Por qué una tabla y no texto:** `R2 -> R2` obliga a leer dos veces lo mismo para enterarte de que **no** hay remapeo. Con glifos, `△ → ✕` se entiende de un vistazo y sin idioma de por medio.
+**Por qué vectores y no caracteres Unicode:** `✕ ○ □ △` dependen de la fuente instalada, se ven de tamaños distintos entre sí y no se parecen a los del mando. Un `Geometry` se dibuja igual en cualquier equipo, escala sin perder filo y se pinta con el color del tema. Las referencias que dio el usuario son formas, no texto.
 
-- [ ] **Step 1: Link en el csproj**: `<Compile Include="..\HidusbfModernGui\PadGlyphs.cs" Link="PadGlyphs.cs" />`
-- [ ] **Step 2: Tests que fallan** — crear `PadGlyphsTests.cs`:
+**Reparto:** caras (`✕ ○ □ △`) y cruceta (4 direcciones) llevan **icono**; hombros, gatillos y sticks (`L1 R1 L2 R2 L3 R3`) llevan **texto**, porque en el mando real están serigrafiados así — dibujarlos como forma sería inventar un icono que nadie reconoce. `Share`/`Options` llevan icono (sus símbolos serigrafiados).
+
+- [ ] **Step 1: Link en el csproj**: `<Compile Include="..\HidusbfModernGui\PadIcons.cs" Link="PadIcons.cs" />`
+- [ ] **Step 2: Tests que fallan** — crear `PadIconsTests.cs`:
 
 ```csharp
 using System;
@@ -126,90 +128,138 @@ using System.Linq;
 using HidusbfModernGui;
 using Xunit;
 
-public class PadGlyphsTests
+public class PadIconsTests
 {
     [Fact]
-    public void EveryButtonHasANonEmptyGlyph()
+    public void EveryButton_HasEitherAPathOrText()
     {
         foreach (PadButton b in Enum.GetValues<PadButton>())
-            Assert.False(string.IsNullOrWhiteSpace(PadGlyphs.Of(b)), $"{b} sin glifo");
+        {
+            if (b == PadButton.None) continue;
+            bool hasPath = !string.IsNullOrWhiteSpace(PadIcons.PathOf(b));
+            bool hasText = !string.IsNullOrWhiteSpace(PadIcons.TextOf(b));
+            Assert.True(hasPath ^ hasText, $"{b} debe tener icono O texto, no ambos ni ninguno");
+        }
     }
 
     [Fact]
-    public void FaceButtons_UseTheirSymbols()
+    public void FaceAndDpad_UseIcons()
     {
-        Assert.Equal("✕", PadGlyphs.Of(PadButton.Cross));
-        Assert.Equal("○", PadGlyphs.Of(PadButton.Circle));
-        Assert.Equal("□", PadGlyphs.Of(PadButton.Square));
-        Assert.Equal("△", PadGlyphs.Of(PadButton.Triangle));
+        foreach (var b in new[] { PadButton.Cross, PadButton.Circle, PadButton.Square, PadButton.Triangle,
+                                  PadButton.DpadUp, PadButton.DpadDown, PadButton.DpadLeft, PadButton.DpadRight })
+            Assert.False(string.IsNullOrWhiteSpace(PadIcons.PathOf(b)), $"{b} sin icono");
     }
 
     [Fact]
-    public void Dpad_UsesArrows()
+    public void ShouldersTriggersAndSticks_UseTheirPrintedText()
     {
-        Assert.Equal("▲", PadGlyphs.Of(PadButton.DpadUp));
-        Assert.Equal("▼", PadGlyphs.Of(PadButton.DpadDown));
-        Assert.Equal("◀", PadGlyphs.Of(PadButton.DpadLeft));
-        Assert.Equal("▶", PadGlyphs.Of(PadButton.DpadRight));
+        Assert.Equal("L1", PadIcons.TextOf(PadButton.L1));
+        Assert.Equal("R2", PadIcons.TextOf(PadButton.R2));
+        Assert.Equal("L3", PadIcons.TextOf(PadButton.L3));
+        Assert.Null(PadIcons.PathOf(PadButton.L1));
     }
 
     [Fact]
-    public void ShouldersAndSticks_KeepTheirShortName()
+    public void OnlyFaceButtons_AreFilledBadges()
     {
-        Assert.Equal("L1", PadGlyphs.Of(PadButton.L1));
-        Assert.Equal("R2", PadGlyphs.Of(PadButton.R2));
-        Assert.Equal("L3", PadGlyphs.Of(PadButton.L3));
+        foreach (var b in new[] { PadButton.Cross, PadButton.Circle, PadButton.Square, PadButton.Triangle })
+            Assert.True(PadIcons.IsFilledBadge(b), $"{b} deberia ir en circulo relleno");
+        foreach (var b in new[] { PadButton.DpadUp, PadButton.L1, PadButton.Share })
+            Assert.False(PadIcons.IsFilledBadge(b), $"{b} no lleva circulo");
     }
 
     [Fact]
-    public void GlyphsAreDistinctPerButton()
+    public void Dpad_DirectionsAreFourDistinctShapes()
     {
-        var all = Enum.GetValues<PadButton>().Where(b => b != PadButton.None)
-                      .Select(PadGlyphs.Of).ToList();
-        Assert.Equal(all.Count, all.Distinct().Count());
+        var paths = new[] { PadButton.DpadUp, PadButton.DpadDown, PadButton.DpadLeft, PadButton.DpadRight }
+                    .Select(PadIcons.PathOf).ToList();
+        Assert.Equal(4, paths.Distinct().Count());
+    }
+
+    [Fact]
+    public void None_HasNeither()
+    {
+        Assert.Null(PadIcons.PathOf(PadButton.None));
+        Assert.Null(PadIcons.TextOf(PadButton.None));
     }
 }
 ```
 
 - [ ] **Step 3: Verificar que falla** (compilación).
-- [ ] **Step 4: Implementación** — crear `HidusbfModernGui/PadGlyphs.cs`:
+- [ ] **Step 4: Implementación** — crear `HidusbfModernGui/PadIcons.cs`:
 
 ```csharp
 namespace HidusbfModernGui
 {
-    // El simbolo de cada boton, para etiquetas que se leen de un vistazo. "R2 -> R2" obliga
-    // a leer dos veces lo mismo para deducir que NO hay remapeo; un glifo se reconoce solo.
-    // Hombros, gatillos y sticks se quedan con su nombre corto: L1/R2/L3 ya son iconos.
-    public static class PadGlyphs
+    // El icono de cada boton, como datos de Geometry sobre un lienzo de 24x24. Vectores y no
+    // caracteres Unicode: los glifos tipo "△" dependen de la fuente instalada, salen de
+    // tamanos distintos entre si y no se parecen a los del mando. Un Geometry se dibuja igual
+    // en cualquier equipo, escala sin perder filo y toma el color del tema.
+    //
+    // Reparto: caras y cruceta llevan forma; hombros, gatillos y sticks llevan TEXTO, porque
+    // en el mando real estan serigrafiados "L1"/"R2"/"L3" - dibujarlos como simbolo seria
+    // inventar un icono que nadie reconoce.
+    public static class PadIcons
     {
-        public static string Of(PadButton b) => b switch
+        // Petalo de la cruceta apuntando ARRIBA, en 24x24: rectangulo de esquinas redondeadas
+        // que termina en punta hacia el centro del mando. Las otras tres direcciones son la
+        // misma forma girada 90/180/270 grados, escrita ya rotada para no depender de
+        // transformaciones en la vista.
+        private const string DpadUp    = "M9,2 H15 A2,2 0 0 1 17,4 V13 L12,18 L7,13 V4 A2,2 0 0 1 9,2 Z";
+        private const string DpadDown  = "M9,22 H15 A2,2 0 0 0 17,20 V11 L12,6 L7,11 V20 A2,2 0 0 0 9,22 Z";
+        private const string DpadLeft  = "M2,9 V15 A2,2 0 0 0 4,17 H13 L18,12 L13,7 H4 A2,2 0 0 0 2,9 Z";
+        private const string DpadRight = "M22,9 V15 A2,2 0 0 1 20,17 H11 L6,12 L11,7 H20 A2,2 0 0 1 22,9 Z";
+
+        // Simbolos de las caras. Van CALADOS sobre un circulo relleno (IsFilledBadge), como
+        // en el mando: el trazo es el hueco, no la figura.
+        private const string Cross    = "M7,7 L17,17 M17,7 L7,17";
+        private const string Circle   = "M12,12 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0";
+        private const string Square   = "M7.5,7.5 H16.5 V16.5 H7.5 Z";
+        private const string Triangle = "M12,6.5 L17.5,16.5 H6.5 Z";
+
+        // Share (dos rectangulos superpuestos) y Options (tres lineas), sus serigrafias.
+        private const string Share   = "M5,9 H14 V19 H5 Z M10,5 H19 V15 H16";
+        private const string Options = "M5,8 H19 M5,12 H19 M5,16 H19";
+
+        public static string? PathOf(PadButton b) => b switch
         {
-            PadButton.Cross         => "✕",
-            PadButton.Circle        => "○",
-            PadButton.Square        => "□",
-            PadButton.Triangle      => "△",
-            PadButton.DpadUp        => "▲",
-            PadButton.DpadDown      => "▼",
-            PadButton.DpadLeft      => "◀",
-            PadButton.DpadRight     => "▶",
-            PadButton.L1            => "L1",
-            PadButton.R1            => "R1",
-            PadButton.L2            => "L2",
-            PadButton.R2            => "R2",
-            PadButton.L3            => "L3",
-            PadButton.R3            => "R3",
-            PadButton.Share         => "⧉",
-            PadButton.Options       => "≡",
-            PadButton.PS            => "PS",
-            PadButton.TouchpadClick => "▭",
-            _                       => "—",   // None: "sin asignar"
+            PadButton.Cross     => Cross,
+            PadButton.Circle    => Circle,
+            PadButton.Square    => Square,
+            PadButton.Triangle  => Triangle,
+            PadButton.DpadUp    => DpadUp,
+            PadButton.DpadDown  => DpadDown,
+            PadButton.DpadLeft  => DpadLeft,
+            PadButton.DpadRight => DpadRight,
+            PadButton.Share     => Share,
+            PadButton.Options   => Options,
+            PadButton.TouchpadClick => "M3,7 H21 V17 H3 Z",
+            _ => null,
         };
+
+        public static string? TextOf(PadButton b) => b switch
+        {
+            PadButton.L1 => "L1",
+            PadButton.R1 => "R1",
+            PadButton.L2 => "L2",
+            PadButton.R2 => "R2",
+            PadButton.L3 => "L3",
+            PadButton.R3 => "R3",
+            PadButton.PS => "PS",
+            _ => null,
+        };
+
+        // Las cuatro caras se dibujan como simbolo calado dentro de un circulo relleno; el
+        // resto va suelto sobre el panel.
+        public static bool IsFilledBadge(PadButton b) =>
+            b is PadButton.Cross or PadButton.Circle or PadButton.Square or PadButton.Triangle;
     }
 }
 ```
 
 - [ ] **Step 5: Verificar que pasan** + suite completa.
-- [ ] **Step 6: Commit** — `git add -u && git add HidusbfModernGui/PadGlyphs.cs && git commit -m "feat: PadGlyphs - simbolo por boton para las etiquetas (TDD)"`
+- [ ] **Step 6: Revisión visual de las formas.** Los datos de arriba están escritos a mano y **no** se comprueban con un test (un test puede decir que la cadena existe, no que la flecha se vea como una flecha). Renderizar los 11 iconos en una fila temporal dentro de la página, capturar y comparar con las referencias del usuario; ajustar los que no encajen. **Este paso no se salta**: es el único que valida la forma.
+- [ ] **Step 7: Commit** — `git add -u && git add HidusbfModernGui/PadIcons.cs && git commit -m "feat: PadIcons - iconos vectoriales por boton (TDD + revision visual)"`
 
 ---
 
@@ -250,17 +300,57 @@ $bmp.Save($src, [System.Drawing.Imaging.ImageFormat]::Png); $bmp.Dispose()
   - `FontSize` de la píldora: **26 → 44**; estilo `PillButtonInk`.
   - `LayoutLabels(..., minGap)` sube de **70 → 110** (la letra es más grande, necesita más aire).
   - Las líneas guía pasan a `Stroke = BgBrush` (negro sobre el panel blanco), `StrokeThickness = 4`.
-- [ ] **Step 5: Iconos en el texto.** `RefreshButtonPills` pasa a:
+- [ ] **Step 5: Iconos dentro de la etiqueta.** El contenido de la píldora deja de ser texto y pasa a ser un `StackPanel` horizontal construido por un helper:
 
 ```csharp
-// Glifo del origen -> glifo del destino. Sin remapeo se muestra solo el origen: repetir
-// "R2 -> R2" era pedirle al usuario que comparase dos cadenas para deducir que no pasa nada.
-pill.Content = remapped
-    ? $"{PadGlyphs.Of(button)}  →  {PadGlyphs.Of(target)}"
-    : PadGlyphs.Of(button);
+// Contenido de una etiqueta: [icono origen]  (->  [icono destino])
+// Sin remapeo se muestra SOLO el origen: repetir "R2 -> R2" era pedirle al usuario que
+// comparase dos cadenas para deducir que no pasa nada.
+private UIElement BuildPillContent(PadButton source, PadButton? target)
+{
+    var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+    row.Children.Add(BuildIcon(source));
+    if (target != null)
+    {
+        row.Children.Add(new TextBlock { Text = "→", Margin = new Thickness(10, 0, 10, 0),
+                                         FontSize = 32, Foreground = Ink, VerticalAlignment = VerticalAlignment.Center });
+        row.Children.Add(BuildIcon(target.Value));
+    }
+    return row;
+}
+
+// Un icono: la forma vectorial, o el texto serigrafiado si ese boton no tiene forma. Las
+// cuatro caras van CALADAS sobre un circulo relleno, como en el mando: dentro del circulo
+// el simbolo se dibuja con el color del panel, no con el de la tinta.
+private UIElement BuildIcon(PadButton b)
+{
+    string? path = PadIcons.PathOf(b);
+    if (path == null)
+        return new TextBlock { Text = PadIcons.TextOf(b) ?? "—", FontSize = 34,
+                               FontWeight = FontWeights.SemiBold, Foreground = Ink };
+
+    var shape = new System.Windows.Shapes.Path
+    {
+        Data = Geometry.Parse(path),
+        Stretch = Stretch.Uniform, Width = 34, Height = 34,
+        Stroke = PadIcons.IsFilledBadge(b) ? Paper : Ink,
+        StrokeThickness = 2, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
+    };
+    if (!PadIcons.IsFilledBadge(b)) { shape.Fill = Ink; shape.Stroke = null; }
+
+    if (!PadIcons.IsFilledBadge(b)) return shape;
+
+    // Cara: circulo relleno + simbolo calado encima.
+    var grid = new Grid { Width = 48, Height = 48 };
+    grid.Children.Add(new System.Windows.Shapes.Ellipse { Fill = Ink });
+    grid.Children.Add(shape);
+    return grid;
+}
 ```
 
-El resalte de remapeado se mantiene, pero en versión tinta: remapeado = `FontWeight.Bold` y borde más grueso; sin remapear = normal. (Sobre blanco no vale jugar con `TextDataBrush`.)
+`Ink` y `Paper` son los dos pinceles que ya decide la bandera `light` del Step 6 (`BgBrush`/`TextDataBrush` sobre panel claro, y al revés sobre el oscuro), así que los iconos funcionan igual en los dos casos sin código duplicado.
+
+El resalte de remapeado se mantiene: remapeado = borde más grueso en la píldora; sin remapear = borde fino. (Sobre panel claro no vale jugar con el blanco.)
 
 - [ ] **Step 6: El respaldo vectorial sigue vivo.** `PadVisual` está pensado para fondo oscuro; sobre el panel blanco se vería mal. Si no hay imagen, **el panel se pinta oscuro** (`SurfaceBrush`) y las píldoras usan el `PillButton` de siempre. Una sola bandera (`bool light = bg != null`) decide fondo, estilo de píldora y color de línea, para que no haya combinaciones imposibles.
 - [ ] **Step 7: Verificación** — build 0/0, suite completa PASS. Manual: las etiquetas quedan **fuera** de la silueta, se leen a tamaño cómodo, el panel es claro con tinta negra, y una etiqueta sin remapeo muestra solo su glifo. Renombrar `diagram.png` y comprobar que el respaldo oscuro sigue siendo coherente.
