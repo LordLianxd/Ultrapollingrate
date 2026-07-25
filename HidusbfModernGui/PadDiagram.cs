@@ -16,9 +16,26 @@ namespace HidusbfModernGui
         public const double DiagramWidth = 2400;
         public const double DiagramHeight = 1792;
 
-        // Borde interior de cada columna de etiquetas, en pixeles del dibujo.
-        public const double LabelColumnLeft = 300;
-        public const double LabelColumnRight = 2100;
+        // El lienzo es MAS ANCHO que la imagen a proposito: la silueta del mando ocupa casi
+        // todo el ancho de la imagen (x 200..2200 de 2400), asi que las etiquetas no caben
+        // dentro sin pisarla. El margen extra es donde viven las dos columnas.
+        public const double CanvasWidth = 3600;
+        public const double CanvasHeight = 1792;
+
+        // La imagen se dibuja centrada en el lienzo; todo lo medido sobre ella se desplaza
+        // por aqui.
+        public const double ImageOffsetX = (CanvasWidth - DiagramWidth) / 2;   // 600
+
+        // Borde interior de cada columna de etiquetas, YA en coordenadas del lienzo. Deja
+        // ~260 px de aire entre la etiqueta y el borde del mando: antes eran 0 y las
+        // etiquetas caian sobre los mangos.
+        public const double LabelColumnLeft = 540;
+        public const double LabelColumnRight = 3060;
+
+        // Las anclas se midieron sobre la IMAGEN; el dibujo vive en el LIENZO. Una sola suma,
+        // en un solo sitio, para que no haya dos sistemas de coordenadas sueltos por el
+        // code-behind.
+        public static double AnchorX(PadAnchor a) => a.X + ImageOffsetX;
 
         public static readonly IReadOnlyList<PadAnchor> Anchors = new[]
         {

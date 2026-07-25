@@ -64,4 +64,38 @@ public class PadDiagramTests
     [Fact]
     public void LayoutLabels_Empty_ReturnsEmpty()
         => Assert.Empty(PadDiagram.LayoutLabels(System.Array.Empty<PadAnchor>(), 70));
+
+    [Fact]
+    public void Canvas_IsWiderThanTheImage_SoLabelsHaveRoom()
+    {
+        Assert.True(PadDiagram.CanvasWidth > PadDiagram.DiagramWidth);
+        // La imagen queda centrada en el lienzo.
+        Assert.Equal((PadDiagram.CanvasWidth - PadDiagram.DiagramWidth) / 2, PadDiagram.ImageOffsetX, 3);
+    }
+
+    [Fact]
+    public void LabelColumns_AreOutsideThePadSilhouette()
+    {
+        // La silueta ocupa x 200..2200 DE LA IMAGEN; en el lienzo, +ImageOffsetX.
+        double padLeft = 200 + PadDiagram.ImageOffsetX;
+        double padRight = 2200 + PadDiagram.ImageOffsetX;
+        Assert.True(PadDiagram.LabelColumnLeft < padLeft - 100,
+            "la columna izquierda debe quedar bien fuera del mando");
+        Assert.True(PadDiagram.LabelColumnRight > padRight + 100,
+            "la columna derecha debe quedar bien fuera del mando");
+    }
+
+    [Fact]
+    public void LabelColumns_AreInsideTheCanvas()
+    {
+        Assert.InRange(PadDiagram.LabelColumnLeft, 0, PadDiagram.CanvasWidth);
+        Assert.InRange(PadDiagram.LabelColumnRight, 0, PadDiagram.CanvasWidth);
+    }
+
+    [Fact]
+    public void AnchorX_TranslatesImageCoordsToCanvas()
+    {
+        var a = PadDiagram.Anchors.First(z => z.Button == PadButton.Cross);
+        Assert.Equal(a.X + PadDiagram.ImageOffsetX, PadDiagram.AnchorX(a), 3);
+    }
 }
