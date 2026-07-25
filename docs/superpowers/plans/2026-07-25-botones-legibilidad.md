@@ -119,6 +119,12 @@ public static double AnchorX(PadAnchor a) => a.X + ImageOffsetX;
 
 **Reparto:** caras (`✕ ○ □ △`) y cruceta (4 direcciones) llevan **icono**; hombros, gatillos y sticks (`L1 R1 L2 R2 L3 R3`) llevan **texto**, porque en el mando real están serigrafiados así — dibujarlos como forma sería inventar un icono que nadie reconoce. `Share`/`Options` llevan icono (sus símbolos serigrafiados).
 
+**Los de texto no son texto normal: son "keycaps".** Un `L1` escrito con la tipografía de la interfaz se leería como una palabra más de la pantalla, mientras que a su lado las caras son insignias redondas. Para que **pesen lo mismo**, los de texto van en **mono, en negrita, con espaciado entre letras y dentro de un recuadro de esquinas redondeadas** — como la serigrafía de un mando o la tecla de un teclado. Así la fila entera se lee como una hilera de botones, no como iconos mezclados con frases:
+
+- Fuente: `MonoFont` (la que el tema ya usa para datos), `FontWeight="Black"`, `FontSize` 30.
+- Recuadro: `CornerRadius` 8, borde de 2.5 px en el color de tinta, `Padding` 12,5.
+- Nunca hereda el tamaño ni el peso del resto de la página: se fija aquí.
+
 - [ ] **Step 1: Link en el csproj**: `<Compile Include="..\HidusbfModernGui\PadIcons.cs" Link="PadIcons.cs" />`
 - [ ] **Step 2: Tests que fallan** — crear `PadIconsTests.cs`:
 
@@ -258,7 +264,11 @@ namespace HidusbfModernGui
 ```
 
 - [ ] **Step 5: Verificar que pasan** + suite completa.
-- [ ] **Step 6: Revisión visual de las formas.** Los datos de arriba están escritos a mano y **no** se comprueban con un test (un test puede decir que la cadena existe, no que la flecha se vea como una flecha). Renderizar los 11 iconos en una fila temporal dentro de la página, capturar y comparar con las referencias del usuario; ajustar los que no encajen. **Este paso no se salta**: es el único que valida la forma.
+- [ ] **Step 6: Revisión visual de las formas.** Los datos de arriba están escritos a mano y **no** se comprueban con un test (un test puede decir que la cadena existe, no que la flecha se vea como una flecha). Renderizar los 16 botones en una fila temporal dentro de la página, capturar y comparar con las referencias del usuario. Dos cosas que hay que mirar expresamente:
+  - cada forma se reconoce (la flecha parece flecha, el triángulo va centrado en su círculo);
+  - **los keycaps y las insignias redondas tienen el mismo peso visual** — si los `L1`/`R2` se ven más flojos que las caras, subir el grosor del borde o el tamaño hasta emparejarlos. Ese equilibrio es el objetivo del cambio, y solo se juzga mirándolo.
+
+  **Este paso no se salta**: es el único que valida la forma.
 - [ ] **Step 7: Commit** — `git add -u && git add HidusbfModernGui/PadIcons.cs && git commit -m "feat: PadIcons - iconos vectoriales por boton (TDD + revision visual)"`
 
 ---
@@ -326,8 +336,33 @@ private UIElement BuildIcon(PadButton b)
 {
     string? path = PadIcons.PathOf(b);
     if (path == null)
-        return new TextBlock { Text = PadIcons.TextOf(b) ?? "—", FontSize = 34,
-                               FontWeight = FontWeights.SemiBold, Foreground = Ink };
+    {
+        // "Keycap": L1/R2/L3 no son texto corrido, son la serigrafia de un boton. Mono +
+        // Black + espaciado + recuadro para que pesen lo mismo que las insignias redondas de
+        // las caras; con la tipografia de la interfaz se leerian como una palabra mas.
+        var cap = new TextBlock
+        {
+            Text = PadIcons.TextOf(b) ?? "—",
+            FontFamily = (FontFamily)FindResource("MonoFont"),
+            FontSize = 30,
+            FontWeight = FontWeights.Black,
+            Foreground = Ink,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        // Espaciado entre letras: separa la "L" del "1" sin tocar el ancho del recuadro.
+        System.Windows.Documents.TypographyProperties.SetStandardLigatures(cap, false);
+        cap.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Center);
+
+        return new Border
+        {
+            Child = cap,
+            BorderBrush = Ink,
+            BorderThickness = new Thickness(2.5),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(12, 5, 12, 5),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+    }
 
     var shape = new System.Windows.Shapes.Path
     {
