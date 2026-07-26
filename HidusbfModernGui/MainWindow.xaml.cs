@@ -2182,6 +2182,8 @@ namespace HidusbfModernGui
         // el rainbow) en una sola escritura. NUNCA se llama por-tick del rainbow.
         private DispatcherTimer? _intentSave;
 
+        private List<string> _palette = new();
+
         // Populated once. Tag carries the value so handlers read a real value rather than
         // parsing a label back into meaning.
         private void BuildLightControls()
@@ -2291,6 +2293,10 @@ namespace HidusbfModernGui
                     PresetRow.Children.Add(swatch);
                 }
 
+                // La paleta del usuario, debajo de los presets de fabrica.
+                _palette = PaletteStore.Load();
+                RefreshPalette();
+
                 UpdateRainbowSpeedText();
             }
             finally
@@ -2353,6 +2359,68 @@ namespace HidusbfModernGui
 
             UpdateSwatch();
             ApplyLightNow();   // A preset click is a decision, not a drag - no need to debounce.
+        }
+
+        // La paleta del usuario: sus colores guardados, mas el "+" que anade el actual. Se
+        // reconstruye entera en cada cambio - son 13 elementos como mucho y asi no hay dos caminos
+        // para dejarla desincronizada del archivo.
+        private void RefreshPalette()
+        {
+            PaletteRow.Children.Clear();
+
+            foreach (string hex in _palette)
+            {
+                if (!ColourMath.TryParseHex(hex, out byte r, out byte g, out byte b)) continue;
+
+                var swatch = new Button
+                {
+                    Style = (Style)FindResource("PresetSwatchButton"),
+                    Background = new SolidColorBrush(Color.FromRgb(r, g, b)),
+                    Tag = new byte[] { r, g, b },
+                    ToolTip = $"#{hex}  (clic derecho para quitarlo)",
+                };
+                swatch.Click += Preset_Click;                 // el mismo handler que los de fabrica
+                swatch.MouseRightButtonUp += PaletteSwatch_Remove;
+                PaletteRow.Children.Add(swatch);
+            }
+
+            if (_palette.Count < PaletteStore.MaxColours)
+            {
+                var add = new Button
+                {
+                    Style = (Style)FindResource("PresetSwatchButton"),
+                    Background = (Brush)FindResource("SurfaceAltBrush"),
+                    Content = "+",
+                    Foreground = (Brush)FindResource("TextDataBrush"),
+                    ToolTip = "Guardar el color actual en tu paleta",
+                };
+                add.Click += PaletteAdd_Click;
+                PaletteRow.Children.Add(add);
+            }
+        }
+
+        private void PaletteAdd_Click(object sender, RoutedEventArgs e)
+        {
+            var c = Picker.SelectedColor;
+            if (!PaletteStore.Add(_palette, ColourMath.ToHex(c.R, c.G, c.B)))
+            {
+                LogStatus("Ese color ya esta en tu paleta.");
+                return;
+            }
+            var saved = PaletteStore.Save(_palette);
+            if (!saved.Success) { LogStatus(saved.Error!); return; }
+            RefreshPalette();
+        }
+
+        // Clic derecho para quitar: un aspa sobre cada muestra ensuciaria una fila cuyo contenido
+        // ES el color, y borrar un color de la paleta no destruye nada que no se pueda volver a
+        // guardar con el "+".
+        private void PaletteSwatch_Remove(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not Button b || b.Tag is not byte[] rgb) return;
+            _palette.RemoveAll(h => string.Equals(h, ColourMath.ToHex(rgb[0], rgb[1], rgb[2]), StringComparison.OrdinalIgnoreCase));
+            PaletteStore.Save(_palette);
+            RefreshPalette();
         }
 
         private LightState CurrentLight()

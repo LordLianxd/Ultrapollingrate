@@ -1347,6 +1347,11 @@
                                                  wanting "blue". Built in code so each swatch carries its RGB. -->
                                             <StackPanel x:Name="PresetRow" Orientation="Horizontal" Margin="0,0,0,16"/>
 
+                                            <!-- Debajo de los presets de fabrica: la paleta del usuario,
+                                                 sus colores guardados mas el "+" que anade el actual. -->
+                                            <TextBlock Text="MI PALETA" Style="{StaticResource FieldLabel}" Margin="0,4,0,8"/>
+                                            <StackPanel x:Name="PaletteRow" Orientation="Horizontal" Margin="0,0,0,16"/>
+
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>

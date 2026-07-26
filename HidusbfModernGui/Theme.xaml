@@ -639,9 +639,14 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
+                    <!-- ContentPresenter: los ocho presets de fabrica no ponen Content, asi que
+                         para ellos esto no pinta nada. El "+" de la paleta del usuario si lo usa,
+                         y sin este presenter quedaria invisible sobre el rectangulo de color. -->
                     <Border Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"/>
+                            BorderThickness="{TemplateBinding BorderThickness}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
