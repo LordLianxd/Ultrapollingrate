@@ -9,7 +9,7 @@ namespace HidusbfModernGui
     // reports arriving back to back) to 2.627 ms (a hiccup) around a 0.998 ms median.
     // A mean would be dragged around by those outliers and the readout would flicker
     // noise at exactly the moment it should inspire confidence.
-    public readonly record struct RateSample(double MedianGapMs, double MinGapMs, double MaxGapMs, int Count, double P95GapMs)
+    public readonly record struct RateSample(double MedianGapMs, double MinGapMs, double MaxGapMs, int Count, double P95GapMs, double P99GapMs)
     {
         public double MedianHz => PollingCore.RateFromGapMs(MedianGapMs);
     }
@@ -235,7 +235,13 @@ namespace HidusbfModernGui
             // sola muestra el p95 es esa muestra, que es lo correcto.
             int p95Index = Math.Min(sorted.Length - 1, (int)Math.Ceiling(sorted.Length * 0.95) - 1);
 
-            return new RateSample(median, sorted[0], sorted[sorted.Length - 1], sorted.Length, sorted[p95Index]);
+            // Mismo rango-mas-cercano que el p95, mismo array, sin reordenar. El p99 ve
+            // huecos que el p95 deja fuera: con 1024 muestras el p95 ignora los peores 51,
+            // el p99 solo los peores 10 - eso es lo que permite pillar un flujo con un 5%
+            // de huecos catastroficos que el p95 no distingue de uno perfecto.
+            int p99Index = Math.Min(sorted.Length - 1, (int)Math.Ceiling(sorted.Length * 0.99) - 1);
+
+            return new RateSample(median, sorted[0], sorted[sorted.Length - 1], sorted.Length, sorted[p95Index], sorted[p99Index]);
         }
 
         // Whether what the device is actually doing matches what was asked of it.

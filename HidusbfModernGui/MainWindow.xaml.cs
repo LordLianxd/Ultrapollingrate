@@ -3327,7 +3327,7 @@ namespace HidusbfModernGui
             // distintas: un mando puede ir a la tasa correcta con tirones, y uno a tasa
             // equivocada puede ir finisimo.
             var firmeza = RateStability.Classify(
-                sample.Value.MedianGapMs, sample.Value.P95GapMs, sample.Value.Count);
+                sample.Value.MedianGapMs, sample.Value.P95GapMs, sample.Value.P99GapMs, sample.Value.Count);
 
             (SteadinessChipText.Text, var puntoFirmeza) = firmeza switch
             {

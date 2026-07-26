@@ -472,6 +472,64 @@ namespace HidusbfModernGui.Tests
             Assert.True(s!.Value.P95GapMs >= s.Value.MedianGapMs);
             Assert.True(s.Value.P95GapMs <= s.Value.MaxGapMs);
         }
+
+        // Mismo caso que el p95 plano: sin dispersion, el p99 tambien tiene que coincidir
+        // con la mediana.
+        [Fact]
+        public void P99_OnAFlatRun_EqualsTheMedian()
+        {
+            var gaps = Enumerable.Repeat(0.125, 200).ToList();
+            var s = PollingCore.Summarise(gaps);
+            Assert.NotNull(s);
+            Assert.Equal(0.125, s!.Value.P99GapMs, 6);
+        }
+
+        // 100 huecos: 99 buenos y 1 malo. El p99 tiene que caer justo en la frontera, sin
+        // dejarse arrastrar por el unico hueco malo.
+        [Fact]
+        public void P99_IgnoresTheWorstOnePercentButSeesTheRest()
+        {
+            var gaps = Enumerable.Repeat(1.0, 99).Concat(Enumerable.Repeat(9.0, 1)).ToList();
+            var s = PollingCore.Summarise(gaps);
+            Assert.NotNull(s);
+            Assert.Equal(1.0, s!.Value.MedianGapMs, 6);
+            Assert.Equal(9.0, s.Value.MaxGapMs, 6);   // el maximo si lo ve
+            Assert.Equal(1.0, s.Value.P99GapMs, 6);   // el p99 no se deja arrastrar
+        }
+
+        // El caso que motiva I2: 1024 huecos, un 5% (51) son huecos catastroficos de 1000 ms.
+        // El p95 cae justo antes de esos 51 y no los ve; el p99 si, porque solo ignora los
+        // peores 10.
+        [Fact]
+        public void P99_SeesTheCatastrophicHolesThatP95Misses()
+        {
+            var gaps = Enumerable.Repeat(1.0, 973).Concat(Enumerable.Repeat(1000.0, 51)).ToList();
+            var s = PollingCore.Summarise(gaps);
+            Assert.NotNull(s);
+            Assert.Equal(1.0, s!.Value.MedianGapMs, 6);
+            Assert.Equal(1.0, s.Value.P95GapMs, 6);     // ciego a los huecos catastroficos
+            Assert.Equal(1000.0, s.Value.P99GapMs, 6);  // el p99 si los ve
+        }
+
+        // Un solo hueco: el p99 tampoco puede salirse del array.
+        [Fact]
+        public void P99_WithASingleGap_IsThatGap()
+        {
+            var s = PollingCore.Summarise(new List<double> { 0.5 });
+            Assert.NotNull(s);
+            Assert.Equal(0.5, s!.Value.P99GapMs, 6);
+        }
+
+        // El p99 nunca puede quedar por debajo del p95 ni por encima del maximo.
+        [Fact]
+        public void P99_SitsBetweenP95AndTheMax()
+        {
+            var gaps = new List<double> { 0.1, 0.2, 0.15, 3.0, 0.12, 0.9, 0.13, 0.11, 2.2, 0.14 };
+            var s = PollingCore.Summarise(gaps);
+            Assert.NotNull(s);
+            Assert.True(s!.Value.P99GapMs >= s.Value.P95GapMs);
+            Assert.True(s.Value.P99GapMs <= s.Value.MaxGapMs);
+        }
     }
 
     public class DeviceStatusLevelTests
