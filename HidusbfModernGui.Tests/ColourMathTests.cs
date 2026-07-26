@@ -109,6 +109,8 @@ namespace HidusbfModernGui.Tests
         [InlineData("12345")]
         [InlineData("1234567")]
         [InlineData("#12")]
+        [InlineData("##FF0000")]
+        [InlineData("###FF0000")]
         public void TryParseHex_RejectsWhatIsNotAColour(string? text)
             => Assert.False(ColourMath.TryParseHex(text, out _, out _, out _));
 

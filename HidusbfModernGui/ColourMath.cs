@@ -142,7 +142,11 @@ namespace HidusbfModernGui
             r = g = b = 0;
             if (string.IsNullOrWhiteSpace(text)) return false;
 
-            string s = text.Trim().TrimStart('#');
+            // Una almohadilla, no las que haya: TrimStart('#') aceptaba "##FF0000" como si fuera
+            // "FF0000", y eso es una validacion mas permisiva de lo que se pidio. Un pegado accidental
+            // no deberia colarse como color valido.
+            string s = text.Trim();
+            if (s.StartsWith('#')) s = s[1..];
             if (s.Length == 3)
             {
                 // La forma corta duplica cada digito: "0f0" es "00ff00", no "0f0000".
