@@ -43,6 +43,7 @@
     <Compile Include="..\HidusbfModernGui\PalettePreset.cs" Link="PalettePreset.cs" />
     <Compile Include="..\HidusbfModernGui\RateStability.cs" Link="RateStability.cs" />
     <Compile Include="..\HidusbfModernGui\TriggerGauge.cs" Link="TriggerGauge.cs" />
+    <Compile Include="..\HidusbfModernGui\StickTelemetry.cs" Link="StickTelemetry.cs" />
   </ItemGroup>
 
 </Project>
