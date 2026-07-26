@@ -44,6 +44,12 @@ namespace HidusbfModernGui
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            // El tema, antes que nada: aplicarlo despues de construir la cabecera haria que la
+            // ventana parpadease del tema viejo al nuevo delante del usuario.
+            var uiPrefs = UiPrefsStore.Load();
+            ThemeManager.Apply(uiPrefs.Theme);
+            DayThemeCheck.IsChecked = uiPrefs.Theme == AppTheme.Dia;
+
             // Guard de arranque (Task 6/14): si un run anterior murio con el DualSense
             // oculto por HidHide, re-mostrarlo ahora para no dejar el mando "desaparecido".
             // Best-effort y silencioso: nunca debe impedir que la app abra.
@@ -1143,7 +1149,7 @@ namespace HidusbfModernGui
             var bg = TryLoadDiagramImage();
             _diagramIsLight = bg != null;
 
-            DiagramPanel.Background = (Brush)FindResource(_diagramIsLight ? "TextDataBrush" : "SurfaceBrush");
+            DiagramPanel.Background = (Brush)FindResource(_diagramIsLight ? "DiagramPaperBrush" : "SurfaceBrush");
 
             if (bg != null)
             {
@@ -1185,7 +1191,7 @@ namespace HidusbfModernGui
                         // Sobre el panel claro la guia va en tinta; sobre el oscuro, en
                         // TextLabelBrush - no en BorderBrush, que a #1F1F1F era practicamente
                         // invisible. Una guia que no se ve no guia.
-                        Stroke = (Brush)FindResource(_diagramIsLight ? "BgBrush" : "TextLabelBrush"),
+                        Stroke = _diagramIsLight ? (Brush)FindResource("DiagramInkBrush") : (Brush)FindResource("TextLabelBrush"),
                         StrokeThickness = _diagramIsLight ? 4 : 3,
                         IsHitTestVisible = false,
                     };
@@ -1269,7 +1275,7 @@ namespace HidusbfModernGui
                 // claro no vale jugar con el blanco, asi que la diferencia es el contraste
                 // del borde, no el color del texto.
                 pill.BorderBrush = _diagramIsLight
-                    ? (Brush)FindResource(remapped ? "BgBrush" : "TextLabelBrush")
+                    ? (Brush)FindResource(remapped ? "DiagramInkBrush" : "TextLabelBrush")
                     : (Brush)FindResource(remapped ? "TextLabelBrush" : "BorderBrush");
                 pill.BorderThickness = new Thickness(remapped ? 4 : 2);
                 pill.ToolTip = remapped
@@ -1278,11 +1284,18 @@ namespace HidusbfModernGui
             }
         }
 
-        // Los dos pinceles del diagrama. Sobre el panel claro la tinta es negra y el papel
-        // blanco; sobre el respaldo oscuro se invierten. Tenerlos aqui evita repetir el
-        // condicional en cada forma que se dibuja.
-        private Brush Ink => (Brush)FindResource(_diagramIsLight ? "BgBrush" : "TextDataBrush");
-        private Brush Paper => (Brush)FindResource(_diagramIsLight ? "TextDataBrush" : "BgBrush");
+        // Los dos pinceles del diagrama. Con imagen, el panel es claro y FIJO: su papel y su
+        // tinta no siguen el tema, porque el PNG del mando es tinta oscura sobre papel blanco y
+        // en modo dia se invertirian dejando papel negro bajo un dibujo blanco. Sin imagen, el
+        // respaldo es el mando VECTORIAL, que si se dibuja con los pinceles del tema, asi que
+        // ahi papel y tinta son los del tema y acompanan a dia/noche.
+        private Brush Ink => _diagramIsLight
+            ? (Brush)FindResource("DiagramInkBrush")
+            : (Brush)FindResource("TextDataBrush");
+
+        private Brush Paper => _diagramIsLight
+            ? (Brush)FindResource("DiagramPaperBrush")
+            : (Brush)FindResource("BgBrush");
 
         // Contenido de una etiqueta: [icono origen]  (->  [icono destino])
         private UIElement BuildPillContent(PadButton source, PadButton? target)
@@ -3165,6 +3178,21 @@ namespace HidusbfModernGui
                     RefreshDevicesList();
                 });
             });
+        }
+
+        // El tema se aplica al pulsar y se guarda: sin boton "Aplicar", como todo en esta app.
+        private void DayTheme_Click(object sender, RoutedEventArgs e)
+        {
+            var theme = DayThemeCheck.IsChecked == true ? AppTheme.Dia : AppTheme.Noche;
+            var failed = ThemeManager.Apply(theme);
+            if (failed.Count > 0)
+                LogStatus($"Tema aplicado a medias: {string.Join(", ", failed)} no se pudieron cambiar.");
+            else
+                LogStatus(theme == AppTheme.Dia ? "Modo dia." : "Modo noche.");
+
+            var prefs = UiPrefsStore.Load();
+            prefs.Theme = theme;
+            UiPrefsStore.Save(prefs);
         }
 
         // Event: Click Install Service button

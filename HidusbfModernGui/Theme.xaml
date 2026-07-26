@@ -21,6 +21,13 @@
          (#0A0A0A) as a slightly-raised control, not just another panel. -->
     <SolidColorBrush x:Key="PadIdleBrush"     Color="#3A3A3A"/>
 
+    <!-- El panel del diagrama de botones NO sigue el tema, a proposito. Su dibujo es un PNG
+         de tinta oscura sobre papel blanco: si el papel siguiera a TextDataBrush, en modo dia
+         el panel se volveria negro debajo de un dibujo que sigue siendo blanco. Estos dos son
+         el papel y la tinta de ESE panel, y son fijos porque la imagen lo es. -->
+    <SolidColorBrush x:Key="DiagramPaperBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="DiagramInkBrush"   Color="#000000"/>
+
     <local:StatusLevelToBrushConverter x:Key="StatusToBrush"/>
 
     <!-- Cascadia Mono is not guaranteed to be installed; Consolas is. The
@@ -350,14 +357,15 @@
     <SolidColorBrush x:Key="DiagramPillHoverBrush" Color="#14000000"/>
 
     <!-- La misma pildora, pero para el panel CLARO del diagrama: el dibujo del mando es
-         line art oscuro sobre papel blanco, asi que ahi la tinta es BgBrush y el papel
-         TextDataBrush - los dos colores que ya estan en la paleta, intercambiados. Al
-         pasar el raton solo se lava el fondo: invertirlo tragaba los iconos (ver DiagramPillHoverBrush). Igual que PillButton, el Foreground/BorderBrush del estado
-         REMAPEADO lo pone RefreshButtonPills() en code-behind. -->
+         line art oscuro sobre papel blanco, asi que ahi la tinta es DiagramInkBrush, fija y
+         no de la paleta (ver comentario junto a esos dos pinceles). Al pasar el raton solo
+         se lava el fondo: invertirlo tragaba los iconos (ver DiagramPillHoverBrush). Igual
+         que PillButton, el Foreground/BorderBrush del estado REMAPEADO lo pone
+         RefreshButtonPills() en code-behind. -->
     <Style x:Key="PillButtonInk" TargetType="Button">
         <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="{StaticResource BgBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource DiagramInkBrush}"/>
         <Setter Property="Padding" Value="16,8"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">

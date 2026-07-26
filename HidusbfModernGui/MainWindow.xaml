@@ -439,6 +439,20 @@
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <StackPanel Margin="24" MaxWidth="620" HorizontalAlignment="Left">
 
+                                    <TextBlock Text="APARIENCIA" Style="{StaticResource SectionHeading}"/>
+                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                            BorderThickness="1" Padding="18" Margin="0,8,0,20">
+                                        <StackPanel>
+                                            <CheckBox x:Name="DayThemeCheck" Content="Modo dia (fondo claro)"
+                                                      Foreground="{StaticResource TextDataBrush}" FontSize="12"
+                                                      Click="DayTheme_Click"/>
+                                            <!-- Se queda: explica algo que NO se ve, que es por que hay una pagina que no
+                                                 cambia con el resto. Sin esta linea parece un fallo. -->
+                                            <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,10,0,0"
+                                                       Text="El diagrama de asignacion de botones no cambia con el tema: su dibujo es tinta oscura sobre papel blanco, y ese panel se queda claro en los dos modos."/>
+                                        </StackPanel>
+                                    </Border>
+
                                     <TextBlock Text="SERVICIO" Style="{StaticResource SectionHeading}"/>
                                     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
                                             BorderThickness="1" Padding="18" Margin="0,8,0,20">
@@ -803,7 +817,8 @@
                                                          (line art invertido, tinta negra sobre papel blanco), oscuro con el
                                                          respaldo vectorial. Una sola bandera decide, para que no salga un
                                                          panel blanco con un mando pensado para fondo negro. -->
-                                                    <Border x:Name="DiagramPanel" CornerRadius="12" Padding="12">
+                                                    <Border x:Name="DiagramPanel" CornerRadius="12" Padding="12"
+                                                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                                                         <Viewbox Stretch="Uniform" MaxHeight="700">
                                                             <Canvas x:Name="DiagramCanvas"/>
                                                         </Viewbox>
