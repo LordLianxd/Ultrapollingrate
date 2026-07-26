@@ -41,6 +41,7 @@
     <Compile Include="..\HidusbfModernGui\PadIcons.cs" Link="PadIcons.cs" />
     <Compile Include="..\HidusbfModernGui\UiPrefs.cs" Link="UiPrefs.cs" />
     <Compile Include="..\HidusbfModernGui\PalettePreset.cs" Link="PalettePreset.cs" />
+    <Compile Include="..\HidusbfModernGui\RateStability.cs" Link="RateStability.cs" />
   </ItemGroup>
 
 </Project>
