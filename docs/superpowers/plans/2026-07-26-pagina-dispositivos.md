@@ -128,9 +128,11 @@ y calcularlo en `Summarise`, reutilizando el `sorted` que ya existe:
 // El percentil 95 sale del MISMO array ya ordenado que da la mediana: ordenar otra vez
 // seria repetir trabajo sobre una tanda que puede ser de 1024 huecos.
 //
-// Acotado al ultimo indice a proposito: con pocas muestras (int)(n * 0.95) puede dar n,
-// que se sale del array. Con una sola muestra el p95 es esa muestra, que es lo correcto.
-int p95Index = Math.Min(sorted.Length - 1, (int)(sorted.Length * 0.95));
+// Rango mas cercano (ceil), NO truncado. Con 100 muestras 100*0.95 vale exactamente 95.0
+// en coma flotante, y truncar apuntaria al elemento 96 - o sea, al primero de los MALOS.
+// ceil(n*0.95)-1 da 94, el ultimo de los buenos, que es lo que "el 95% llega dentro de"
+// significa. El indice nunca se sale: ceil(0.95n) <= n para todo n >= 1.
+int p95Index = (int)Math.Ceiling(sorted.Length * 0.95) - 1;
 
 return new RateSample(median, sorted[0], sorted[sorted.Length - 1], sorted.Length, sorted[p95Index]);
 ```
