@@ -68,7 +68,13 @@ namespace HidusbfModernGui
         private void ApplyMirror()
         {
             if (ArcCanvas == null) return;
-            ArcCanvas.RenderTransformOrigin = new Point(0.5, 0.5);
+
+            // UN solo mecanismo para el centro del espejo. Antes se fijaba
+            // RenderTransformOrigin (relativo, 0.5/0.5) Y ADEMAS se le pasaban CenterX/CenterY
+            // al ScaleTransform: los dos desplazan lo mismo, se sumaban, y el arco derecho
+            // salia corrido medio ancho a la derecha y cortado por el borde de su tarjeta.
+            // Un Canvas no tiene tamano propio, asi que el origen relativo no le sirve: el
+            // centro se da explicito y el RenderTransformOrigin se deja en su valor por defecto.
             ArcCanvas.RenderTransform = Mirrored
                 ? new ScaleTransform(-1, 1, Width / 2, Height / 2)
                 : Transform.Identity;

@@ -1312,10 +1312,16 @@
                                                             <TextBlock Text="L2 - PUNTO DE DISPARO" Style="{StaticResource SectionHeading}"/>
                                                             <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,6,0,0"
                                                                        Text="Hair trigger: por debajo del punto no se activa; en el punto o mas, se activa a fondo de inmediato. En 0% el gatillo queda progresivo, sin efecto."/>
-                                                            <Grid Height="240" Margin="0,14,0,14">
-                                                                <Image x:Name="L2Artwork" Stretch="Uniform" Visibility="Collapsed"/>
-                                                                <local:TriggerArc x:Name="L2Arc" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                            </Grid>
+                                                            <!-- Viewbox: el arco mide 240 px fijos y la tarjeta es elastica, asi
+                                                                 que en ventana pequena se salia por el borde. Asi se encoge
+                                                                 manteniendo la proporcion en vez de recortarse. -->
+                                                            <Viewbox MaxHeight="240" Margin="0,14,0,14" Stretch="Uniform"
+                                                                     HorizontalAlignment="Center">
+                                                                <Grid>
+                                                                    <Image x:Name="L2Artwork" Stretch="Uniform" Visibility="Collapsed"/>
+                                                                    <local:TriggerArc x:Name="L2Arc"/>
+                                                                </Grid>
+                                                            </Viewbox>
                                                             <StackPanel Orientation="Horizontal">
                                                                 <Slider x:Name="L2PointSlider" Minimum="0" Maximum="100" Value="0" Width="220"
                                                                         IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
@@ -1338,11 +1344,13 @@
                                                             <TextBlock Text="R2 - PUNTO DE DISPARO" Style="{StaticResource SectionHeading}"/>
                                                             <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,6,0,0"
                                                                        Text="Mismo hair trigger que L2, para el gatillo derecho."/>
-                                                            <Grid Height="240" Margin="0,14,0,14">
-                                                                <Image x:Name="R2Artwork" Stretch="Uniform" Visibility="Collapsed"/>
-                                                                <local:TriggerArc x:Name="R2Arc" Mirrored="True"
-                                                                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                            </Grid>
+                                                            <Viewbox MaxHeight="240" Margin="0,14,0,14" Stretch="Uniform"
+                                                                     HorizontalAlignment="Center">
+                                                                <Grid>
+                                                                    <Image x:Name="R2Artwork" Stretch="Uniform" Visibility="Collapsed"/>
+                                                                    <local:TriggerArc x:Name="R2Arc" Mirrored="True"/>
+                                                                </Grid>
+                                                            </Viewbox>
                                                             <StackPanel Orientation="Horizontal">
                                                                 <Slider x:Name="R2PointSlider" Minimum="0" Maximum="100" Value="0" Width="220"
                                                                         IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
