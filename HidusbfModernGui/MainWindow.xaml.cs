@@ -3255,6 +3255,10 @@ namespace HidusbfModernGui
         {
             _meter.Stop();
             _meterTimer?.Stop();
+            // Parar el timer no borra lo que hay en pantalla: sin esto, el primer tick
+            // (100 ms) del nuevo dispositivo se dibuja sobre el Hz y la pastilla del
+            // dispositivo anterior.
+            UpdateMeasuredReadout(null);
 
             if (model == null)
             {
@@ -3443,6 +3447,10 @@ namespace HidusbfModernGui
                 ApplyOverclockBtn.Content = "APLICANDO...";
                 _meter.Stop();
                 _meterTimer?.Stop();
+                // Parar el timer no borra lo que hay en pantalla: sin esto, la pastilla
+                // REGULAR y el Hz del dispositivo se quedan durante el replug, mintiendo
+                // sobre un dispositivo que esta fuera del bus.
+                UpdateMeasuredReadout(null);
 
                 var filter = SystemManager.SetFilterActive(model.InstanceId, true);
                 if (!filter.Success) { LogStatus($"No se pudo activar el filtro: {filter.Error}"); return; }
@@ -3485,6 +3493,10 @@ namespace HidusbfModernGui
                 ResetOverclockBtn.IsEnabled = false;
                 _meter.Stop();
                 _meterTimer?.Stop();
+                // Parar el timer no borra lo que hay en pantalla: sin esto, la pastilla
+                // REGULAR y el Hz del dispositivo se quedan durante el replug, mintiendo
+                // sobre un dispositivo que esta fuera del bus.
+                UpdateMeasuredReadout(null);
 
                 var filter = SystemManager.SetFilterActive(model.InstanceId, false);
                 if (!filter.Success) { LogStatus($"No se pudo quitar el filtro: {filter.Error}"); return; }
