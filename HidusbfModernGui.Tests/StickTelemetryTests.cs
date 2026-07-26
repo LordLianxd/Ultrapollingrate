@@ -63,14 +63,28 @@ public class StickTelemetryTests
         Assert.Equal(DriftLevel.Unknown, t.Drift);
     }
 
-    // Y una vez medida, moverse no la borra: se conserva la ultima lectura buena.
+    // Y una vez medida, moverse no la borra de inmediato: se conserva la ultima lectura
+    // buena por un rato (DriftHoldPushes). Pero solo por un rato: una lectura que no se
+    // puede reconfirmar deja de ser una lectura actual, y mostrarla como si lo fuera
+    // seria mentir - la misma razon por la que el medidor de polling devuelve null en
+    // vez de una tasa vieja, y la pastilla de regularidad se colapsa en vez de mostrar
+    // una palabra que ya no corresponde al numero de al lado. Por eso un movimiento
+    // breve conserva la lectura, pero un movimiento sostenido mas alla de
+    // DriftHoldPushes la hace expirar a Unknown.
     [Fact]
-    public void Drift_SurvivesLaterMovement()
+    public void Drift_SurvivesBriefMovementThenExpires()
     {
         var t = EnReposo(0.12, 0);
         Assert.Equal(DriftLevel.Alta, t.Drift);
+
+        // Rafaga corta, bien por debajo del plazo: la lectura se conserva.
         for (int i = 0; i < 50; i++) t.Push(-0.9, 0.4);
         Assert.Equal(DriftLevel.Alta, t.Drift);
+
+        // Movimiento sostenido mas alla de DriftHoldPushes (sumado a los 50 de arriba):
+        // se agoto el plazo sin reconfirmar, la lectura expira.
+        for (int i = 0; i < StickTelemetry.DriftHoldPushes; i++) t.Push(-0.9, 0.4);
+        Assert.Equal(DriftLevel.Unknown, t.Drift);
     }
 
     [Fact]
@@ -224,18 +238,6 @@ public class StickTelemetryTests
         Assert.Equal(DriftLevel.Alta, t.Drift);
     }
 
-    // La caminata lenta y deliberada (el fallo original que motivo la version por
-    // racha) tiene que seguir sin sonar la alarma con la regla nueva por tendencia:
-    // las medias de las dos mitades de la ventana difieren de sobra por encima de
-    // RestSpread mientras el stick recorre 0.01 a 0.14.
-    [Fact]
-    public void Drift_SlowWalk_StillDoesNotReportAlta_UnderTrendRule()
-    {
-        var t = EnReposo(0, 0);
-        for (int i = 1; i <= 14; i++) t.Push(i / 100.0, 0);
-        Assert.NotEqual(DriftLevel.Alta, t.Drift);
-    }
-
     // Reposo genuino con temblor de mano de verdad (no una alternancia perfecta) sobre
     // un offset grande: la tendencia de ambas mitades de la ventana es la misma, asi
     // que debe seguir reportando Alta.
@@ -249,6 +251,71 @@ public class StickTelemetryTests
             double jitter = (rng.NextDouble() - 0.5) * 2 * 0.012;
             t.Push(0.10 + jitter, 0);
         }
+        Assert.Equal(DriftLevel.Alta, t.Drift);
+    }
+
+    // El defecto real que encontro la revision adversarial sobre la regla por
+    // TENDENCIA: un barrido monotono mas lento que RestSpread/(RestSamples/2) (unos
+    // 0.00133 por Push) mueve la media de mitad a mitad de la ventana menos que
+    // RestSpread, asi que se lee como reposo y un pad sano que esta siendo barrido
+    // reporta Alta falso. Ese falso Alta por si solo ya es malo, pero lo que de verdad
+    // rompia el indicador era lo que pasaba despues: en cuanto el stick cruza
+    // RestRadius ninguna ventana vuelve a calificar como reposo, asi que sin la
+    // expiracion esa lectura falsa se quedaba clavada en Alta para siempre, incluso
+    // con el stick bien lejos del centro y en movimiento activo. Este test es la
+    // regresion de ese defecto: el barrido puede dar Alta falso en el camino, pero
+    // para el final tiene que haber vuelto a Unknown, no quedarse pegado.
+    [Fact]
+    public void Drift_SlowWalkPastRestRadius_FalseAltaExpiresInsteadOfFreezing()
+    {
+        var t = EnReposo(0, 0);
+        const double step = 0.00133;
+
+        double x = 0;
+        bool sawFalseAlta = false;
+        while (x <= 0.9)
+        {
+            x += step;
+            t.Push(x, 0);
+            if (t.Drift == DriftLevel.Alta) sawFalseAlta = true;
+        }
+        Assert.True(sawFalseAlta, "se esperaba que el barrido diera Alta falso en algun punto del camino");
+
+        // El stick sigue clavado lejos del centro (fuera de RestRadius): ninguna
+        // ventana puede calificar como reposo. Basta con seguir empujando el mismo
+        // valor hasta agotar DriftHoldPushes sin confirmar para que la lectura expire.
+        for (int i = 0; i < StickTelemetry.DriftHoldPushes; i++) t.Push(x, 0);
+
+        Assert.Equal(DriftLevel.Unknown, t.Drift);
+    }
+
+    // El mismo defecto al paso mas lento que encontro la revision (0.0001 por Push):
+    // el piso de velocidad de la regla por tendencia es mas bajo todavia, asi que el
+    // falso Alta aparece igual, y la expiracion tiene que sacarlo igual.
+    [Fact]
+    public void Drift_SlowerWalkPastRestRadius_FalseAltaExpiresInsteadOfFreezing()
+    {
+        var t = EnReposo(0, 0);
+        const double step = 0.0001;
+
+        double x = 0;
+        while (x <= 0.9) { x += step; t.Push(x, 0); }
+
+        for (int i = 0; i < StickTelemetry.DriftHoldPushes; i++) t.Push(x, 0);
+
+        Assert.Equal(DriftLevel.Unknown, t.Drift);
+    }
+
+    // La expiracion no puede resolver el defecto cegando al indicador frente a una
+    // deriva real: un stick genuinamente quieto con deriva grande tiene que seguir
+    // reportando Alta indefinidamente mientras se queda quieto, mucho mas alla de
+    // DriftHoldPushes - cada Push en reposo reconfirma la lectura y resetea el plazo,
+    // asi que nunca deberia expirar. Si esto fallara, seria el peor desenlace posible:
+    // un pad con deriva real que deja de avisar con solo esperar.
+    [Fact]
+    public void Drift_GenuineRestOverManyPushes_KeepsReportingAlta_DoesNotExpire()
+    {
+        var t = EnReposo(0.12, 0, StickTelemetry.DriftHoldPushes * 3);
         Assert.Equal(DriftLevel.Alta, t.Drift);
     }
 }

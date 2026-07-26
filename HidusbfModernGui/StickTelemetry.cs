@@ -12,7 +12,11 @@ namespace HidusbfModernGui
     // Guarda POSICIONES, no tiempos: el rastro es un dibujo para la pantalla, no una medida.
     // La deriva en cambio si necesita saber "esto es reposo" antes de significar algo: medir
     // el centro mientras alguien mueve el stick daria un numero sin sentido, asi que se
-    // congela en la ultima lectura buena hasta el siguiente tramo de reposo real.
+    // congela en la ultima lectura buena mientras el stick se mueve. Pero esa congelacion
+    // tiene un limite: una lectura que no se puede reconfirmar por demasiado tiempo deja de
+    // ser una lectura actual, y mostrarla como si lo fuera seria mentir. Por eso, pasado
+    // DriftHoldPushes sin una ventana de reposo nueva, la lectura expira a Unknown en vez
+    // de quedarse congelada para siempre.
     public sealed class StickTelemetry
     {
         // A 60 fps es un segundo de rastro: suficiente para ver la forma de un giro y corto
@@ -41,6 +45,15 @@ namespace HidusbfModernGui
         // A partir de aqui la deriva ya se nota jugando.
         public const double DriftLeve = 0.05;
 
+        // Cuantos Push seguidos sin una ventana de reposo que califique puede aguantar
+        // una lectura de deriva antes de expirar a Unknown. Deliberadamente en PUSHES,
+        // no en segundos: esta clase no tiene reloj propio, y agregar uno solo para esto
+        // seria una segunda fuente de verdad para un tiempo que el caller ya conoce por
+        // su propia tasa de reportes. A 1000 Hz son unos 0.6 s de espera; a 8000 Hz, unos
+        // 75 ms - en los dos casos, mucho menos de lo que tarda alguien en notar que el
+        // indicador quedo pegado.
+        public const int DriftHoldPushes = 600;
+
         private readonly (double X, double Y)[] _trail = new (double X, double Y)[TrailLength];
         private int _count;
         private int _head;
@@ -55,6 +68,11 @@ namespace HidusbfModernGui
         private int _windowNewCount;
 
         private (double X, double Y)? _previous;
+
+        // Pushes seguidos desde la ultima ventana de reposo que califico. Se resetea
+        // cada vez que UpdateDrift confirma una lectura nueva; si pasa DriftHoldPushes
+        // sin confirmar, la lectura vigente expira.
+        private int _pushesSinceQualifyingRest;
 
         public IReadOnlyList<(double X, double Y)> Trail
         {
@@ -109,7 +127,30 @@ namespace HidusbfModernGui
 
             _previous = (x, y);
 
-            UpdateDrift();
+            if (UpdateDrift())
+            {
+                // Ventana de reposo confirmada: la lectura vuelve a estar vigente.
+                _pushesSinceQualifyingRest = 0;
+            }
+            else
+            {
+                // Sin confirmar en este Push: se cuenta el intento (con tope para no
+                // desbordar en una sesion larga; una vez pasado DriftHoldPushes ya
+                // expiro, y contar mas arriba de eso no cambia nada).
+                if (_pushesSinceQualifyingRest <= DriftHoldPushes) _pushesSinceQualifyingRest++;
+
+                if (_pushesSinceQualifyingRest > DriftHoldPushes)
+                {
+                    // Se agoto el plazo sin reconfirmar: una lectura que no se puede
+                    // reconfirmar no es una lectura actual. Mostrarla como si lo fuera
+                    // seria la misma mentira que este proyecto ya evita en el medidor
+                    // de polling (null en vez de una tasa vieja) y en la pastilla de
+                    // regularidad (se colapsa en vez de mostrar una palabra que ya no
+                    // corresponde al numero de al lado).
+                    Drift = DriftLevel.Unknown;
+                    DriftRadius = 0.0;
+                }
+            }
         }
 
         // Solo se mide la deriva cuando hay RestSamples muestras Y esas muestras dicen
@@ -140,10 +181,17 @@ namespace HidusbfModernGui
         //
         // Si la ventana no es reposo (se sale de RestRadius o la tendencia se mueve),
         // no se toca nada: la ultima lectura buena de Drift/DriftRadius se conserva tal
-        // cual, en vez de recalcularse sobre ruido de movimiento.
-        private void UpdateDrift()
+        // cual, en vez de recalcularse sobre ruido de movimiento. Quien llama (Push) es
+        // quien decide hasta cuando se puede conservar esa lectura sin reconfirmar; por
+        // eso esta funcion no expira nada, solo informa con el valor de retorno si esta
+        // ventana en particular confirmo una lectura o no.
+        //
+        // Devuelve true si esta ventana califico como reposo y Drift/DriftRadius se
+        // actualizaron; false si no (todavia no hay RestSamples muestras, alguna se
+        // sale de RestRadius, o la tendencia entre mitades supera RestSpread).
+        private bool UpdateDrift()
         {
-            if (_count < RestSamples) return;
+            if (_count < RestSamples) return false;
 
             int half = RestSamples / 2;
             int second = RestSamples - half;
@@ -158,7 +206,7 @@ namespace HidusbfModernGui
                 {
                     // Al menos una muestra de la ventana esta lejos del centro: no es
                     // reposo, sea cual sea la tendencia.
-                    return;
+                    return false;
                 }
 
                 if (i < half) { sumFirstX += s.X; sumFirstY += s.Y; }
@@ -172,8 +220,14 @@ namespace HidusbfModernGui
             if (trend > RestSpread)
             {
                 // La media se mueve de la primera mitad de la ventana a la segunda:
-                // es tendencia, no ruido - el stick se esta moviendo de verdad.
-                return;
+                // es tendencia, no ruido - el stick se esta moviendo de verdad. Ojo:
+                // un barrido mas lento que RestSpread/(RestSamples/2) mueve la media
+                // menos que RestSpread por ventana, asi que esta rama no lo atrapa y
+                // se cuela como reposo (falso Alta transitorio). Eso no se arregla
+                // apretando el umbral - cualquier umbral fijo tiene un piso de
+                // velocidad. Lo que si se arregla es que esa lectura falsa no puede
+                // quedarse congelada para siempre: ver DriftHoldPushes en Push.
+                return false;
             }
 
             double meanX = (sumFirstX + sumSecondX) / RestSamples;
@@ -183,6 +237,7 @@ namespace HidusbfModernGui
             Drift = meanR <= DriftOk ? DriftLevel.Ok
                 : meanR <= DriftLeve ? DriftLevel.Leve
                 : DriftLevel.Alta;
+            return true;
         }
 
         // Cuenta cuantas muestras difieren de la anterior dentro de las ultimas
@@ -210,6 +265,7 @@ namespace HidusbfModernGui
             _windowComparisons = 0;
             _windowNewCount = 0;
             _previous = null;
+            _pushesSinceQualifyingRest = 0;
             DriftRadius = 0.0;
             Drift = DriftLevel.Unknown;
         }
