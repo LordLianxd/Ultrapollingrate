@@ -341,11 +341,18 @@
         </Setter>
     </Style>
 
+    <!-- Lavado del hover de las etiquetas del diagrama: 8% de negro. NO es una inversion.
+         La pildora dejo de contener texto y ahora lleva formas (Path/Ellipse/Border) con su
+         pincel fijado en code-behind, y esas NO heredan Foreground: al invertir el fondo a
+         tinta, los iconos negros desaparecian dentro del negro. Un fondo que solo se oscurece
+         un poco no puede volver a tragarse su propio contenido, pase lo que pase con el.
+         Fijo, no de la paleta: vive sobre el panel del diagrama, que tampoco sigue el tema. -->
+    <SolidColorBrush x:Key="DiagramPillHoverBrush" Color="#14000000"/>
+
     <!-- La misma pildora, pero para el panel CLARO del diagrama: el dibujo del mando es
          line art oscuro sobre papel blanco, asi que ahi la tinta es BgBrush y el papel
          TextDataBrush - los dos colores que ya estan en la paleta, intercambiados. Al
-         pasar el raton se invierte (fondo tinta, texto papel), que sobre blanco es el
-         resalte natural. Igual que PillButton, el Foreground/BorderBrush del estado
+         pasar el raton solo se lava el fondo: invertirlo tragaba los iconos (ver DiagramPillHoverBrush). Igual que PillButton, el Foreground/BorderBrush del estado
          REMAPEADO lo pone RefreshButtonPills() en code-behind. -->
     <Style x:Key="PillButtonInk" TargetType="Button">
         <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
@@ -366,8 +373,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource BgBrush}"/>
-                            <Setter Property="Foreground" Value="{StaticResource TextDataBrush}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource DiagramPillHoverBrush}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
