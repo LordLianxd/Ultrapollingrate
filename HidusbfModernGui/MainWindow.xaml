@@ -783,7 +783,7 @@
                                                          elige cual se dibuja. No es un tema para toda la app. -->
                                                     <CheckBox x:Name="DiagramDayCheck" Content="Modo dia" VerticalAlignment="Center"
                                                               Margin="0,0,14,0" Foreground="{StaticResource TextDataBrush}" FontSize="12"
-                                                              Click="DiagramDay_Click"/>
+                                                              Checked="DiagramDay_Changed" Unchecked="DiagramDay_Changed"/>
                                                     <Button x:Name="BotonesHelpBtn" Style="{StaticResource RoundIconButton}" Click="BotonesHelp_Click" ToolTip="Ayuda">
                                                         <TextBlock Text="?" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextDataBrush}"/>
                                                     </Button>

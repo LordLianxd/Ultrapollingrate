@@ -1022,6 +1022,9 @@ namespace HidusbfModernGui
         private AppTheme _diagramMode = AppTheme.Noche;
         private bool _diagramModeLoaded;
 
+        // Alto mientras el codigo (no el usuario) mueve DiagramDayCheck.
+        private bool _updatingDiagramMode;
+
         private PadButton _pickerSource;
 
         // Nombre reservado bajo el que se autoguarda el ultimo estado (distinto de los
@@ -1153,7 +1156,9 @@ namespace HidusbfModernGui
             {
                 _diagramMode = UiPrefsStore.Load().Theme;
                 _diagramModeLoaded = true;
-                DiagramDayCheck.IsChecked = _diagramMode == AppTheme.Dia;
+                _updatingDiagramMode = true;
+                try { DiagramDayCheck.IsChecked = _diagramMode == AppTheme.Dia; }
+                finally { _updatingDiagramMode = false; }
             }
 
             DiagramCanvas.Width = PadDiagram.CanvasWidth;
@@ -1247,9 +1252,17 @@ namespace HidusbfModernGui
             RefreshButtonPills();
         }
 
-        // Cambiar de modo se aplica al pulsar y se guarda: sin boton "Aplicar", como todo aqui.
-        private void DiagramDay_Click(object sender, RoutedEventArgs e)
+        // Checked/Unchecked y no Click: el estado de este CheckBox gobierna que lamina se dibuja,
+        // y Click solo cubre el clic de raton - cualquier otro camino que cambie IsChecked se lo
+        // saltaba y el diagrama se quedaba en el modo anterior sin decir nada.
+        //
+        // El guard es necesario JUSTO por eso: BuildButtonDiagram pone IsChecked al leer la
+        // preferencia guardada, y sin el eso dispararia una reconstruccion dentro de la propia
+        // construccion.
+        private void DiagramDay_Changed(object sender, RoutedEventArgs e)
         {
+            if (_updatingDiagramMode) return;
+
             _diagramMode = DiagramDayCheck.IsChecked == true ? AppTheme.Dia : AppTheme.Noche;
             RebuildButtonDiagram();
 
