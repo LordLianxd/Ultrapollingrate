@@ -2406,7 +2406,7 @@ namespace HidusbfModernGui
             var pos = e.GetPosition(canvas);
 
             // Prueba en espacio de PIXELES (no en el 0..1 normalizado): un radio fijo en pixeles
-            // da un area de captura circular real sobre el canvas 220x100 (una normalizada seria
+            // da un area de captura circular real sobre el canvas 340x100 (una normalizada seria
             // muy anisotropica, ancha en X y angosta en Y). Las posiciones de los puntos se
             // convierten al eje crudo del canvas con DomainToRaw, igual que RefreshCurveDots.
             int best = -1; double bestDist = 14.0;

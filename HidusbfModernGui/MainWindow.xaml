@@ -1139,7 +1139,10 @@
                                                 </Popup>
                                             </Grid>
                                             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                                <StackPanel Margin="24">
+                                                <!-- MaxWidth+Left: sin esto, en una ventana ultrawide el contenido se
+                                                     estira sin limite porque el StackPanel hereda el ancho completo
+                                                     del ScrollViewer. -->
+                                                <StackPanel Margin="24" MaxWidth="1400" HorizontalAlignment="Left">
                                                     <Button x:Name="HelpToggleBtn" Content="¿CÓMO FUNCIONA?" Style="{StaticResource InstrumentButton}"
                                                             HorizontalAlignment="Left" Margin="0,0,0,12" Click="ToggleHelpPanel_Click"/>
 
@@ -1215,13 +1218,20 @@
                                                          donde salen los bugs de "cambie uno y se movio el otro". -->
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
+                                                            <!-- 420 le alcanza de sobra a un slider, un combo y la fila
+                                                                 MIS CURVAS; el resto del ancho es del telemetria/monitor,
+                                                                 que es el centro de la pagina. -->
+                                                            <ColumnDefinition Width="420"/>
                                                             <ColumnDefinition Width="16"/>
                                                             <ColumnDefinition Width="*"/>
                                                         </Grid.ColumnDefinitions>
 
+                                                    <!-- VerticalAlignment=Top en las dos tarjetas: sin esto, un Grid sin
+                                                         RowDefinitions estira ambas columnas a la altura de la mas alta
+                                                         (Stretch es el default), y la tarjeta de ajustes -mas corta que
+                                                         la de telemetria- quedaba con un hueco vacio enorme abajo. -->
                                                     <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                            BorderThickness="1" CornerRadius="10" Padding="18">
+                                                            BorderThickness="1" CornerRadius="10" Padding="18" VerticalAlignment="Top">
                                                         <StackPanel>
                                                             <TextBlock Text="AJUSTES Y BIBLIOTECA DE CURVAS" Style="{StaticResource SectionHeading}"/>
 
@@ -1272,26 +1282,35 @@
                                                     </Border>
 
                                                     <Border Grid.Column="2" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                            BorderThickness="1" CornerRadius="10" Padding="18">
+                                                            BorderThickness="1" CornerRadius="10" Padding="18" VerticalAlignment="Top">
                                                         <StackPanel>
                                                             <TextBlock Text="TELEMETRÍA Y MONITOR 2D EN VIVO" Style="{StaticResource SectionHeading}"/>
 
                                                             <!-- Monitor 2D (Task 2, StickMonitor): dueno de su propio
                                                                  StickTelemetry. InnerDeadzone/OuterReach/Drift se fijan
                                                                  desde el codigo detras cada vez que se retarget al otro
-                                                                 stick o cambia un ajuste. -->
-                                                            <local:StickMonitor x:Name="StickMonitorView" Width="220" Height="220"
+                                                                 stick o cambia un ajuste.
+                                                                 340: es el centro visual de la pagina, no un adorno chico
+                                                                 al lado de la tarjeta de ajustes - 220 lo dejaba mas chico
+                                                                 que la propia tarjeta que lo contenia. Sigue envuelto en
+                                                                 el Viewbox interno de StickMonitor (no lo saques de ahi:
+                                                                 este proyecto ya tuvo que arreglar dos veces un control de
+                                                                 tamano fijo metido en una columna elastica). -->
+                                                            <local:StickMonitor x:Name="StickMonitorView" Width="340" Height="340"
                                                                                  HorizontalAlignment="Left" Margin="0,12,0,0"/>
 
                                                             <TextBlock Text="CURVA (entrada -&gt; salida)" Style="{StaticResource FieldLabel}" Margin="0,16,0,6"/>
+                                                            <!-- Mismo ancho que el monitor de arriba (340) para que la
+                                                                 columna se lea como una sola pila, no como tres cajas
+                                                                 sueltas. -->
                                                             <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                    BorderThickness="1" Width="220" Height="100" HorizontalAlignment="Left">
-                                                                <Canvas x:Name="StickCurveCanvas" Width="220" Height="100" ClipToBounds="True"
+                                                                    BorderThickness="1" Width="340" Height="100" HorizontalAlignment="Left">
+                                                                <Canvas x:Name="StickCurveCanvas" Width="340" Height="100" ClipToBounds="True"
                                                                         Background="Transparent"
                                                                         MouseLeftButtonDown="StickCurveCanvas_MouseDown"
                                                                         MouseMove="StickCurveCanvas_MouseMove"
                                                                         MouseLeftButtonUp="StickCurveCanvas_MouseUp">
-                                                                    <Line x:Name="StickCurveRef" X1="0" Y1="100" X2="220" Y2="0"
+                                                                    <Line x:Name="StickCurveRef" X1="0" Y1="100" X2="340" Y2="0"
                                                                           Stroke="{StaticResource BorderBrush}" StrokeThickness="1" StrokeDashArray="3 3" Opacity="0.5"/>
                                                                     <Polyline x:Name="StickCurveLine" Stroke="{StaticResource TextDataBrush}" StrokeThickness="1.5"/>
                                                                     <Ellipse x:Name="StickCurveLiveDot" Width="7" Height="7" Fill="White" Visibility="Collapsed"/>

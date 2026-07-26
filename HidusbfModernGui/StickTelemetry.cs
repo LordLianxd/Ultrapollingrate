@@ -39,11 +39,18 @@ namespace HidusbfModernGui
         // parte la ventana en dos mitades y se compara la media de cada una.
         public const double RestSpread = 0.02;
 
-        // Un DualSense sano se queda muy por debajo de esto.
-        public const double DriftOk = 0.02;
+        // Un DualSense en reposo no cae en el centro exacto: en el pad de prueba de este
+        // proyecto se midio un reposo real de ~3% de centro. Con el 0.02 original ese pad
+        // sano ya marcaba Leve en reposo - el indicador mintiendo sobre un mando que esta
+        // bien. 0.05 deja un margen comodo por encima de ese 3% medido. OJO: esto sale de
+        // UN mando medido mas criterio, no de una poblacion de mandos - no hay estadistica
+        // detras del numero, solo la mejor estimacion disponible con el hardware a mano.
+        public const double DriftOk = 0.05;
 
-        // A partir de aqui la deriva ya se nota jugando.
-        public const double DriftLeve = 0.05;
+        // Entre DriftOk y aqui es donde un jugador empieza a notar que el stick tira solo
+        // en el juego. Igual que DriftOk: estimado a ojo con un mando real, no medido en
+        // varios.
+        public const double DriftLeve = 0.10;
 
         // Cuantos Push seguidos sin una ventana de reposo que califique puede aguantar
         // una lectura de deriva antes de expirar a Unknown. Deliberadamente en PUSHES,

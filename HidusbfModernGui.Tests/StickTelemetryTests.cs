@@ -45,9 +45,13 @@ public class StickTelemetryTests
         Assert.Equal(0.0, t.DriftRadius, 6);
     }
 
+    // 0.07 cae en el rango Leve nuevo (0.05, 0.10]; con los umbrales viejos (DriftOk
+    // 0.02 / DriftLeve 0.05) el 0.035 original ya caia en Leve, pero con los nuevos
+    // (calibrados con hardware real - ver comentario en StickTelemetry.DriftOk) ese
+    // mismo 0.035 seria Ok, asi que hay que reapuntar el offset, no solo el nombre.
     [Fact]
     public void Drift_SmallOffset_IsLeve()
-        => Assert.Equal(DriftLevel.Leve, EnReposo(0.035, 0).Drift);
+        => Assert.Equal(DriftLevel.Leve, EnReposo(0.07, 0).Drift);
 
     [Fact]
     public void Drift_BigOffset_IsAlta()
@@ -166,25 +170,29 @@ public class StickTelemetryTests
     // Unknown mientras una racha no terminara sin interrupciones: esa expectativa
     // pertenecia a la regla vieja por RACHA (tolerancia por muestra), la misma que
     // se reescribio porque no distingue ruido de movimiento. Fisicamente esta
-    // secuencia es un stick quieto en 0.1 con UN salto de contacto ruidoso en el
-    // medio, no un stick en movimiento: 25 muestras en 0.1, un pico a 0.13, otras 25
-    // en 0.1. Con la regla por tendencia esa muestra suelta pesa 1/30 de la ventana
+    // secuencia es un stick quieto en 0.11 con UN salto de contacto ruidoso en el
+    // medio, no un stick en movimiento: 25 muestras en 0.11, un pico a 0.14, otras 25
+    // en 0.11. Con la regla por tendencia esa muestra suelta pesa 1/30 de la ventana
     // y no mueve la media de mitad a mitad, asi que la ventana SI es reposo y
-    // reportar Alta con un radio cercano a 0.1 es la respuesta correcta. Negarse a
+    // reportar Alta con un radio cercano a 0.11 es la respuesta correcta. Negarse a
     // reportar por un solo valor atipico es la misma falla de "queda mudo" que
     // motivo reescribir la regla: un pad con un contacto sucio no reportaria nunca.
+    // Offset base 0.11 (no 0.1): con DriftLeve en 0.10, un offset de exactamente 0.1
+    // cae justo en el borde Leve/Alta y el resultado dependeria de redondeo de punto
+    // flotante en vez de la propiedad que este test quiere probar. 0.11 deja margen
+    // real por encima de DriftLeve y por debajo de RestRadius (0.15) aun con el pico.
     [Fact]
     public void Drift_SingleOutlierDoesNotBlindTheIndicator()
     {
         var t = new StickTelemetry();
-        for (int i = 0; i < StickTelemetry.RestSamples - 5; i++) t.Push(0.1, 0);
+        for (int i = 0; i < StickTelemetry.RestSamples - 5; i++) t.Push(0.11, 0);
         // Un pico de ruido de un solo contacto: se aleja de la media pero sigue
         // dentro de RestRadius.
-        t.Push(0.1 + StickTelemetry.RestSpread * 1.5, 0);
-        for (int i = 0; i < StickTelemetry.RestSamples - 5; i++) t.Push(0.1, 0);
+        t.Push(0.11 + StickTelemetry.RestSpread * 1.5, 0);
+        for (int i = 0; i < StickTelemetry.RestSamples - 5; i++) t.Push(0.11, 0);
 
         Assert.Equal(DriftLevel.Alta, t.Drift);
-        Assert.Equal(0.1, t.DriftRadius, 2);
+        Assert.Equal(0.11, t.DriftRadius, 2);
     }
 
     // NewValuesPerSecond debe ser una ventana deslizante, no un promedio de toda la
@@ -210,12 +218,16 @@ public class StickTelemetryTests
     // racha en CADA Push y Drift se quedaba en Unknown para siempre - exactamente el
     // pad roto que este indicador deberia atrapar. Esta es la prueba de regresion:
     // tiene que reportar Alta, no Unknown.
+    // Base 0.13 (no 0.10): con DriftLeve en 0.10, un centro de alternancia en 0.10
+    // promedia exactamente al borde Leve/Alta (los dos lados de la alternancia se
+    // cancelan) en vez de caer claramente en Alta, que es lo que este test quiere
+    // fijar.
     [Fact]
     public void Drift_DeterministicAlternationNearRest_ReportsAltaNotUnknown()
     {
         var t = new StickTelemetry();
         for (int i = 0; i < 300; i++)
-            t.Push(i % 2 == 0 ? 0.10 + 0.012 : 0.10 - 0.012, 0);
+            t.Push(i % 2 == 0 ? 0.13 + 0.012 : 0.13 - 0.012, 0);
 
         Assert.Equal(DriftLevel.Alta, t.Drift);
         Assert.NotEqual(DriftLevel.Unknown, t.Drift);
@@ -225,6 +237,17 @@ public class StickTelemetryTests
     // real: mientras la tendencia (media de mitad a mitad de la ventana) no se mueva,
     // debe seguir siendo reposo y reportar Alta, sea cual sea el tamano del salto
     // muestra a muestra.
+    // Base 0.105, no 0.10 ni el 0.13 de los otros tests de alternancia: la amplitud
+    // mas grande de este theory (0.04) empuja la muestra de arriba a base+amplitud, y
+    // eso tiene que seguir por debajo de RestRadius (0.15) para que la ventana
+    // califique como reposo. Con base 0.13 esa muestra llegaria a 0.17 y ninguna
+    // ventana calificaria nunca (Drift se quedaria en Unknown, no en Alta). 0.105 deja
+    // 0.005 de margen bajo RestRadius con la amplitud mas grande y otros 0.005 por
+    // encima de DriftLeve (0.10) - un margen real, aunque angosto: es el hueco que
+    // queda entre "recien por encima del umbral nuevo" y "el limite de RestRadius"
+    // cuando la amplitud de la alternancia es grande. No hay forma de agrandar ese
+    // margen sin bajar la amplitud maxima o subir RestRadius, y esta prueba no toca
+    // ninguna de las dos.
     [Theory]
     [InlineData(0.01)]  // 0.5x RestSpread
     [InlineData(0.02)]  // 1x RestSpread
@@ -233,7 +256,7 @@ public class StickTelemetryTests
     {
         var t = new StickTelemetry();
         for (int i = 0; i < 300; i++)
-            t.Push(i % 2 == 0 ? 0.10 + amplitude : 0.10 - amplitude, 0);
+            t.Push(i % 2 == 0 ? 0.105 + amplitude : 0.105 - amplitude, 0);
 
         Assert.Equal(DriftLevel.Alta, t.Drift);
     }
@@ -241,6 +264,10 @@ public class StickTelemetryTests
     // Reposo genuino con temblor de mano de verdad (no una alternancia perfecta) sobre
     // un offset grande: la tendencia de ambas mitades de la ventana es la misma, asi
     // que debe seguir reportando Alta.
+    // Base 0.13, no 0.10 (mismo motivo que en las otras pruebas de alternancia): con
+    // DriftLeve en 0.10, un centro en 0.10 deja el resultado a merced de para donde
+    // se incline el ruido aleatorio en cada ventana, en vez de fijar sin ambiguedad
+    // que un reposo genuino con temblor reporta Alta.
     [Fact]
     public void Drift_GenuineRestWithRandomishJitter_ReportsAlta()
     {
@@ -249,7 +276,7 @@ public class StickTelemetryTests
         for (int i = 0; i < 300; i++)
         {
             double jitter = (rng.NextDouble() - 0.5) * 2 * 0.012;
-            t.Push(0.10 + jitter, 0);
+            t.Push(0.13 + jitter, 0);
         }
         Assert.Equal(DriftLevel.Alta, t.Drift);
     }
