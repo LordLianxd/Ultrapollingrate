@@ -130,7 +130,7 @@ public static bool TryParseHex(string? text, out byte r, out byte g, out byte b)
 }
 ```
 
-- [ ] **Step 4: Verificar que pasan** — mismo filtro PASS, después la suite entera PASS (`Passed: 393`; esta tarea añade 16 casos: 1 + 5 + 7 + 1, con las dos `[Theory]` contando por caso).
+- [ ] **Step 4: Verificar que pasan** — mismo filtro PASS, después la suite entera PASS (`Passed: 391`; esta tarea anade 14 casos: 1 + 5 + 7 + 1, con las dos [Theory] contando por caso).
 
 - [ ] **Step 5: Commit**
 
@@ -304,7 +304,7 @@ namespace HidusbfModernGui
                 return raw
                     .Where(s => ColourMath.TryParseHex(s, out _, out _, out _))
                     .Select(s => { ColourMath.TryParseHex(s, out byte r, out byte g, out byte b); return ColourMath.ToHex(r, g, b); })
-                    .Take(MaxColours)
+                    .TakeLast(MaxColours)   // los RECIENTES: la lista va del mas viejo al mas nuevo
                     .ToList();
             }
             catch (Exception ex)
