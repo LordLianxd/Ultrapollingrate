@@ -730,6 +730,15 @@
                                         <ComboBox x:Name="GameProfileCombo" Width="190"
                                                   SelectionChanged="GameProfileCombo_Changed"
                                                   ToolTip="Perfil activo. Elegir uno lo aplica."/>
+                                        <!-- Un desplegable vacio no explica por que esta vacio. Este rotulo
+                                             encima lo dice y senala al "+", que es por donde se empieza.
+                                             IsHitTestVisible en falso: el clic tiene que llegar al
+                                             desplegable de debajo, no morir en la etiqueta. -->
+                                        <TextBlock x:Name="ProfileEmptyHint" Text="Sin perfiles todavia"
+                                                   Style="{StaticResource FieldLabel}" FontSize="11"
+                                                   Foreground="{StaticResource TextMutedBrush}"
+                                                   VerticalAlignment="Center" Margin="10,0,0,0"
+                                                   IsHitTestVisible="False" Visibility="Collapsed"/>
                                         <TextBox x:Name="GameProfileRename" Width="190" Visibility="Collapsed"
                                                  Background="{StaticResource SurfaceAltBrush}" Foreground="{StaticResource TextDataBrush}"
                                                  BorderBrush="{StaticResource TextDataBrush}" BorderThickness="1" Padding="6,4"

@@ -3062,10 +3062,10 @@ namespace HidusbfModernGui
             RefreshGameProfileList();
         }
 
-        // Etiqueta de la primera entrada del desplegable: "no hay perfil puesto". No es un
-        // perfil guardado, es la ausencia de uno, y por eso no se puede renombrar ni exportar.
-        private const string SinPerfil = "PERFIL POR DEFECTO";
-
+        // El desplegable lista SOLO perfiles de verdad. Antes tenia una primera entrada
+        // "PERFIL POR DEFECTO" que no era un perfil sino la ausencia de uno: ocupaba sitio,
+        // no se podia renombrar ni exportar, y hacia creer que existia un perfil de fabrica
+        // que nunca existio. Los perfiles los crea el usuario, y hasta entonces no hay ninguno.
         private void RefreshGameProfileList()
         {
             _updatingProfiles = true;
@@ -3074,14 +3074,15 @@ namespace HidusbfModernGui
                 string? antes = GameProfileCombo.SelectedItem as string;
 
                 GameProfileCombo.Items.Clear();
-                GameProfileCombo.Items.Add(SinPerfil);
                 foreach (var p in _gameProfiles.OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase))
                     GameProfileCombo.Items.Add(p.Name);
 
                 // Se recupera la seleccion por NOMBRE y no por indice: guardar reordena la
-                // lista alfabeticamente, y un indice apuntaria a otro perfil.
-                int i = antes == null ? 0 : GameProfileCombo.Items.IndexOf(antes);
-                GameProfileCombo.SelectedIndex = i < 0 ? 0 : i;
+                // lista alfabeticamente, y un indice apuntaria a otro perfil. Si el que estaba
+                // ya no existe -lo acaban de borrar- no se elige otro por su cuenta: aplicar un
+                // perfil que el usuario no ha pedido seria peor que no tener ninguno puesto.
+                int i = antes == null ? -1 : GameProfileCombo.Items.IndexOf(antes);
+                GameProfileCombo.SelectedIndex = i;
             }
             finally { _updatingProfiles = false; }
 
@@ -3096,15 +3097,20 @@ namespace HidusbfModernGui
             ProfileEditBtn.IsEnabled = hayPerfil;
             ProfileExportBtn.IsEnabled = hayPerfil;
             ProfileDeleteBtn.IsEnabled = hayPerfil;
+            ProfileSaveBtn.IsEnabled = hayPerfil;   // guardar es SOBRESCRIBIR: sin perfil, no hay donde
+
+            // El desplegable vacio no dice nada por si solo; este rotulo encima explica que
+            // todavia no hay perfiles y que el "+" es por donde se empieza.
+            ProfileEmptyHint.Visibility = _gameProfiles.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        // Nombre del perfil elegido, o null si es la entrada "sin perfil".
+        // Nombre del perfil elegido, o null si no hay ninguno elegido.
         private string? SelectedProfileName
         {
             get
             {
                 string? s = GameProfileCombo.SelectedItem as string;
-                return string.IsNullOrEmpty(s) || s == SinPerfil ? null : s;
+                return string.IsNullOrEmpty(s) ? null : s;
             }
         }
 
@@ -3202,8 +3208,7 @@ namespace HidusbfModernGui
         // "ultimo usado" es interno: los dos se rechazan antes de tocar el disco.
         private bool NombreDePerfilValido(string nombre)
         {
-            if (string.Equals(nombre, GameProfileStore.LastUsedPseudoProfile, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(nombre, SinPerfil, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(nombre, GameProfileStore.LastUsedPseudoProfile, StringComparison.OrdinalIgnoreCase))
             {
                 LogStatus("Ese nombre esta reservado. Elige otro.");
                 return false;
@@ -3314,8 +3319,9 @@ namespace HidusbfModernGui
         // machacar, asi que se comporta como NUEVO en vez de no hacer nada.
         private void SaveGameProfile_Click(object sender, RoutedEventArgs e)
         {
-            string? name = SelectedProfileName;
-            if (name == null) { NewGameProfile_Click(sender, e); return; }
+            // Sin perfil elegido no hay nada que sobrescribir; el boton esta deshabilitado en
+            // ese caso, y esta guarda es el cinturon por si llega por otra via.
+            if (SelectedProfileName is not string name) { NewGameProfile_Click(sender, e); return; }
             GuardarPerfil(name);
         }
 
@@ -3364,9 +3370,9 @@ namespace HidusbfModernGui
             // Se pregunta porque borrar no se deshace desde la app, y ahora el boton esta a un
             // clic del de guardar. La copia .backup existe, pero recuperar de ahi es un paseo
             // por el explorador que nadie deberia tener que dar por un clic mal dado.
-            var r0 = MessageBox.Show(this, $"¿Borrar el perfil '{name}'?", "Borrar perfil",
-                                     MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (r0 != MessageBoxResult.Yes) return;
+            if (!AppDialog.Confirm(this, "Borrar perfil",
+                    $"Se va a borrar el perfil '{name}'. Queda una copia en {GameProfileStore.Path}.backup",
+                    aceptar: "BORRAR")) return;
 
             _gameProfiles.RemoveAll(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
             var result = GameProfileStore.Save(_gameProfiles);
@@ -3448,10 +3454,9 @@ namespace HidusbfModernGui
             bool choca = _gameProfiles.Any(x => string.Equals(x.Name, p.Name, StringComparison.OrdinalIgnoreCase));
             if (choca)
             {
-                var r = MessageBox.Show(this,
-                    $"Ya tienes un perfil llamado '{p.Name}'. ¿Reemplazarlo?",
-                    "Perfil repetido", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                if (r != MessageBoxResult.Yes) return;
+                if (!AppDialog.Confirm(this, "Perfil repetido",
+                        $"Ya tienes un perfil llamado '{p.Name}'. Si sigues, el tuyo se pierde.",
+                        aceptar: "REEMPLAZAR")) return;
                 _gameProfiles.RemoveAll(x => string.Equals(x.Name, p.Name, StringComparison.OrdinalIgnoreCase));
             }
 
@@ -4146,10 +4151,10 @@ namespace HidusbfModernGui
         private void SaveRightCurve_Click(object sender, RoutedEventArgs e)
             => SaveCurveGeneric(false, RightCurveName.Text, _remap.RightCurvePoints);
 
-        private static void ShowError(string title, string message)
-        {
-            MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
+        // Deja de ser static: AppDialog necesita un Owner para centrarse sobre la ventana y no
+        // quedarse detras de ella. Todas las llamadas son de instancia, asi que no cuesta nada.
+        private void ShowError(string title, string message)
+            => AppDialog.Warn(this, title, message);
 
         // Cuanto se queda un mensaje antes de que la barra se vuelva a callar. 6 s: lo
         // suficiente para leer una frase sin volver a mirar, poco para que estorbe.
