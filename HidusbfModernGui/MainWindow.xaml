@@ -1180,8 +1180,20 @@
                                                         </StackPanel>
                                                     </Border>
 
-                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                            BorderThickness="1" Padding="18" Margin="0,0,0,16">
+                                                    <!-- Los dos sticks lado a lado, mitad y mitad. En columna eran dos
+                                                         bloques identicos de casi 400 px cada uno: para comparar la zona
+                                                         muerta o la curva de uno con la del otro habia que recordar el
+                                                         primero mientras se hacia scroll hasta el segundo. Puestos en
+                                                         paralelo se ven a la vez, que es como se ajustan. -->
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="16"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                    <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                            BorderThickness="1" CornerRadius="10" Padding="18">
                                                         <StackPanel>
                                                             <TextBlock Text="STICK IZQUIERDO" Style="{StaticResource SectionHeading}"/>
 
@@ -1246,8 +1258,8 @@
                                                         </StackPanel>
                                                     </Border>
 
-                                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                            BorderThickness="1" Padding="18">
+                                                    <Border Grid.Column="2" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                            BorderThickness="1" CornerRadius="10" Padding="18">
                                                         <StackPanel>
                                                             <TextBlock Text="STICK DERECHO" Style="{StaticResource SectionHeading}"/>
 
@@ -1311,6 +1323,7 @@
                                                             </StackPanel>
                                                         </StackPanel>
                                                     </Border>
+                                                    </Grid>
                                                 </StackPanel>
                                             </ScrollViewer>
                                         </Grid>
