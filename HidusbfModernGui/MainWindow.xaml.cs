@@ -3095,6 +3095,7 @@ namespace HidusbfModernGui
             bool hayPerfil = SelectedProfileName != null;
             ProfileEditBtn.IsEnabled = hayPerfil;
             ProfileExportBtn.IsEnabled = hayPerfil;
+            ProfileDeleteBtn.IsEnabled = hayPerfil;
         }
 
         // Nombre del perfil elegido, o null si es la entrada "sin perfil".
@@ -3116,12 +3117,6 @@ namespace HidusbfModernGui
                     : _gameProfiles.FirstOrDefault(p => string.Equals(p.Name, n, StringComparison.OrdinalIgnoreCase));
             }
         }
-
-        // La tasa que se guarda en el perfil es la del dispositivo seleccionado en DISPOSITIVOS.
-        // Antes habia un desplegable propio en la pagina de perfiles; con la pagina fuera, la
-        // fuente honesta es la tasa que el usuario tiene puesta de verdad, no una elegida aparte.
-        private int? SelectedProfileRate =>
-            (DevicesListBox.SelectedItem as UsbDeviceModel)?.SelectedRate;
 
         // Elegir un perfil lo APLICA. No hay boton "Cargar": un perfil seleccionado pero no
         // aplicado es un estado que solo sirve para confundir.
@@ -3261,24 +3256,11 @@ namespace HidusbfModernGui
                 notes.Add("mando");
             }
 
-            if (p.Rate != null)
-            {
-                // La tasa va al dispositivo elegido en DISPOSITIVOS, que es donde viven las
-                // tasas; aplicarla a otro seria escribir en el equivocado sin avisar.
-                if (DevicesListBox.SelectedItem is UsbDeviceModel target)
-                {
-                    var r = SystemManager.SetDeviceRate(target.InstanceId, target.DriverKey, p.Rate.Value, target.BusSpeed);
-                    // A proposito sin replug automatico: arrancarle el mando del bus al usuario
-                    // por elegir un perfil seria una sorpresa hostil.
-                    notes.Add(r.Success
-                        ? $"tasa {p.Rate} Hz escrita (pulsa RECONECTAR)"
-                        : $"tasa fallida: {r.Error}");
-                }
-                else
-                {
-                    notes.Add("tasa omitida (elige un dispositivo en Dispositivos)");
-                }
-            }
+            // Un perfil NO lleva tasa de sondeo, a proposito. La tasa vive en el registro del
+            // dispositivo y no se aplica hasta re-enumerarlo, asi que un perfil que la trajera
+            // tendria que arrancarle el mando del bus al usuario por elegirlo de un desplegable
+            // -o mentir diciendo que la aplico cuando solo la escribio-. La tasa se cambia en
+            // DISPOSITIVOS, que es donde se ve si de verdad se aplico.
 
             LogStatus(notes.Count == 0
                 ? $"Perfil '{p.Name}' no lleva nada que aplicar."
@@ -3328,21 +3310,26 @@ namespace HidusbfModernGui
         // DEFECTO" elegido crea uno nuevo y pide el nombre en la misma caja de renombrar, que
         // es la unica caja de texto de esta barra: dos sitios distintos para teclear un nombre
         // serian dos sitios donde buscarlo.
+        // GUARDAR machaca el perfil elegido. Con "PERFIL POR DEFECTO" puesto no hay nada que
+        // machacar, asi que se comporta como NUEVO en vez de no hacer nada.
         private void SaveGameProfile_Click(object sender, RoutedEventArgs e)
         {
             string? name = SelectedProfileName;
-            if (name == null)
-            {
-                GameProfileRename.Text = "";
-                GameProfileCombo.Visibility = Visibility.Collapsed;
-                GameProfileRename.Visibility = Visibility.Visible;
-                GameProfileRename.Focus();
-                _guardandoNuevo = true;
-                LogStatus("Escribe un nombre y pulsa Enter para crear el perfil.");
-                return;
-            }
-
+            if (name == null) { NewGameProfile_Click(sender, e); return; }
             GuardarPerfil(name);
+        }
+
+        // NUEVO crea otro perfil con la configuracion de ahora, sin tocar el que estuviera
+        // elegido. Es un boton y no un truco: antes, anadir un segundo perfil exigia saber que
+        // primero habia que volver a "PERFIL POR DEFECTO", cosa que no dice nada en pantalla.
+        private void NewGameProfile_Click(object sender, RoutedEventArgs e)
+        {
+            GameProfileRename.Text = "";
+            GameProfileCombo.Visibility = Visibility.Collapsed;
+            GameProfileRename.Visibility = Visibility.Visible;
+            GameProfileRename.Focus();
+            _guardandoNuevo = true;
+            LogStatus("Escribe un nombre y pulsa Enter para crear el perfil.");
         }
 
         // Alto mientras la caja de renombrar esta sirviendo para CREAR y no para renombrar. Sin
@@ -3358,7 +3345,6 @@ namespace HidusbfModernGui
             _gameProfiles.Add(new GameProfile
             {
                 Name = name,
-                Rate = SelectedProfileRate,
                 Light = BuildCurrentIntent(),
                 Remap = CloneRemapSettings(_remap),
             });
@@ -3374,6 +3360,13 @@ namespace HidusbfModernGui
         private void DeleteGameProfile_Click(object sender, RoutedEventArgs e)
         {
             if (SelectedProfileName is not string name) { LogStatus("Elige un perfil primero."); return; }
+
+            // Se pregunta porque borrar no se deshace desde la app, y ahora el boton esta a un
+            // clic del de guardar. La copia .backup existe, pero recuperar de ahi es un paseo
+            // por el explorador que nadie deberia tener que dar por un clic mal dado.
+            var r0 = MessageBox.Show(this, $"¿Borrar el perfil '{name}'?", "Borrar perfil",
+                                     MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (r0 != MessageBoxResult.Yes) return;
 
             _gameProfiles.RemoveAll(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
             var result = GameProfileStore.Save(_gameProfiles);

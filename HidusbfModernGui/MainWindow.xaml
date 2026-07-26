@@ -729,13 +729,7 @@
                                     <Grid VerticalAlignment="Center" Margin="0,0,12,0">
                                         <ComboBox x:Name="GameProfileCombo" Width="190"
                                                   SelectionChanged="GameProfileCombo_Changed"
-                                                  ToolTip="Perfil activo. Clic derecho para borrarlo.">
-                                            <ComboBox.ContextMenu>
-                                                <ContextMenu>
-                                                    <MenuItem Header="Borrar este perfil" Click="DeleteGameProfile_Click"/>
-                                                </ContextMenu>
-                                            </ComboBox.ContextMenu>
-                                        </ComboBox>
+                                                  ToolTip="Perfil activo. Elegir uno lo aplica."/>
                                         <TextBox x:Name="GameProfileRename" Width="190" Visibility="Collapsed"
                                                  Background="{StaticResource SurfaceAltBrush}" Foreground="{StaticResource TextDataBrush}"
                                                  BorderBrush="{StaticResource TextDataBrush}" BorderThickness="1" Padding="6,4"
@@ -743,45 +737,41 @@
                                                  KeyDown="GameProfileRename_KeyDown" LostFocus="GameProfileRename_Commit"/>
                                     </Grid>
 
-                                    <StackPanel Orientation="Vertical" Margin="0,0,8,0">
-                                        <Button x:Name="ProfileEditBtn" Style="{StaticResource RoundIconButton}" Click="ProfileEdit_Click"
-                                                ToolTip="Renombrar el perfil elegido">
-                                            <Path Data="{StaticResource PencilIconPath}" Stretch="Uniform" Width="13" Height="13"
-                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                                        </Button>
-                                        <TextBlock Text="Editar" Style="{StaticResource FieldLabel}" FontSize="9"
-                                                   HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                    </StackPanel>
-
-                                    <StackPanel Orientation="Vertical" Margin="0,0,8,0">
-                                        <Button x:Name="ProfileSaveBtn" Style="{StaticResource RoundIconButton}" Click="SaveGameProfile_Click"
-                                                ToolTip="Guardar la luz, la configuracion del mando y la tasa de ahora en este perfil">
-                                            <Path Data="{StaticResource SaveIconPath}" Stretch="Uniform" Width="13" Height="13"
-                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                                        </Button>
-                                        <TextBlock Text="Guardar" Style="{StaticResource FieldLabel}" FontSize="9"
-                                                   HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                    </StackPanel>
-
-                                    <StackPanel Orientation="Vertical" Margin="0,0,8,0">
-                                        <Button x:Name="ProfileImportBtn" Style="{StaticResource RoundIconButton}" Click="ImportGameProfile_Click"
-                                                ToolTip="Traer un perfil desde un archivo">
-                                            <Path Data="{StaticResource ImportIconPath}" Stretch="Uniform" Width="13" Height="13"
-                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                                        </Button>
-                                        <TextBlock Text="Importar" Style="{StaticResource FieldLabel}" FontSize="9"
-                                                   HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                    </StackPanel>
-
-                                    <StackPanel Orientation="Vertical">
-                                        <Button x:Name="ProfileExportBtn" Style="{StaticResource RoundIconButton}" Click="ExportGameProfile_Click"
-                                                ToolTip="Guardar el perfil elegido en un archivo para compartirlo">
-                                            <Path Data="{StaticResource ExportIconPath}" Stretch="Uniform" Width="13" Height="13"
-                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                                        </Button>
-                                        <TextBlock Text="Exportar" Style="{StaticResource FieldLabel}" FontSize="9"
-                                                   HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                    </StackPanel>
+                                    <!-- Sin etiquetas debajo: el ToolTip ya las dice y la fila ocupa la mitad.
+                                         NUEVO y BORRAR son botones y no menus escondidos: crear otro perfil y
+                                         deshacerse de uno son las dos preguntas que se hace cualquiera al ver
+                                         un desplegable de perfiles, y una respuesta que hay que adivinar con el
+                                         boton derecho no es una respuesta. -->
+                                    <Button x:Name="ProfileNewBtn" Style="{StaticResource RoundIconButton}" Click="NewGameProfile_Click"
+                                            Margin="0,0,6,0" ToolTip="Nuevo perfil con la configuracion de ahora">
+                                        <TextBlock Text="+" FontSize="15" FontWeight="Bold" Margin="0,-2,0,0"
+                                                   Foreground="{StaticResource TextDataBrush}"/>
+                                    </Button>
+                                    <Button x:Name="ProfileEditBtn" Style="{StaticResource RoundIconButton}" Click="ProfileEdit_Click"
+                                            Margin="0,0,6,0" ToolTip="Renombrar el perfil elegido">
+                                        <Path Data="{StaticResource PencilIconPath}" Stretch="Uniform" Width="13" Height="13"
+                                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                    </Button>
+                                    <Button x:Name="ProfileSaveBtn" Style="{StaticResource RoundIconButton}" Click="SaveGameProfile_Click"
+                                            Margin="0,0,6,0" ToolTip="Guardar en este perfil la luz y la configuracion del mando de ahora">
+                                        <Path Data="{StaticResource SaveIconPath}" Stretch="Uniform" Width="13" Height="13"
+                                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                    </Button>
+                                    <Button x:Name="ProfileDeleteBtn" Style="{StaticResource RoundIconButton}" Click="DeleteGameProfile_Click"
+                                            Margin="0,0,14,0" ToolTip="Borrar el perfil elegido">
+                                        <Path Data="{StaticResource TrashIconPath}" Stretch="Uniform" Width="13" Height="13"
+                                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                    </Button>
+                                    <Button x:Name="ProfileImportBtn" Style="{StaticResource RoundIconButton}" Click="ImportGameProfile_Click"
+                                            Margin="0,0,6,0" ToolTip="Traer un perfil desde un archivo">
+                                        <Path Data="{StaticResource ImportIconPath}" Stretch="Uniform" Width="13" Height="13"
+                                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                    </Button>
+                                    <Button x:Name="ProfileExportBtn" Style="{StaticResource RoundIconButton}" Click="ExportGameProfile_Click"
+                                            ToolTip="Guardar el perfil elegido en un archivo para compartirlo">
+                                        <Path Data="{StaticResource ExportIconPath}" Stretch="Uniform" Width="13" Height="13"
+                                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                    </Button>
                                 </StackPanel>
                                 </Grid>
 

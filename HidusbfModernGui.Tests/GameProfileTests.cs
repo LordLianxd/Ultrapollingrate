@@ -31,7 +31,6 @@ public class GameProfileTests : IDisposable
         var p = new GameProfile
         {
             Name = "Warzone",
-            Rate = 8000,
             Light = new LightIntent { R = 10, G = 20, B = 30, PlayerEffect = PlayerLedEffect.Breathe },
             Remap = new RemapSettings { LeftDeadzonePct = 12, LeftCurve = ResponseCurve.Propia },
         };
@@ -40,7 +39,6 @@ public class GameProfileTests : IDisposable
         var back = GameProfileStore.Load();
         Assert.Single(back);
         Assert.Equal("Warzone", back[0].Name);
-        Assert.Equal(8000, back[0].Rate);
         Assert.Equal(20, back[0].Light!.G);
         Assert.Equal(PlayerLedEffect.Breathe, back[0].Light!.PlayerEffect);
         Assert.Equal(12, back[0].Remap!.LeftDeadzonePct);
@@ -57,9 +55,23 @@ public class GameProfileTests : IDisposable
 
         var apex = Assert.Single(merged);
         Assert.Equal("Apex", apex.Name);
-        Assert.Equal(1000, apex.Rate);
         Assert.Equal(255, apex.Light!.R);
         Assert.Equal(7, apex.Remap!.RightDeadzonePct);
+    }
+
+    // La tasa del perfil de luz antiguo se descarta al migrar: los perfiles ya no llevan tasa.
+    // Se comprueba que la migracion no revienta con un perfil viejo que si la traia, que es
+    // exactamente lo que hay en el disco de cualquiera que venga de una version anterior.
+    [Fact]
+    public void Migrate_DropsTheOldRateWithoutFailing()
+    {
+        var light = new[] { new LightProfile { Name = "Viejo", Rate = 8000, G = 42 } };
+
+        var merged = GameProfileStore.Migrate(light, Array.Empty<RemapProfile>());
+
+        var p = Assert.Single(merged);
+        Assert.Equal("Viejo", p.Name);
+        Assert.Equal(42, p.Light!.G);   // lo que si migra sigue migrando
     }
 
     [Fact]

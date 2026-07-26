@@ -17,9 +17,16 @@ namespace HidusbfModernGui
     public sealed class GameProfile
     {
         public string Name { get; set; } = "";
-        public int? Rate { get; set; }              // null = no tocar la tasa
         public LightIntent? Light { get; set; }     // null = no tocar la luz
         public RemapSettings? Remap { get; set; }   // null = no tocar el mando
+
+        // SIN tasa de sondeo, a proposito. Estuvo aqui y se saco: la tasa se escribe en el
+        // registro y no surte efecto hasta re-enumerar el dispositivo, asi que un perfil que la
+        // trajera tendria que arrancarle el mando del bus al usuario por elegirlo de un
+        // desplegable, o mentir diciendo que la aplico cuando solo la dejo escrita. La tasa se
+        // cambia en DISPOSITIVOS, que es la pantalla que ensena si de verdad se aplico.
+        // Los perfiles ya guardados con "Rate" se siguen leyendo sin problema: System.Text.Json
+        // ignora en silencio las propiedades que el modelo ya no tiene.
     }
 
     // Espejo de los stores existentes: mismo %APPDATA%\UltraPolling, escritura atomica con
@@ -88,7 +95,9 @@ namespace HidusbfModernGui
             {
                 if (l == null || string.IsNullOrWhiteSpace(l.Name)) continue;
                 var g = Get(byName, l.Name);
-                g.Rate = l.Rate;
+                // La tasa del perfil de luz antiguo se DESCARTA: los perfiles ya no llevan tasa
+                // (ver el comentario de GameProfile). Migrar un campo a uno que no existe seria
+                // arrastrar el problema, no migrarlo.
                 g.Light = new LightIntent
                 {
                     Kind = l.Rainbow ? LightIntentKind.Rainbow : LightIntentKind.Static,
