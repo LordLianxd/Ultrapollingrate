@@ -1228,6 +1228,8 @@
                                                                     <Ellipse x:Name="LeftCurveLiveDot" Width="7" Height="7" Fill="White" Visibility="Collapsed"/>
                                                                 </Canvas>
                                                             </Border>
+                                                            <TextBlock x:Name="LeftCurveLiveLabel" Style="{StaticResource FieldLabel}"
+                                                                       FontFamily="{StaticResource MonoFont}" Margin="0,6,0,0" Visibility="Collapsed"/>
 
                                                             <TextBlock Text="MIS CURVAS" Style="{StaticResource FieldLabel}" Margin="0,12,0,6"/>
                                                             <StackPanel Orientation="Horizontal">
@@ -1294,6 +1296,8 @@
                                                                     <Ellipse x:Name="RightCurveLiveDot" Width="7" Height="7" Fill="White" Visibility="Collapsed"/>
                                                                 </Canvas>
                                                             </Border>
+                                                            <TextBlock x:Name="RightCurveLiveLabel" Style="{StaticResource FieldLabel}"
+                                                                       FontFamily="{StaticResource MonoFont}" Margin="0,6,0,0" Visibility="Collapsed"/>
 
                                                             <TextBlock Text="MIS CURVAS" Style="{StaticResource FieldLabel}" Margin="0,12,0,6"/>
                                                             <StackPanel Orientation="Horizontal">

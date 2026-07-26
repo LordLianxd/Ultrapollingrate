@@ -1,0 +1,13 @@
+<UserControl x:Class="HidusbfModernGui.StickMonitor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="Transparent">
+    <!-- El Canvas mide 240x240 fijos, pero vive DENTRO de un Viewbox propio: TriggerArc
+         midio 240x240 fijo y hubo que envolverlo en un Viewbox aparte en MainWindow.xaml
+         cuando se recorto en ventana chica. Aqui el Viewbox va adentro del control desde
+         el arranque, asi que quien lo suelte en una tarjeta elastica (Task 4) no tiene
+         que acordarse de envolverlo el mismo. -->
+    <Viewbox Stretch="Uniform">
+        <Canvas x:Name="MonitorCanvas" Width="240" Height="240" Background="Transparent"/>
+    </Viewbox>
+</UserControl>

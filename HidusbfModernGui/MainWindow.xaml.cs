@@ -1202,16 +1202,18 @@ namespace HidusbfModernGui
         // muestra si el stick esta fuera de la zona muerta (si no, no hay nada que ver en el centro).
         private void UpdateCurveLiveDot(ControllerState raw, ControllerState outState)
         {
-            PlaceLiveDot(LeftCurveCanvas, LeftCurveLiveDot, raw.Left, outState.Left,
+            PlaceLiveDot(LeftCurveCanvas, LeftCurveLiveDot, LeftCurveLiveLabel, raw.Left, outState.Left,
                 _remap.LeftInnerDeadzone, _remap.LeftOuterDeadzone);
-            PlaceLiveDot(RightCurveCanvas, RightCurveLiveDot, raw.Right, outState.Right,
+            PlaceLiveDot(RightCurveCanvas, RightCurveLiveDot, RightCurveLiveLabel, raw.Right, outState.Right,
                 _remap.RightInnerDeadzone, _remap.RightOuterDeadzone);
         }
 
         // La curva mapea magnitud de entrada -> magnitud de salida. X del canvas = entrada cruda
         // (0..1), Y = salida (0..1, invertida). Coincide con DrawCurve, que muestrea ApplyStick
         // sobre un stick horizontal. Se oculta dentro de la zona muerta (magnitud de salida 0).
-        private void PlaceLiveDot(Canvas canvas, System.Windows.Shapes.Ellipse dot,
+        // outT ya sale de RemapEngine.Transform (que a su vez llama a InputTransform.ApplyStick),
+        // asi que el rotulo de abajo nunca puede decir un numero que el mando no este haciendo.
+        private void PlaceLiveDot(Canvas canvas, System.Windows.Shapes.Ellipse dot, TextBlock label,
             StickInput inRaw, StickInput outT, double inner, double outer)
         {
             double inMag = Math.Min(1.0, Math.Sqrt(inRaw.X * inRaw.X + inRaw.Y * inRaw.Y));
@@ -1219,11 +1221,15 @@ namespace HidusbfModernGui
             if (outMag <= 0.0001)
             {
                 dot.Visibility = Visibility.Collapsed;
+                label.Visibility = Visibility.Collapsed;
                 return;
             }
             Canvas.SetLeft(dot, inMag * canvas.Width - dot.Width / 2);
             Canvas.SetTop(dot, (1 - outMag) * canvas.Height - dot.Height / 2);
             dot.Visibility = Visibility.Visible;
+
+            label.Text = $"Entrada {inMag * 100:F0}% → Salida {outMag * 100:F0}%";
+            label.Visibility = Visibility.Visible;
         }
 
         // ===== Configurador del mando: edita _remap y persiste via perfiles (Task 4) =====
