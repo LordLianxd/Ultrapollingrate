@@ -792,8 +792,11 @@ namespace HidusbfModernGui
         // DispatcherTimer and every *.Text/*.Content assignment below are safe as written.
         private async Task StartEngine()
         {
+            // Sin "Aplicando...": el interruptor se deshabilita y se atenua mientras dura la
+            // operacion, y eso ya dice que esta ocupado. Un texto que aparece y se va en un
+            // segundo no se llega a leer, solo parpadea. La linea sigue reservada para lo que
+            // SI hay que contar: un error de arranque o un revert parcial.
             MasterToggleBtn.IsEnabled = false;
-            SetMasterStatus("Aplicando...");
 
             _padVirtual = new VirtualPad();
             _padReader = new DualSenseReader();
@@ -954,8 +957,8 @@ namespace HidusbfModernGui
 
         private async Task StopEngine()
         {
+            // Igual que al arrancar: el interruptor atenuado ya dice que esta ocupado.
             MasterToggleBtn.IsEnabled = false;
-            SetMasterStatus("Deteniendo...");
 
             // El timer del passthrough vive y muere en el hilo de UI; pararlo aqui, antes
             // del trabajo pesado de fondo, deja de empujar reportes al virtual de inmediato.
