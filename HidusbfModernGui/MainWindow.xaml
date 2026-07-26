@@ -681,12 +681,29 @@
                                                     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
                                                             BorderThickness="1" Padding="18" Margin="0,8,0,20">
                                                         <StackPanel>
+                                                            <!-- Una sola fila: icono, titulo y el interruptor. Antes eran un rotulo,
+                                                                 un boton con la frase entera dentro y una linea de estado debajo,
+                                                                 para decir una cosa que es si o no. El interruptor lo dice de un
+                                                                 vistazo y el "?" de al lado guarda la explicacion larga. -->
                                                             <Grid>
-                                                                <TextBlock Text="MANDO VIRTUAL" Style="{StaticResource SectionHeading}" VerticalAlignment="Center"/>
-                                                                <Button x:Name="MasterHelpBtn" Style="{StaticResource RoundIconButton}"
-                                                                        HorizontalAlignment="Right" Click="MasterHelp_Click" ToolTip="Que hace esto">
-                                                                    <TextBlock Text="?" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextDataBrush}"/>
-                                                                </Button>
+                                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <Path Data="{StaticResource GamepadIconPath}" Stretch="Uniform" Width="19" Height="19"
+                                                                          VerticalAlignment="Center" Margin="0,0,11,0"
+                                                                          Fill="{StaticResource TextDataBrush}"/>
+                                                                    <TextBlock Text="MANDO VIRTUAL" Style="{StaticResource SectionHeading}"
+                                                                               FontSize="13" VerticalAlignment="Center"/>
+                                                                </StackPanel>
+
+                                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                                    <CheckBox x:Name="MasterToggleBtn" Style="{StaticResource SwitchToggle}"
+                                                                              Margin="0,0,12,0" AutomationProperties.Name="Mando virtual"
+                                                                              ToolTip="Enciende el mando virtual para que tus ajustes lleguen al juego"
+                                                                              Checked="MasterToggle_Changed" Unchecked="MasterToggle_Changed"/>
+                                                                    <Button x:Name="MasterHelpBtn" Style="{StaticResource RoundIconButton}"
+                                                                            Click="MasterHelp_Click" ToolTip="Que hace esto">
+                                                                        <TextBlock Text="?" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextDataBrush}"/>
+                                                                    </Button>
+                                                                </StackPanel>
                                                                 <Popup x:Name="MasterHelpPopup" PlacementTarget="{Binding ElementName=MasterHelpBtn}"
                                                                        Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="None"
                                                                        Opened="AnimatePopupOpen">
@@ -697,13 +714,10 @@
                                                                     </Border>
                                                                 </Popup>
                                                             </Grid>
-                                                            <Button x:Name="MasterToggleBtn" Content="ACTIVAR MANDO VIRTUAL"
-                                                                    Style="{StaticResource InstrumentButton}" HorizontalAlignment="Left"
-                                                                    Margin="0,12,0,0" Click="MasterToggle_Click"/>
-                                                            <!-- Vacio y sin ocupar sitio con el motor apagado: el boton de al lado
-                                                                 ya dice ACTIVAR MANDO VIRTUAL, asi que una frase explicando que
-                                                                 no esta activo es ruido. Reaparece cuando SI hay algo que contar:
-                                                                 motor encendido (fisico oculto / virtual / reportes) o un error. -->
+                                                            <!-- Vacio y sin ocupar sitio con el motor apagado: el interruptor de
+                                                                 arriba ya dice si esta encendido, asi que una frase explicando que
+                                                                 no lo esta es ruido. Reaparece cuando SI hay algo que contar:
+                                                                 un error de arranque, un revert parcial o drivers ausentes. -->
                                                             <TextBlock x:Name="MasterStatusText" Style="{StaticResource DataText}" TextWrapping="Wrap"
                                                                        Margin="0,12,0,0" Text="" Visibility="Collapsed"/>
                                                         </StackPanel>

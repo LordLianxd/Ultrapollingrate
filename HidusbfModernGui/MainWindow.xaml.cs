@@ -755,10 +755,23 @@ namespace HidusbfModernGui
         // (mirrors _overclockBusy) skips that self-inflicted rescan.
         private volatile bool _engineBusy;
 
-        private async void MasterToggle_Click(object sender, RoutedEventArgs e)
+        // Alto mientras el codigo (y no el usuario) mueve el interruptor maestro: si arrancar
+        // falla hay que devolverlo a apagado, y eso no puede volver a entrar aqui e intentar
+        // pararlo.
+        private bool _updatingMasterSwitch;
+
+        private void SetMasterSwitch(bool on)
         {
-            if (_engineRunning) await StopEngine();
-            else await StartEngine();
+            _updatingMasterSwitch = true;
+            try { MasterToggleBtn.IsChecked = on; }
+            finally { _updatingMasterSwitch = false; }
+        }
+
+        private async void MasterToggle_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_updatingMasterSwitch) return;
+            if (MasterToggleBtn.IsChecked == true) await StartEngine();
+            else await StopEngine();
         }
 
         // Everything that can block for a while - ViGEm connect, opening the HID device,
@@ -802,6 +815,10 @@ namespace HidusbfModernGui
                 // reabrimos el lector propio del visualizador (que StartEngine cerro por la leccion L1),
                 // o el mando en vivo se queda congelado. Espeja la recuperacion de StopEngine.
                 if (ConfigPadVisual.IsVisible) _visualFeed.StartOwnReader();
+                // El interruptor se movio al pulsarlo, pero el motor NO arranco: devolverlo a
+                // apagado. Dejarlo encendido seria la peor version de este control - decir que
+                // el juego ve tu configuracion cuando sigue viendo el mando nativo.
+                SetMasterSwitch(false);
                 MasterToggleBtn.IsEnabled = true;
                 return;
             }
@@ -809,7 +826,6 @@ namespace HidusbfModernGui
             _hideError = result.HideError;
             _engineRunning = true;
             _engineTick = 0;
-            MasterToggleBtn.Content = "VOLVER AL MANDO NATIVO";
 
             // El DispatcherTimer se crea/arranca en el hilo de UI (no es seguro entre
             // hilos; construirlo desde el hilo de fondo lo asociaria a un dispatcher ad-hoc
@@ -922,8 +938,7 @@ namespace HidusbfModernGui
             string? revertErr = await Task.Run(() => RevertEngineDevices());
             _engineBusy = false;
 
-            MasterToggleBtn.Content = "ACTIVAR MANDO VIRTUAL";
-            // Estado apagado = sin texto (el boton ya lo dice). Un revert PARCIAL si se
+            // Estado apagado = sin texto (el interruptor ya lo dice). Un revert PARCIAL si se
             // cuenta: ahi el mando pudo quedar en un estado raro y el usuario debe saberlo.
             SetMasterStatus(revertErr == null
                 ? ""
