@@ -6,12 +6,11 @@ using System.Windows.Media;
 
 namespace HidusbfModernGui
 {
-    // An HSV picker: a saturation/value square plus a hue strip. People think in HSV -
-    // "the same blue but darker" is one axis here and three in RGB.
+    // Selector HSB: vista previa, hex editable y tres barras (tono, saturacion, brillo).
+    // La gente piensa en HSB - "el mismo azul pero mas oscuro" es un eje aqui y tres en RGB.
     public partial class ColourPicker : UserControl
     {
         private double _h = 240, _s = 1, _v = 1;
-        private bool _draggingSv, _draggingHue;
 
         // Set while this control writes SelectedColor itself, so its own update does not
         // come back through the property-changed callback and fight the drag.
@@ -33,12 +32,20 @@ namespace HidusbfModernGui
         public ColourPicker()
         {
             InitializeComponent();
-            Loaded += (_, _) => Redraw();
 
-            // Mouse capture can be taken away without a button-up ever arriving - Alt+Tab,
-            // a system dialog. Without this the drag flag stays set, and the next mouse
-            // move over the control with no button held would silently drag the colour.
-            LostMouseCapture += (_, _) => { _draggingSv = false; _draggingHue = false; };
+            // El arcoiris del tono no depende de nada, asi que se construye una vez y no en cada Redraw.
+            var arcoiris = new LinearGradientBrush { StartPoint = new Point(0, 0.5), EndPoint = new Point(1, 0.5) };
+            foreach (var (offset, colour) in new (double, Color)[]
+                     {
+                         (0.000, Color.FromRgb(255, 0, 0)),   (0.167, Color.FromRgb(255, 255, 0)),
+                         (0.333, Color.FromRgb(0, 255, 0)),   (0.500, Color.FromRgb(0, 255, 255)),
+                         (0.667, Color.FromRgb(0, 0, 255)),   (0.833, Color.FromRgb(255, 0, 255)),
+                         (1.000, Color.FromRgb(255, 0, 0)),
+                     })
+                arcoiris.GradientStops.Add(new GradientStop(colour, offset));
+            HueBar.Background = arcoiris;
+
+            Loaded += (_, _) => Redraw();
         }
 
         private static void OnSelectedColorChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -70,80 +77,76 @@ namespace HidusbfModernGui
             ColorChanged?.Invoke(this, EventArgs.Empty);
         }
 
+        // Redibuja barras, numeros, hex y vista previa a partir de _h/_s/_v. Bajo _internal para
+        // que mover una barra por codigo no se lea como una edicion del usuario.
         private void Redraw()
         {
-            if (HueLayer == null) return;
+            _internal = true;
+            try
+            {
+                HueBar.Value = _h;
+                SatBar.Value = _s * 100;
+                ValBar.Value = _v * 100;
 
-            // The square shows every shade of the current hue, so its base is that hue at
-            // full saturation and value.
-            var (hr, hg, hb) = ColourMath.HsvToRgb(_h, 1, 1);
-            HueLayer.Fill = new SolidColorBrush(Color.FromRgb(hr, hg, hb));
+                HueValue.Text = ((int)Math.Round(_h)).ToString();
+                SatValue.Text = ((int)Math.Round(_s * 100)).ToString();
+                ValValue.Text = ((int)Math.Round(_v * 100)).ToString();
 
-            double w = SvSquare.ActualWidth, h = SvSquare.ActualHeight;
-            if (w > 0 && h > 0)
-                SvCursor.Margin = new Thickness(_s * w - 6, (1 - _v) * h - 6, 0, 0);
+                var (r, g, b) = ColourMath.HsvToRgb(_h, _s, _v);
+                PreviewBand.Background = new SolidColorBrush(Color.FromRgb(r, g, b));
+                HexBox.Text = ColourMath.ToHex(r, g, b);
 
-            if (HueStrip.ActualWidth > 0)
-                HueCursor.Margin = new Thickness(_h / 360.0 * HueStrip.ActualWidth - 1.5, 0, 0, 0);
+                // Los fondos de saturacion y brillo se recalculan con el tono: una barra de
+                // saturacion que sigue mostrando el rojo mientras el color es azul miente sobre
+                // lo que va a pasar al arrastrarla.
+                var (pr, pg, pb) = ColourMath.HsvToRgb(_h, 1, 1);
+                var puro = Color.FromRgb(pr, pg, pb);
+                SatBar.Background = Horizontal(Colors.White, puro);
+                ValBar.Background = Horizontal(Colors.Black, puro);
+            }
+            finally { _internal = false; }
         }
 
-        private void SetSvFrom(Point p)
-        {
-            double w = SvSquare.ActualWidth, h = SvSquare.ActualHeight;
-            if (w <= 0 || h <= 0) return;
+        private static LinearGradientBrush Horizontal(Color from, Color to) =>
+            new(from, to, new Point(0, 0.5), new Point(1, 0.5));
 
-            _s = Math.Clamp(p.X / w, 0, 1);
-            _v = Math.Clamp(1 - p.Y / h, 0, 1);
+        private void Bar_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_internal) return;
+            _h = HueBar.Value;
+            _s = SatBar.Value / 100.0;
+            _v = ValBar.Value / 100.0;
             Redraw();
             Emit();
         }
 
-        private void SetHueFrom(Point p)
+        // El hex se aplica al pulsar Enter o al salir del campo, NO en cada tecla: aplicando por
+        // tecla, escribir "F83E64" mandaria al mando los seis colores intermedios.
+        private void Hex_KeyDown(object sender, KeyEventArgs e)
         {
-            double w = HueStrip.ActualWidth;
-            if (w <= 0) return;
+            if (e.Key != Key.Enter) return;
+            CommitHex();
+            e.Handled = true;
+        }
 
-            _h = Math.Clamp(p.X / w, 0, 1) * 360;
-            Redraw();
+        private void Hex_LostFocus(object sender, RoutedEventArgs e) => CommitHex();
+
+        private void CommitHex()
+        {
+            if (!ColourMath.TryParseHex(HexBox.Text, out byte r, out byte g, out byte b))
+            {
+                // Texto invalido: se devuelve el campo al color que SI esta puesto, en vez de
+                // dejarlo con algo que no corresponde a nada.
+                Redraw();
+                return;
+            }
+            SelectedColor = Color.FromRgb(r, g, b);   // la DependencyProperty recalcula _h/_s/_v y redibuja
             Emit();
         }
 
-        // Capturing the mouse is what lets a drag continue past the edge of the square.
-        // Without it the handle sticks the moment the pointer leaves.
-        private void Sv_MouseDown(object sender, MouseButtonEventArgs e)
+        private void CopyHex_Click(object sender, RoutedEventArgs e)
         {
-            _draggingSv = true;
-            SvSquare.CaptureMouse();
-            SetSvFrom(e.GetPosition(SvSquare));
-        }
-
-        private void Sv_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (_draggingSv) SetSvFrom(e.GetPosition(SvSquare));
-        }
-
-        private void Sv_MouseUp(object sender, MouseButtonEventArgs e)
-        {
-            _draggingSv = false;
-            SvSquare.ReleaseMouseCapture();
-        }
-
-        private void Hue_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            _draggingHue = true;
-            HueStrip.CaptureMouse();
-            SetHueFrom(e.GetPosition(HueStrip));
-        }
-
-        private void Hue_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (_draggingHue) SetHueFrom(e.GetPosition(HueStrip));
-        }
-
-        private void Hue_MouseUp(object sender, MouseButtonEventArgs e)
-        {
-            _draggingHue = false;
-            HueStrip.ReleaseMouseCapture();
+            try { Clipboard.SetText(HexBox.Text); } catch { /* el portapapeles lo puede tener otro proceso */ }
         }
     }
 }
