@@ -526,4 +526,94 @@ namespace HidusbfModernGui.Tests
             Assert.Equal(StatusLevel.Ok, PollingCore.DeviceStatusLevel(true, UsbSpeed.Full, rate));
         }
     }
+
+    public class ResolvedRateTests
+    {
+        // Speed unknown wins over everything, same priority order as
+        // PollingCore.DeviceStatusLevel: without it ResolveHighRateSlot cannot
+        // choose the Low/Full vs High/Super mapping, so any number returned
+        // here would be a guess, not a measurement.
+        [Fact]
+        public void UnknownSpeed_FilterActive_RateSaved_IsNull()
+        {
+            var m = new UsbDeviceModel
+            {
+                FilterActive = true,
+                SelectedRate = 1000,
+                Speed = (int)UsbSpeed.Unknown
+            };
+
+            Assert.Null(m.ResolvedRate);
+        }
+
+        [Theory]
+        [InlineData(31)]
+        [InlineData(62)]
+        public void UnknownSpeed_HighRateSlot_IsNull(int slot)
+        {
+            var m = new UsbDeviceModel
+            {
+                FilterActive = true,
+                SelectedRate = slot,
+                ActiveMode = DriverMode.Rate2k4k,
+                Speed = (int)UsbSpeed.Unknown
+            };
+
+            Assert.Null(m.ResolvedRate);
+        }
+
+        // Known-speed paths must be unchanged by the new guard.
+        [Fact]
+        public void KnownSpeed_FilterInactive_IsNull()
+        {
+            var m = new UsbDeviceModel
+            {
+                FilterActive = false,
+                SelectedRate = 1000,
+                Speed = (int)UsbSpeed.Full
+            };
+
+            Assert.Null(m.ResolvedRate);
+        }
+
+        [Fact]
+        public void KnownSpeed_NoRateSelected_IsNull()
+        {
+            var m = new UsbDeviceModel
+            {
+                FilterActive = true,
+                SelectedRate = null,
+                Speed = (int)UsbSpeed.High
+            };
+
+            Assert.Null(m.ResolvedRate);
+        }
+
+        [Fact]
+        public void KnownSpeed_FilterActive_LiteralRate_IsResolved()
+        {
+            var m = new UsbDeviceModel
+            {
+                FilterActive = true,
+                SelectedRate = 1000,
+                Speed = (int)UsbSpeed.High
+            };
+
+            Assert.Equal(1000, m.ResolvedRate);
+        }
+
+        [Fact]
+        public void KnownSpeed_FilterActive_HighRateSlot_IsRemapped()
+        {
+            var m = new UsbDeviceModel
+            {
+                FilterActive = true,
+                SelectedRate = 31,
+                ActiveMode = DriverMode.Rate2k4k,
+                Speed = (int)UsbSpeed.Full
+            };
+
+            Assert.Equal(2000, m.ResolvedRate);
+        }
+    }
 }

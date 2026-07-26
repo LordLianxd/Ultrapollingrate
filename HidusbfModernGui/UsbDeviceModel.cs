@@ -33,6 +33,13 @@ namespace HidusbfModernGui
         {
             get
             {
+                // Velocidad desconocida: ResolveHighRateSlot no puede elegir el
+                // mapeo Low/Full frente a High/Super sin ella, asi que cualquier
+                // numero aqui seria una suposicion disfrazada de medicion. Se
+                // comprueba primero, igual orden de prioridad que ya usa
+                // PollingCore.DeviceStatusLevel (velocidad desconocida = Error).
+                if (!SpeedKnown) return null;
+
                 // hidusbf is not in this device's LowerFilters, so it is not
                 // polling at whatever bInterval happens to be sitting in the
                 // registry. Asserting that stale rate here would be the same
