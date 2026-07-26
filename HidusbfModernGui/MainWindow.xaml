@@ -675,7 +675,8 @@
                                 <!-- Sub-nav del hub "Mando": Configurar el mando (por defecto) | Luces del mando |
                                      Perfiles. PERFILES sube aqui, al mismo nivel que las otras dos, porque un
                                      perfil ya no pertenece a una de ellas: guarda las dos a la vez. -->
-                                <Border Grid.Row="0" Style="{StaticResource SegmentGroup}" Margin="24,16,24,0">
+                                <Grid Grid.Row="0" Margin="24,16,24,0">
+                                <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Left">
                                     <StackPanel Orientation="Horizontal">
                                         <!-- Icono + etiqueta corta. La etiqueta larga ("CONFIGURAR EL MANDO")
                                              repetia "EL MANDO" en dos de los tres segmentos cuando la seccion
@@ -711,19 +712,78 @@
                                                 <TextBlock Text="LUCES" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </RadioButton>
-                                        <RadioButton x:Name="PerfilesTabBtn" GroupName="MandoNav" Checked="ShowPerfilesPanel"
-                                                     Style="{StaticResource SegmentButton}"
-                                                     AutomationProperties.Name="Perfiles"
-                                                     ToolTip="Guarda luz, configuracion y tasa en un solo perfil">
-                                            <StackPanel Orientation="Horizontal">
-                                                <Path Data="{StaticResource ProfileIconPath}" Stretch="Uniform" Width="17" Height="17"
-                                                      VerticalAlignment="Center" Margin="0,0,9,0"
-                                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
-                                                <TextBlock Text="PERFILES" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </RadioButton>
                                     </StackPanel>
                                 </Border>
+
+                                <!-- PERFILES deja de ser una pagina y pasa a esta barra. Un perfil no es un
+                                     sitio al que se va: es el estado en el que estas, asi que vive donde se
+                                     ve siempre y se cambia sin salir de lo que estabas haciendo.
+                                     BORRAR no cabe en cuatro botones, pero quitar la unica forma de borrar un
+                                     perfil seria una perdida: vive en el menu contextual del desplegable. -->
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource ProfileIconPath}" Stretch="Uniform" Width="15" Height="15"
+                                          VerticalAlignment="Center" Margin="0,0,9,0" Fill="{StaticResource TextLabelBrush}"/>
+
+                                    <!-- El desplegable y el campo de renombrar ocupan la MISMA casilla y se
+                                         turnan: renombrar pasa ahi mismo, sin abrir nada. -->
+                                    <Grid VerticalAlignment="Center" Margin="0,0,12,0">
+                                        <ComboBox x:Name="GameProfileCombo" Width="190"
+                                                  SelectionChanged="GameProfileCombo_Changed"
+                                                  ToolTip="Perfil activo. Clic derecho para borrarlo.">
+                                            <ComboBox.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="Borrar este perfil" Click="DeleteGameProfile_Click"/>
+                                                </ContextMenu>
+                                            </ComboBox.ContextMenu>
+                                        </ComboBox>
+                                        <TextBox x:Name="GameProfileRename" Width="190" Visibility="Collapsed"
+                                                 Background="{StaticResource SurfaceAltBrush}" Foreground="{StaticResource TextDataBrush}"
+                                                 BorderBrush="{StaticResource TextDataBrush}" BorderThickness="1" Padding="6,4"
+                                                 FontFamily="{StaticResource UiFont}"
+                                                 KeyDown="GameProfileRename_KeyDown" LostFocus="GameProfileRename_Commit"/>
+                                    </Grid>
+
+                                    <StackPanel Orientation="Vertical" Margin="0,0,8,0">
+                                        <Button x:Name="ProfileEditBtn" Style="{StaticResource RoundIconButton}" Click="ProfileEdit_Click"
+                                                ToolTip="Renombrar el perfil elegido">
+                                            <Path Data="{StaticResource PencilIconPath}" Stretch="Uniform" Width="13" Height="13"
+                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                        </Button>
+                                        <TextBlock Text="Editar" Style="{StaticResource FieldLabel}" FontSize="9"
+                                                   HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                    </StackPanel>
+
+                                    <StackPanel Orientation="Vertical" Margin="0,0,8,0">
+                                        <Button x:Name="ProfileSaveBtn" Style="{StaticResource RoundIconButton}" Click="SaveGameProfile_Click"
+                                                ToolTip="Guardar la luz, la configuracion del mando y la tasa de ahora en este perfil">
+                                            <Path Data="{StaticResource SaveIconPath}" Stretch="Uniform" Width="13" Height="13"
+                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                        </Button>
+                                        <TextBlock Text="Guardar" Style="{StaticResource FieldLabel}" FontSize="9"
+                                                   HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                    </StackPanel>
+
+                                    <StackPanel Orientation="Vertical" Margin="0,0,8,0">
+                                        <Button x:Name="ProfileImportBtn" Style="{StaticResource RoundIconButton}" Click="ImportGameProfile_Click"
+                                                ToolTip="Traer un perfil desde un archivo">
+                                            <Path Data="{StaticResource ImportIconPath}" Stretch="Uniform" Width="13" Height="13"
+                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                        </Button>
+                                        <TextBlock Text="Importar" Style="{StaticResource FieldLabel}" FontSize="9"
+                                                   HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                    </StackPanel>
+
+                                    <StackPanel Orientation="Vertical">
+                                        <Button x:Name="ProfileExportBtn" Style="{StaticResource RoundIconButton}" Click="ExportGameProfile_Click"
+                                                ToolTip="Guardar el perfil elegido en un archivo para compartirlo">
+                                            <Path Data="{StaticResource ExportIconPath}" Stretch="Uniform" Width="13" Height="13"
+                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                        </Button>
+                                        <TextBlock Text="Exportar" Style="{StaticResource FieldLabel}" FontSize="9"
+                                                   HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                </Grid>
 
                                 <Grid Grid.Row="1">
                                     <!-- Configurador del mando: hub de tarjetas + sub-paginas (Task PS3),
@@ -1628,105 +1688,9 @@
                             </ScrollViewer>
                                     </Grid>
 
-                                    <!-- PERFILES: seccion propia, hermana de ConfigPanel y LucesPanel.
-                                         Un perfil aqui guarda las dos mitades a la vez (luz + mando) mas
-                                         la tasa, que es justo lo que antes obligaba a guardar dos veces
-                                         en dos sitios distintos. -->
-                                    <Grid x:Name="PerfilesPanel" Visibility="Collapsed">
-                                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                            <StackPanel Margin="24,20,24,24" MaxWidth="820" HorizontalAlignment="Left">
-
-                                                <!-- Se queda: dice lo que NO se ve (que un perfil arrastra
-                                                     luz, mando y tasa juntos, y que basta con elegirlo). -->
-                                                <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,0,0,14"
-                                                           Text="Un perfil guarda la luz, la configuracion del mando y la tasa. Elige uno de la lista y se aplica al momento."/>
-
-                                                <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                        BorderThickness="1">
-                                                    <Grid>
-                                                        <ListBox x:Name="GameProfileList" Background="Transparent" BorderThickness="0"
-                                                                 MaxHeight="300" HorizontalContentAlignment="Stretch"
-                                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                                                 SelectionChanged="GameProfile_SelectionChanged">
-                                                            <ListBox.ItemContainerStyle>
-                                                                <Style TargetType="ListBoxItem">
-                                                                    <Setter Property="Padding" Value="0"/>
-                                                                    <Setter Property="Template">
-                                                                        <Setter.Value>
-                                                                            <ControlTemplate TargetType="ListBoxItem">
-                                                                                <Border x:Name="Row" Background="Transparent"
-                                                                                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
-                                                                                    <ContentPresenter/>
-                                                                                </Border>
-                                                                                <ControlTemplate.Triggers>
-                                                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                                                        <Setter TargetName="Row" Property="Background" Value="{StaticResource SurfaceAltBrush}"/>
-                                                                                    </Trigger>
-                                                                                    <Trigger Property="IsSelected" Value="True">
-                                                                                        <Setter TargetName="Row" Property="Background" Value="{StaticResource SurfaceAltBrush}"/>
-                                                                                        <Setter TargetName="Row" Property="BorderBrush" Value="{StaticResource TextDataBrush}"/>
-                                                                                        <Setter TargetName="Row" Property="BorderThickness" Value="2,0,0,1"/>
-                                                                                    </Trigger>
-                                                                                </ControlTemplate.Triggers>
-                                                                            </ControlTemplate>
-                                                                        </Setter.Value>
-                                                                    </Setter>
-                                                                </Style>
-                                                            </ListBox.ItemContainerStyle>
-                                                            <ListBox.ItemTemplate>
-                                                                <DataTemplate>
-                                                                    <!-- Sin esto un lector de pantalla anuncia la fila como el nombre
-                                                                         del tipo de la fila, no como el perfil que es. -->
-                                                                    <Grid Margin="16,12" AutomationProperties.Name="{Binding Name}">
-                                                                        <Grid.ColumnDefinitions>
-                                                                            <ColumnDefinition Width="*"/>
-                                                                            <ColumnDefinition Width="Auto"/>
-                                                                        </Grid.ColumnDefinitions>
-                                                                        <StackPanel Grid.Column="0">
-                                                                            <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextDataBrush}"
-                                                                                       FontFamily="{StaticResource UiFont}" FontSize="13"/>
-                                                                            <!-- Que mitades trae. Un perfil sin luz no la cambia al
-                                                                                 aplicarse, y eso hay que poder verlo antes de pulsarlo. -->
-                                                                            <TextBlock Text="{Binding Contents}" Style="{StaticResource FieldLabel}"
-                                                                                       Foreground="{StaticResource TextMutedBrush}" Margin="0,3,0,0"/>
-                                                                        </StackPanel>
-                                                                        <TextBlock Grid.Column="1" Text="{Binding RateLabel}" Style="{StaticResource DataText}"
-                                                                                   VerticalAlignment="Center" Margin="12,0,0,0"/>
-                                                                    </Grid>
-                                                                </DataTemplate>
-                                                            </ListBox.ItemTemplate>
-                                                        </ListBox>
-
-                                                        <TextBlock x:Name="GameProfilesEmpty" Visibility="Collapsed"
-                                                                   Text="Todavia no hay perfiles. Ajusta la luz y el mando como los quieras, ponles un nombre aqui abajo y pulsa GUARDAR."
-                                                                   Style="{StaticResource FieldLabel}" TextWrapping="Wrap"
-                                                                   Foreground="{StaticResource TextMutedBrush}" Margin="18" MaxWidth="520"
-                                                                   HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                                                    </Grid>
-                                                </Border>
-
-                                                <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                        BorderThickness="1" Padding="18" Margin="0,14,0,0">
-                                                    <StackPanel>
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="NOMBRE" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Width="60"/>
-                                                            <TextBox x:Name="GameProfileName" Width="200" Background="{StaticResource SurfaceAltBrush}"
-                                                                     Foreground="{StaticResource TextDataBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                     BorderThickness="1" Padding="6,4" FontFamily="{StaticResource UiFont}"/>
-                                                            <TextBlock Text="TASA" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="20,0,10,0"/>
-                                                            <ComboBox x:Name="GameProfileRate" Width="130" VerticalAlignment="Center"/>
-                                                        </StackPanel>
-                                                        <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
-                                                            <Button Content="GUARDAR" Style="{StaticResource InstrumentButton}"
-                                                                    Click="SaveGameProfile_Click" Margin="0,0,10,0"/>
-                                                            <Button Content="BORRAR" Style="{StaticResource SecondaryButton}"
-                                                                    Click="DeleteGameProfile_Click"/>
-                                                        </StackPanel>
-                                                    </StackPanel>
-                                                </Border>
-                                            </StackPanel>
-                                        </ScrollViewer>
-                                    </Grid>
+                                    <!-- Aqui vivia PERFILES como pagina propia. Ya no: un perfil no es un
+                                         sitio al que se va, es el estado en el que estas, asi que se maneja
+                                         desde la barra de arriba sin salir de lo que estabas haciendo. -->
                                 </Grid>
                             </Grid>
                         </TabItem>

@@ -48,6 +48,14 @@
     <!-- Icono de copiar, para el boton junto al hex del selector de color. -->
     <Geometry x:Key="CopyIconPath">M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z</Geometry>
 
+    <!-- Barra de perfiles: renombrar, guardar, importar y exportar. Las flechas de importar y
+         exportar salen y entran de la MISMA bandeja a proposito: son la pareja obvia, y con
+         iconos distintos habria que leer las etiquetas para saber cual es cual. -->
+    <Geometry x:Key="PencilIconPath">M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z</Geometry>
+    <Geometry x:Key="SaveIconPath">M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z</Geometry>
+    <Geometry x:Key="ImportIconPath">M2,12H4V17H20V12H22V17A2,2 0 0,1 20,19H4A2,2 0 0,1 2,17V12M12,15L17,10H14V4H10V10H7L12,15Z</Geometry>
+    <Geometry x:Key="ExportIconPath">M2,12H4V17H20V12H22V17A2,2 0 0,1 20,19H4A2,2 0 0,1 2,17V12M12,4L7,9H10V15H14V9H17L12,4Z</Geometry>
+
     <!-- Paleta, para el encabezado de EFECTO DEL COLOR. Sus dos tarjetas vecinas de la pagina
          de luces ya llevan icono (persona y estrella); sin este, la tercera se leia como si
          fuera de otra clase. -->

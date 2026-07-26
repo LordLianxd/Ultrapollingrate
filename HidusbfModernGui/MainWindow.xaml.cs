@@ -68,6 +68,9 @@ namespace HidusbfModernGui
             BuildEngineSpinner();
             InitTray();
             ApplySpecsExpanded(UiPrefsStore.Load().SpecsExpanded);
+            // Los perfiles se cargan al arrancar: su desplegable esta siempre a la vista en la
+            // barra, asi que ya no vale cargarlos al entrar en una pagina que ya no existe.
+            LoadGameProfiles();
             RefreshPrivilegeState();
             RefreshStatus();
 
@@ -677,14 +680,13 @@ namespace HidusbfModernGui
         // Los tres empiezan comprobando que los paneles existen. Son handlers de Checked de un
         // RadioButton, y ese evento puede llegar durante el parseo del XAML - antes de que los
         // paneles hermanos esten creados. Ya tumbo la app una vez.
-        private bool PanelsReady => ConfigPanel != null && LucesPanel != null && PerfilesPanel != null;
+        private bool PanelsReady => ConfigPanel != null && LucesPanel != null;
 
         private void ShowConfigPanel(object sender, RoutedEventArgs e)
         {
             if (!PanelsReady) return;
             ConfigPanel.Visibility = Visibility.Visible;
             LucesPanel.Visibility = Visibility.Collapsed;
-            PerfilesPanel.Visibility = Visibility.Collapsed;
         }
 
         private void ShowLucesPanel(object sender, RoutedEventArgs e)
@@ -692,22 +694,7 @@ namespace HidusbfModernGui
             if (!PanelsReady) return;
             ConfigPanel.Visibility = Visibility.Collapsed;
             LucesPanel.Visibility = Visibility.Visible;
-            PerfilesPanel.Visibility = Visibility.Collapsed;
             RefreshPlayStationDevices();   // igual que hoy al entrar a la luz
-        }
-
-        private void ShowPerfilesPanel(object sender, RoutedEventArgs e)
-        {
-            if (!PanelsReady) return;
-            ConfigPanel.Visibility = Visibility.Collapsed;
-            LucesPanel.Visibility = Visibility.Collapsed;
-            PerfilesPanel.Visibility = Visibility.Visible;
-
-            // Aplicar un perfil escribe la luz, y eso necesita _lightPadId resuelto. Sin esta
-            // llamada, entrar directo a PERFILES sin pasar por LUCES dejaria la mitad de luz
-            // del perfil sin efecto y en silencio.
-            RefreshPlayStationDevices();
-            LoadGameProfiles();
         }
 
         // ===== Hub del configurador (Task PS3): navegacion + animaciones =====
@@ -3047,33 +3034,11 @@ namespace HidusbfModernGui
         // ItemsSource dispara SelectionChanged y aplicaria un perfil que nadie eligio.
         private bool _updatingProfiles;
 
-        // Fila de la lista: el perfil mas el texto que se ve de el. Aparte de GameProfile
-        // para que el modelo que va a JSON no cargue con cadenas de UI.
-        private sealed class GameProfileRow
-        {
-            public GameProfileRow(GameProfile profile)
-            {
-                Profile = profile;
-                Contents = (profile.Light != null, profile.Remap != null) switch
-                {
-                    (true, true) => "Luz y configuracion del mando",
-                    (true, false) => "Solo luz",
-                    (false, true) => "Solo configuracion del mando",
-                    _ => "Vacio",
-                };
-                RateLabel = profile.Rate switch
-                {
-                    null => "",
-                    0 => "Default",
-                    _ => $"{profile.Rate} Hz",
-                };
-            }
-
-            public GameProfile Profile { get; }
-            public string Name => Profile.Name;
-            public string Contents { get; }
-            public string RateLabel { get; }
-        }
+        // GameProfileRow vivia aqui: envolvia un perfil con las cadenas que pintaba la lista
+        // ("Luz y configuracion del mando", la tasa formateada...). Con la lista fuera, el
+        // desplegable solo enseña nombres y esa clase se quedo sin un solo consumidor.
+        // Lo que describia cada perfil se perdio con ella; si algun dia hace falta, el sitio
+        // natural es el ToolTip del desplegable, no una clase de UI colgando del modelo.
 
         private void LoadGameProfiles()
         {
@@ -3097,74 +3062,171 @@ namespace HidusbfModernGui
             RefreshGameProfileList();
         }
 
+        // Etiqueta de la primera entrada del desplegable: "no hay perfil puesto". No es un
+        // perfil guardado, es la ausencia de uno, y por eso no se puede renombrar ni exportar.
+        private const string SinPerfil = "PERFIL POR DEFECTO";
+
         private void RefreshGameProfileList()
         {
             _updatingProfiles = true;
             try
             {
-                var selected = (GameProfileList.SelectedItem as GameProfileRow)?.Name;
-                GameProfileList.ItemsSource = null;
-                GameProfileList.ItemsSource = _gameProfiles
-                    .OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
-                    .Select(p => new GameProfileRow(p))
-                    .ToList();
+                string? antes = GameProfileCombo.SelectedItem as string;
 
-                if (selected != null)
-                {
-                    foreach (GameProfileRow row in GameProfileList.Items)
-                        if (string.Equals(row.Name, selected, StringComparison.OrdinalIgnoreCase))
-                        {
-                            GameProfileList.SelectedItem = row;
-                            break;
-                        }
-                }
+                GameProfileCombo.Items.Clear();
+                GameProfileCombo.Items.Add(SinPerfil);
+                foreach (var p in _gameProfiles.OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase))
+                    GameProfileCombo.Items.Add(p.Name);
+
+                // Se recupera la seleccion por NOMBRE y no por indice: guardar reordena la
+                // lista alfabeticamente, y un indice apuntaria a otro perfil.
+                int i = antes == null ? 0 : GameProfileCombo.Items.IndexOf(antes);
+                GameProfileCombo.SelectedIndex = i < 0 ? 0 : i;
             }
             finally { _updatingProfiles = false; }
 
-            GameProfilesEmpty.Visibility = _gameProfiles.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-
-            if (GameProfileRate.Items.Count == 0) BuildProfileRateCombo();
+            UpdateProfileButtons();
         }
 
-        // Las mismas ranuras que el combo de la pagina de dispositivos, con etiquetas planas:
-        // aqui no hay un dispositivo elegido contra el que calcular alcanzabilidad. Si la tasa
-        // no le sirve al dispositivo, SetDeviceRate lo dice al aplicar el perfil.
-        private void BuildProfileRateCombo()
+        // Con "PERFIL POR DEFECTO" elegido no hay nada que renombrar ni que exportar. Guardar e
+        // importar si valen: los dos CREAN un perfil.
+        private void UpdateProfileButtons()
         {
-            GameProfileRate.Items.Add(new ComboBoxItem { Content = "Sin tasa", Tag = null });
-            GameProfileRate.Items.Add(new ComboBoxItem { Content = "Default", Tag = 0 });
-            foreach (int slot in new[] { 8000, 4000, 2000, 1000, 500, 250, 125, 62, 31 })
-                GameProfileRate.Items.Add(new ComboBoxItem { Content = $"{slot} Hz", Tag = slot });
-            GameProfileRate.SelectedIndex = 0;
+            bool hayPerfil = SelectedProfileName != null;
+            ProfileEditBtn.IsEnabled = hayPerfil;
+            ProfileExportBtn.IsEnabled = hayPerfil;
         }
 
-        // Seleccionar un perfil lo APLICA. No hay boton "Cargar" ni "Aplicar": un perfil que
-        // esta seleccionado pero no aplicado es un estado que solo sirve para confundir - la
-        // lista muestra lo que esta puesto ahora mismo, no una intencion pendiente.
-        private void GameProfile_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        // Nombre del perfil elegido, o null si es la entrada "sin perfil".
+        private string? SelectedProfileName
+        {
+            get
+            {
+                string? s = GameProfileCombo.SelectedItem as string;
+                return string.IsNullOrEmpty(s) || s == SinPerfil ? null : s;
+            }
+        }
+
+        private GameProfile? SelectedProfile
+        {
+            get
+            {
+                string? n = SelectedProfileName;
+                return n == null ? null
+                    : _gameProfiles.FirstOrDefault(p => string.Equals(p.Name, n, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+        // La tasa que se guarda en el perfil es la del dispositivo seleccionado en DISPOSITIVOS.
+        // Antes habia un desplegable propio en la pagina de perfiles; con la pagina fuera, la
+        // fuente honesta es la tasa que el usuario tiene puesta de verdad, no una elegida aparte.
+        private int? SelectedProfileRate =>
+            (DevicesListBox.SelectedItem as UsbDeviceModel)?.SelectedRate;
+
+        // Elegir un perfil lo APLICA. No hay boton "Cargar": un perfil seleccionado pero no
+        // aplicado es un estado que solo sirve para confundir.
+        private void GameProfileCombo_Changed(object sender, SelectionChangedEventArgs e)
         {
             if (_updatingProfiles) return;
-            if (GameProfileList.SelectedItem is not GameProfileRow row) return;
+            UpdateProfileButtons();
 
-            ApplyGameProfile(row.Profile);
+            var p = SelectedProfile;
+            if (p == null) return;   // "sin perfil" no deshace nada: no revierte, solo deja de aplicar
 
-            // La caja de nombre y la tasa siguen a la seleccion, para que GUARDAR encima del
-            // mismo perfil sea escribir el nombre cero veces.
-            GameProfileName.Text = row.Profile.Name;
-            SelectProfileRate(row.Profile.Rate);
+            // Aplicar un perfil escribe la luz, y eso necesita _lightPadId resuelto. Antes esta
+            // llamada colgaba de entrar a la pagina de PERFILES; sin pagina, tiene que ir aqui,
+            // o aplicar un perfil sin haber pasado nunca por LUCES dejaria su mitad de luz sin
+            // efecto y en silencio.
+            RefreshPlayStationDevices();
+            ApplyGameProfile(p);
+            LogStatus($"Perfil '{p.Name}' aplicado.");
         }
 
-        private void SelectProfileRate(int? rate)
+        // ===== Renombrar: el desplegable se cambia por una caja de texto en su misma casilla =====
+        private void ProfileEdit_Click(object sender, RoutedEventArgs e)
         {
-            foreach (ComboBoxItem item in GameProfileRate.Items)
-            {
-                if ((int?)item.Tag == rate) { GameProfileRate.SelectedItem = item; return; }
-            }
-            GameProfileRate.SelectedIndex = 0;
+            if (SelectedProfileName is not string actual) return;
+            GameProfileRename.Text = actual;
+            GameProfileCombo.Visibility = Visibility.Collapsed;
+            GameProfileRename.Visibility = Visibility.Visible;
+            GameProfileRename.Focus();
+            GameProfileRename.SelectAll();
         }
 
-        private int? SelectedProfileRate =>
-            (GameProfileRate.SelectedItem as ComboBoxItem)?.Tag as int?;
+        private void GameProfileRename_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter) { CommitRename(); e.Handled = true; }
+            else if (e.Key == Key.Escape) { CancelRename(); e.Handled = true; }
+        }
+
+        // LostFocus tambien confirma: si el usuario escribe y pincha fuera, esperaba que se
+        // guardase. Descartar en silencio lo que acaba de teclear seria lo peor de las dos.
+        private void GameProfileRename_Commit(object sender, RoutedEventArgs e) => CommitRename();
+
+        private void CancelRename()
+        {
+            GameProfileRename.Visibility = Visibility.Collapsed;
+            GameProfileCombo.Visibility = Visibility.Visible;
+            _guardandoNuevo = false;
+        }
+
+        private void CommitRename()
+        {
+            if (GameProfileRename.Visibility != Visibility.Visible) return;
+
+            string nuevo = GameProfileRename.Text.Trim();
+            string? viejo = SelectedProfileName;
+            bool creando = _guardandoNuevo;
+            CancelRename();
+
+            // La misma caja sirve para renombrar y para bautizar un perfil nuevo; _guardandoNuevo
+            // dice cual de las dos era. Sin esa bandera, confirmar haria una cosa u otra segun de
+            // donde vino la caja, que es el tipo de estado implicito que acaba en un bug raro.
+            if (creando)
+            {
+                if (nuevo.Length > 0) GuardarPerfil(nuevo);
+                return;
+            }
+
+            if (viejo == null || nuevo.Length == 0 || nuevo == viejo) return;
+            if (!NombreDePerfilValido(nuevo)) return;
+
+            var p = _gameProfiles.FirstOrDefault(x => string.Equals(x.Name, viejo, StringComparison.OrdinalIgnoreCase));
+            if (p == null) return;
+
+            p.Name = nuevo;
+            var r = GameProfileStore.Save(_gameProfiles);
+            if (!r.Success) { ShowError("Perfil no renombrado", r.Error!); return; }
+
+            RefreshGameProfileList();
+            SeleccionarPerfil(nuevo);
+            LogStatus($"Perfil renombrado a '{nuevo}'.");
+        }
+
+        // Un nombre que ya existe machacaria al otro perfil sin avisar, y el pseudo-perfil de
+        // "ultimo usado" es interno: los dos se rechazan antes de tocar el disco.
+        private bool NombreDePerfilValido(string nombre)
+        {
+            if (string.Equals(nombre, GameProfileStore.LastUsedPseudoProfile, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(nombre, SinPerfil, StringComparison.OrdinalIgnoreCase))
+            {
+                LogStatus("Ese nombre esta reservado. Elige otro.");
+                return false;
+            }
+            return true;
+        }
+
+        private void SeleccionarPerfil(string nombre)
+        {
+            _updatingProfiles = true;
+            try
+            {
+                int i = GameProfileCombo.Items.IndexOf(nombre);
+                if (i >= 0) GameProfileCombo.SelectedIndex = i;
+            }
+            finally { _updatingProfiles = false; }
+            UpdateProfileButtons();
+        }
 
         // Aplica SOLO las mitades que el perfil traiga. Un perfil sin luz no cambia la luz.
         private void ApplyGameProfile(GameProfile p)
@@ -3262,20 +3324,37 @@ namespace HidusbfModernGui
             else RememberLight();
         }
 
+        // Guarda el estado de AHORA (luz + mando + tasa) en el perfil elegido. Con "PERFIL POR
+        // DEFECTO" elegido crea uno nuevo y pide el nombre en la misma caja de renombrar, que
+        // es la unica caja de texto de esta barra: dos sitios distintos para teclear un nombre
+        // serian dos sitios donde buscarlo.
         private void SaveGameProfile_Click(object sender, RoutedEventArgs e)
         {
-            string name = GameProfileName.Text.Trim();
-            if (string.IsNullOrEmpty(name) && GameProfileList.SelectedItem is GameProfileRow sel)
-                name = sel.Name;
-
-            if (string.IsNullOrEmpty(name)) { LogStatus("Ponle un nombre al perfil primero."); return; }
-            if (string.Equals(name, GameProfileStore.LastUsedPseudoProfile, StringComparison.OrdinalIgnoreCase))
+            string? name = SelectedProfileName;
+            if (name == null)
             {
-                LogStatus("Ese nombre esta reservado. Elige otro.");
+                GameProfileRename.Text = "";
+                GameProfileCombo.Visibility = Visibility.Collapsed;
+                GameProfileRename.Visibility = Visibility.Visible;
+                GameProfileRename.Focus();
+                _guardandoNuevo = true;
+                LogStatus("Escribe un nombre y pulsa Enter para crear el perfil.");
                 return;
             }
 
-            bool overwrote = _gameProfiles.RemoveAll(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)) > 0;
+            GuardarPerfil(name);
+        }
+
+        // Alto mientras la caja de renombrar esta sirviendo para CREAR y no para renombrar. Sin
+        // esto, confirmar crearia un perfil o renombraria otro segun de donde vino la caja, que
+        // es exactamente el tipo de estado que se olvida y produce un bug raro.
+        private bool _guardandoNuevo;
+
+        private void GuardarPerfil(string name)
+        {
+            if (!NombreDePerfilValido(name)) return;
+
+            bool sobrescribe = _gameProfiles.RemoveAll(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)) > 0;
             _gameProfiles.Add(new GameProfile
             {
                 Name = name,
@@ -3288,21 +3367,115 @@ namespace HidusbfModernGui
             if (!result.Success) { ShowError("Perfil no guardado", result.Error!); return; }
 
             RefreshGameProfileList();
-            // Sobrescribir se avisa en la barra de estado, no con un dialogo: el usuario acaba
-            // de escribir un nombre que ya estaba en la lista que tiene delante.
-            LogStatus(overwrote ? $"Perfil '{name}' sobrescrito." : $"Perfil '{name}' guardado.");
+            SeleccionarPerfil(name);
+            LogStatus(sobrescribe ? $"Perfil '{name}' sobrescrito." : $"Perfil '{name}' guardado.");
         }
 
         private void DeleteGameProfile_Click(object sender, RoutedEventArgs e)
         {
-            if (GameProfileList.SelectedItem is not GameProfileRow row) { LogStatus("Selecciona un perfil."); return; }
+            if (SelectedProfileName is not string name) { LogStatus("Elige un perfil primero."); return; }
 
-            _gameProfiles.RemoveAll(x => string.Equals(x.Name, row.Name, StringComparison.OrdinalIgnoreCase));
+            _gameProfiles.RemoveAll(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
             var result = GameProfileStore.Save(_gameProfiles);
             if (!result.Success) { ShowError("Perfil no borrado", result.Error!); return; }
 
             RefreshGameProfileList();
-            LogStatus($"Perfil '{row.Name}' borrado. Hay una copia en {GameProfileStore.Path}.backup");
+            LogStatus($"Perfil '{name}' borrado. Hay una copia en {GameProfileStore.Path}.backup");
+        }
+
+        // ===== Importar y exportar UN perfil =====
+        //
+        // Un perfil por archivo, no la lista entera: esto sirve para pasarle a alguien tu
+        // configuracion de un juego. Una copia de seguridad de todo ya la da game-profiles.json,
+        // que se puede copiar tal cual.
+        private void ExportGameProfile_Click(object sender, RoutedEventArgs e)
+        {
+            if (SelectedProfile is not GameProfile p) { LogStatus("Elige un perfil para exportar."); return; }
+
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "Exportar perfil",
+                FileName = LimpiarNombreDeArchivo(p.Name) + ".ultraprofile.json",
+                Filter = "Perfil de UltraPolling (*.json)|*.json",
+                AddExtension = true,
+            };
+            if (dlg.ShowDialog(this) != true) return;
+
+            try
+            {
+                string json = System.Text.Json.JsonSerializer.Serialize(p, new System.Text.Json.JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+                });
+                System.IO.File.WriteAllText(dlg.FileName, json);
+                LogStatus($"Perfil '{p.Name}' exportado.");
+            }
+            catch (Exception ex)
+            {
+                ShowError("Perfil no exportado", ex.Message);
+            }
+        }
+
+        private void ImportGameProfile_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Importar perfil",
+                Filter = "Perfil de UltraPolling (*.json)|*.json|Todos los archivos|*.*",
+            };
+            if (dlg.ShowDialog(this) != true) return;
+
+            GameProfile? p;
+            try
+            {
+                string json = System.IO.File.ReadAllText(dlg.FileName);
+                p = System.Text.Json.JsonSerializer.Deserialize<GameProfile>(json, new System.Text.Json.JsonSerializerOptions
+                {
+                    Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+                });
+            }
+            catch (Exception ex)
+            {
+                // Un archivo que no es un perfil es un error del usuario, no un fallo de la app:
+                // se cuenta y no se cae.
+                ShowError("Perfil no importado", $"Ese archivo no se pudo leer como perfil: {ex.Message}");
+                return;
+            }
+
+            if (p == null || string.IsNullOrWhiteSpace(p.Name))
+            {
+                ShowError("Perfil no importado", "El archivo no contiene un perfil con nombre.");
+                return;
+            }
+            if (!NombreDePerfilValido(p.Name)) return;
+
+            // Si ya hay uno con ese nombre se avisa ANTES de pisarlo: importar no puede llevarse
+            // por delante un perfil que el usuario ajusto a mano sin que se entere.
+            bool choca = _gameProfiles.Any(x => string.Equals(x.Name, p.Name, StringComparison.OrdinalIgnoreCase));
+            if (choca)
+            {
+                var r = MessageBox.Show(this,
+                    $"Ya tienes un perfil llamado '{p.Name}'. ¿Reemplazarlo?",
+                    "Perfil repetido", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (r != MessageBoxResult.Yes) return;
+                _gameProfiles.RemoveAll(x => string.Equals(x.Name, p.Name, StringComparison.OrdinalIgnoreCase));
+            }
+
+            _gameProfiles.Add(p);
+            var saved = GameProfileStore.Save(_gameProfiles);
+            if (!saved.Success) { ShowError("Perfil no importado", saved.Error!); return; }
+
+            RefreshGameProfileList();
+            SeleccionarPerfil(p.Name);
+            LogStatus($"Perfil '{p.Name}' importado.");
+        }
+
+        private static string LimpiarNombreDeArchivo(string nombre)
+        {
+            foreach (char c in System.IO.Path.GetInvalidFileNameChars())
+                nombre = nombre.Replace(c, '_');
+            return nombre;
         }
 
         // Scan and populate the device list
