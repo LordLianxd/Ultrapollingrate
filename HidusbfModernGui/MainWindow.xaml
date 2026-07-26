@@ -1352,22 +1352,11 @@
                                             <TextBlock Text="MI PALETA" Style="{StaticResource FieldLabel}" Margin="0,4,0,8"/>
                                             <StackPanel x:Name="PaletteRow" Orientation="Horizontal" Margin="0,0,0,16"/>
 
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-
-                                                <local:ColourPicker x:Name="Picker" Grid.Column="0"
-                                                                    ColorChanged="Picker_ColorChanged" HorizontalAlignment="Left"/>
-
-                                                <!-- The one place colour is not status: this IS the data. -->
-                                                <Border Grid.Column="1" x:Name="ColourSwatch" Width="72" Height="72"
-                                                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                                                        VerticalAlignment="Top" Margin="20,0,0,0"/>
-                                            </Grid>
-
-                                            <TextBlock x:Name="HexText" Text="#0000FF" Style="{StaticResource DataText}" Margin="0,14,0,0"/>
+                                            <!-- El propio ColourPicker trae ya su banda de vista previa y su
+                                                 campo hex editable: la muestra y el texto sueltos que habia
+                                                 aqui antes duplicaban el color y el hex por partida doble. -->
+                                            <local:ColourPicker x:Name="Picker"
+                                                                 ColorChanged="Picker_ColorChanged" HorizontalAlignment="Left"/>
                                         </StackPanel>
                                     </Border>
                                     </StackPanel>
@@ -1390,6 +1379,8 @@
                                             <StackPanel Orientation="Horizontal">
                                                 <StackPanel x:Name="PlayerLedRow" Orientation="Horizontal" VerticalAlignment="Center"/>
                                                 <Border Width="1" Background="{StaticResource BorderBrush}" Margin="10,2,16,2"/>
+                                                <TextBlock Text="BRILLO" Style="{StaticResource FieldLabel}"
+                                                           VerticalAlignment="Center" Margin="0,0,10,0"/>
                                                 <StackPanel x:Name="BrightnessRow" Orientation="Horizontal" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </StackPanel>

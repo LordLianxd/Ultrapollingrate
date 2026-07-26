@@ -51,8 +51,8 @@
     <!-- Las cinco barras del LED de jugador todas encendidas: el sexto valor de PlayerLeds
          (All), que NO es un "jugador 5". -->
     <Geometry x:Key="AllLedsIconPath">M3,10H5V14H3V10M7,10H9V14H7V10M11,10H13V14H11V10M15,10H17V14H15V10M19,10H21V14H19V10Z</Geometry>
-    <!-- Brillo: tres soles con el nucleo cada vez mayor. El rayo lo pone el mismo path; lo que
-         cambia entre niveles es el tamano al que se dibuja, no la silueta. -->
+    <!-- Estrella para la cabecera de EFECTO DE LOS LED, y reloj junto al combo de velocidad de
+         ese mismo efecto (cuanto tarda cada fotograma de Carga/Estrellas/Respiracion). -->
     <Geometry x:Key="StarIconPath">M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z</Geometry>
     <Geometry x:Key="ClockIconPath">M12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12.5,7H11V13L15.75,15.85L16.5,14.62L12.5,12.25V7Z</Geometry>
 
@@ -704,6 +704,15 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+        <Style.Triggers>
+            <!-- Atenuado al deshabilitarse: las muestras se apagan junto con ColorSection cuando
+                 el rainbow toma el color, y sin esto seguian pareciendo pulsables. Un control que
+                 se ve vivo y no responde miente sobre lo que puede hacer. -->
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.35"/>
+                <Setter Property="Cursor" Value="Arrow"/>
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <!-- Slider. Implicit, like every other control type above: nothing used a

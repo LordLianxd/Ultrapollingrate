@@ -1778,7 +1778,7 @@ namespace HidusbfModernGui
             RedrawRightCurve();
         }
 
-        // Null-guarded like UpdateSwatch/UpdateRainbowHint/UpdatePlayerSpeedText: a Slider
+        // Null-guarded like UpdateRainbowHint/UpdatePlayerSpeedText: a Slider
         // whose XAML Value differs from the RangeBase default (0) raises ValueChanged the
         // moment InitializeComponent assigns its Minimum/Maximum/Value, while later-declared
         // siblings in the same XAML tree (e.g. the "STICK DERECHO" fields, from a change on
@@ -2280,7 +2280,6 @@ namespace HidusbfModernGui
                 if (saved != null)
                 {
                     Picker.SelectedColor = Color.FromRgb(saved.R, saved.G, saved.B);
-                    UpdateSwatch();
                     SelectSegmentByTag(PlayerLedRow, saved.Player);
                     SelectSegmentByTag(BrightnessRow, saved.Brightness);
                     SelectComboByTag(RainbowStyleList, saved.Style);
@@ -2434,7 +2433,6 @@ namespace HidusbfModernGui
                 _updatingLight = false;
             }
 
-            UpdateSwatch();
             ApplyLightNow();   // A preset click is a decision, not a drag - no need to debounce.
         }
 
@@ -2533,14 +2531,6 @@ namespace HidusbfModernGui
             ApplyLightNow();
         }
 
-        private void UpdateSwatch()
-        {
-            if (ColourSwatch == null) return;
-            var c = Picker.SelectedColor;
-            ColourSwatch.Background = new SolidColorBrush(c);
-            HexText.Text = $"#{c.R:X2}{c.G:X2}{c.B:X2}";
-        }
-
         private void ApplyLightNow()
         {
             // Any direct apply cancels a pending debounced one. Without this, dragging a
@@ -2628,7 +2618,6 @@ namespace HidusbfModernGui
             // that nothing is animating - re-applies the restored static colour/player itself.
             PlayerEffectList.SelectedIndex = 0;   // Ninguno
 
-            UpdateSwatch();
             ApplyLightNow();
             LogStatus("Luz restaurada: azul, Player 1.");
             RememberLight();
@@ -2641,11 +2630,6 @@ namespace HidusbfModernGui
             BuildLightControls();
 
             ResolveLightPad();
-
-            bool hayMando = _lightPadId != null;
-            LightEmptyState.Visibility = hayMando ? Visibility.Collapsed : Visibility.Visible;
-            LightPanel.Visibility = hayMando ? Visibility.Visible : Visibility.Collapsed;
-            UpdateSwatch();
         }
 
         // Resolver el mando de las luces es barato y hay que rehacerlo cada vez que cambia el
@@ -2656,10 +2640,24 @@ namespace HidusbfModernGui
         // El orden NO es intercambiable: primero el escaneo (nombre bonito, coincide con la lista de
         // Dispositivos) y si no, el resolutor en-proceso, que es el unico que encuentra el mando
         // cuando HidHide lo oculta con el mando virtual encendido.
+        //
+        // Resolver el mando y reflejarlo en pantalla son la MISMA operacion: separarlas dejaba la
+        // pagina mintiendo al enchufar o desenchufar - controles muertos sin decir nada, o la luz
+        // encendida mientras la pantalla seguia diciendo que no hay mando.
+        //
+        // El escaneo llama aqui aunque la pagina de luces no se haya construido todavia, asi que la
+        // parte de UI se salta si sus controles aun no existen; la proxima entrada a la pagina la
+        // pone al dia.
         private void ResolveLightPad()
         {
             _lightPadId = _allDevices.FirstOrDefault(DualSenseLight.IsPlayStation)?.InstanceId
                           ?? HidHideControl.FindPhysicalGamepadInstanceId();
+
+            if (LightEmptyState == null || LightPanel == null) return;
+
+            bool hayMando = _lightPadId != null;
+            LightEmptyState.Visibility = hayMando ? Visibility.Collapsed : Visibility.Visible;
+            LightPanel.Visibility = hayMando ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void Picker_ColorChanged(object? sender, EventArgs e)
@@ -2669,8 +2667,6 @@ namespace HidusbfModernGui
             // Touching a colour ends the effect: while the rainbow owns the colour, a picked one
             // would be overwritten within one tick (15.6-187.5 ms). The last thing you touched wins.
             if (RainbowCheck.IsChecked == true) RainbowCheck.IsChecked = false;
-
-            UpdateSwatch();
 
             _lightDebounce ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
             _lightDebounce.Tick -= LightDebounce_Tick;
@@ -2739,7 +2735,7 @@ namespace HidusbfModernGui
                 _rainbowWalker ??= new RainbowWalker(CurrentRainbowStyle);
                 (r, g, b) = _rainbowWalker.Advance(RainbowWalker.SpeedPlan(TargetColoursPerSecond).coloursPerTick);
                 _updatingLight = true;
-                try { Picker.SelectedColor = System.Windows.Media.Color.FromRgb(r, g, b); UpdateSwatch(); }
+                try { Picker.SelectedColor = System.Windows.Media.Color.FromRgb(r, g, b); }
                 finally { _updatingLight = false; }
             }
             else
@@ -3034,8 +3030,6 @@ namespace HidusbfModernGui
             }
             finally { _updatingLight = false; }
 
-            UpdateSwatch();
-
             // PlayerEffect_Changed se salta el trabajo bajo _updatingLight, asi que el walker
             // del efecto se rearma aqui, igual que hace el arranque con la intencion guardada.
             if (li.PlayerEffect != PlayerLedEffect.None)
@@ -3131,29 +3125,27 @@ namespace HidusbfModernGui
         // que no estaba al arrancar (replug, o encendido despues de abrir la app). Lo llama
         // el final del escaneo; _intentReapplied evita que pise al camino rapido de arriba.
         // Los dos existen a proposito: no fusionarlos.
+        //
+        // El mando ya se resolvio unas lineas antes, en el mismo Dispatcher.Invoke, via
+        // ResolveLightPad() -> _lightPadId. Buscarlo otra vez aqui (incluia un UsbDeviceModel
+        // sintetico desechable solo para leer su InstanceId) era trabajo duplicado; _lightPadId
+        // es ahora el unico camino para saber que mando hay.
         private void ReapplyIntent()
         {
             if (_intentReapplied) return;
             var intent = IntentStore.Load();
             if (intent == null) { _intentReapplied = true; return; }
 
-            var pad = _allDevices.FirstOrDefault(DualSenseLight.IsPlayStation);
-            if (pad == null)
-            {
-                var hiddenId = HidHideControl.FindPhysicalGamepadInstanceId();
-                if (hiddenId != null)
-                    pad = new UsbDeviceModel { Name = "DualSense (oculto)", InstanceId = hiddenId, Status = "OK", Class = "HIDClass" };
-            }
-            if (pad == null) return;   // sin mando aun; se reintenta al reconectar (Task B4)
+            if (_lightPadId == null) return;   // sin mando aun; se reintenta al reconectar (Task B4)
             _intentReapplied = true;
 
             if (intent.Kind == LightIntentKind.Static)
             {
-                DualSenseLight.Apply(pad.InstanceId, intent.ToLightState());
+                DualSenseLight.Apply(_lightPadId, intent.ToLightState());
             }
             else
             {
-                DualSenseLight.Apply(pad.InstanceId, intent.ToLightState()); // color base + LEDs
+                DualSenseLight.Apply(_lightPadId, intent.ToLightState()); // color base + LEDs
                 // El arranque real del rainbow (walker + timer) se hace cuando el usuario
                 // abre la pestana; aqui se deja el mando en un color valido con los LEDs
                 // correctos para no arrancar animacion en segundo plano en el Dashboard.

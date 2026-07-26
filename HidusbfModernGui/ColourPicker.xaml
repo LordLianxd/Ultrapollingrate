@@ -34,6 +34,15 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+            <Style.Triggers>
+                <!-- Atenuado al deshabilitarse: las tres barras se apagan junto con ColorSection
+                     cuando el rainbow toma el color, y sin esto seguian pareciendo arrastrables.
+                     Un control que se ve vivo y no responde miente sobre lo que puede hacer. -->
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.35"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <Style x:Key="ColourValue" TargetType="TextBlock" BasedOn="{StaticResource DataText}">
@@ -67,25 +76,34 @@
             </StackPanel>
         </Grid>
 
-        <Grid Margin="0,14,0,0">
-            <Slider x:Name="HueBar" Style="{StaticResource ColourSlider}" Minimum="0" Maximum="360"
-                    Margin="0,0,50,0" AutomationProperties.Name="Tono"
-                    ValueChanged="Bar_ValueChanged"/>
-            <TextBlock x:Name="HueValue" Style="{StaticResource ColourValue}" HorizontalAlignment="Right"/>
-        </Grid>
+        <StackPanel Margin="0,14,0,0">
+            <TextBlock Text="TONO" Style="{StaticResource FieldLabel}" Margin="0,0,0,4"/>
+            <Grid>
+                <Slider x:Name="HueBar" Style="{StaticResource ColourSlider}" Minimum="0" Maximum="360"
+                        Margin="0,0,50,0" AutomationProperties.Name="Tono"
+                        ValueChanged="Bar_ValueChanged"/>
+                <TextBlock x:Name="HueValue" Style="{StaticResource ColourValue}" HorizontalAlignment="Right"/>
+            </Grid>
+        </StackPanel>
 
-        <Grid Margin="0,10,0,0">
-            <Slider x:Name="SatBar" Style="{StaticResource ColourSlider}" Minimum="0" Maximum="100"
-                    Margin="0,0,50,0" AutomationProperties.Name="Saturacion"
-                    ValueChanged="Bar_ValueChanged"/>
-            <TextBlock x:Name="SatValue" Style="{StaticResource ColourValue}" HorizontalAlignment="Right"/>
-        </Grid>
+        <StackPanel Margin="0,10,0,0">
+            <TextBlock Text="SATURACION" Style="{StaticResource FieldLabel}" Margin="0,0,0,4"/>
+            <Grid>
+                <Slider x:Name="SatBar" Style="{StaticResource ColourSlider}" Minimum="0" Maximum="100"
+                        Margin="0,0,50,0" AutomationProperties.Name="Saturacion"
+                        ValueChanged="Bar_ValueChanged"/>
+                <TextBlock x:Name="SatValue" Style="{StaticResource ColourValue}" HorizontalAlignment="Right"/>
+            </Grid>
+        </StackPanel>
 
-        <Grid Margin="0,10,0,0">
-            <Slider x:Name="ValBar" Style="{StaticResource ColourSlider}" Minimum="0" Maximum="100"
-                    Margin="0,0,50,0" AutomationProperties.Name="Brillo del color"
-                    ValueChanged="Bar_ValueChanged"/>
-            <TextBlock x:Name="ValValue" Style="{StaticResource ColourValue}" HorizontalAlignment="Right"/>
-        </Grid>
+        <StackPanel Margin="0,10,0,0">
+            <TextBlock Text="BRILLO DEL COLOR" Style="{StaticResource FieldLabel}" Margin="0,0,0,4"/>
+            <Grid>
+                <Slider x:Name="ValBar" Style="{StaticResource ColourSlider}" Minimum="0" Maximum="100"
+                        Margin="0,0,50,0" AutomationProperties.Name="Brillo del color"
+                        ValueChanged="Bar_ValueChanged"/>
+                <TextBlock x:Name="ValValue" Style="{StaticResource ColourValue}" HorizontalAlignment="Right"/>
+            </Grid>
+        </StackPanel>
     </StackPanel>
 </UserControl>
