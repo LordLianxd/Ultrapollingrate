@@ -6,6 +6,14 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <!-- Solo por el NotifyIcon de la bandeja: WPF no trae ninguno. NO anade NuGet ni
+         engorda el portable - System.Windows.Forms.dll ya viene dentro del runtime
+         Microsoft.WindowsDesktop.App que WPF arrastra al bundle self-contained.
+         El precio es que colisionan nombres (Application, MessageBox, Color, Brush,
+         Point, ContextMenu) con System.Windows(.Media), que este proyecto usa mucho;
+         por eso el codigo de bandeja vive aislado en MainWindow.Tray.cs con alias
+         explicitos, y ningun otro archivo hace using de System.Windows.Forms. -->
+    <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- Icon on the .exe itself: Explorer, shortcuts, the UAC elevation prompt. -->
     <ApplicationIcon>app.ico</ApplicationIcon>
@@ -14,6 +22,20 @@
     <AssemblyName>UltraPolling</AssemblyName>
     <RootNamespace>HidusbfModernGui</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- CRITICO. Con ImplicitUsings activo, UseWindowsForms inyecta un
+         "global using System.Windows.Forms" y "System.Drawing" en TODOS los archivos, y eso
+         rompe el proyecto entero: Brush, Color, Image, Button, ComboBox, UserControl,
+         Application, MouseEventArgs y KeyEventArgs pasan a ser ambiguos en cada archivo de UI
+         (25 errores CS0104 la primera vez que se probo).
+         Quitando los dos global usings, la referencia al ensamblado SIGUE ahi -que es lo unico
+         que hace falta-, y WinForms solo entra donde se le nombra: los alias explicitos de
+         MainWindow.Tray.cs. Si algun dia hay que usar WinForms en otro archivo, se hace con
+         alias tambien; NO se vuelvan a poner estos usings. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.10" />

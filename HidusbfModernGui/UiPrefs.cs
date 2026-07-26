@@ -19,6 +19,11 @@ namespace HidusbfModernGui
         // Modo del diagrama de botones. Noche es el de siempre.
         public AppTheme Theme { get; set; } = AppTheme.Noche;
         public int ObsPort { get; set; } = UiPrefsStore.DefaultObsPort;
+
+        // Si ya se enseno el globo que explica que la X no cierra, sino que manda la app a la
+        // bandeja. Se ensena UNA vez en la vida de la instalacion: la primera vez es una
+        // sorpresa que hay que explicar, la decima seria ruido.
+        public bool TrayHintShown { get; set; }
     }
 
     // Espejo de los demas stores: mismo %APPDATA%\UltraPolling, escritura con copia

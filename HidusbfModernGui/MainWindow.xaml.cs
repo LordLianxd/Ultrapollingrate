@@ -61,6 +61,7 @@ namespace HidusbfModernGui
             BuildHeaderSpectrum();
             BuildLoadingIndicator();
             BuildEngineSpinner();
+            InitTray();
             RefreshPrivilegeState();
             RefreshStatus();
 
@@ -89,8 +90,33 @@ namespace HidusbfModernGui
         // UI despues de su await y esta llamada no puede hacer await (OnClosing no es async).
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
+            // Todo cierre que NO venga de "Salir" es en realidad un esconder: la X, Alt+F4 y
+            // el menu de la barra de titulo pasan todos por aqui. Cancelar y esconder los cubre
+            // los tres de una vez, en lugar de tener que interceptar cada uno por separado.
+            if (!_reallyExit)
+            {
+                e.Cancel = true;
+                HideToTray();
+                return;
+            }
+
             StopVisualizer();
             _streamerWindow?.Close();
+
+            // Un guardado con debounce pendiente se escribe YA: salir dentro de la ventana de
+            // 750 ms no debe perder el ultimo color o player que eligio el usuario.
+            if (_intentSave != null && _intentSave.IsEnabled && _lastIntent != null)
+            {
+                _intentSave.Stop();
+                IntentStore.Save(_lastIntent);
+            }
+
+            _meterTimer?.Stop();
+            _rainbowTimer?.Stop();
+            // Suelta el handle HID antes de que se vaya el proceso: dejarlo abierto de salida
+            // podria vetar un CM_Query_And_Remove_SubTree posterior sobre ese dispositivo.
+            _meter.Dispose();
+
             if (_engineRunning)
             {
                 if (_engineTimer != null)
@@ -392,6 +418,11 @@ namespace HidusbfModernGui
         {
             EngineSpinner.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
             MasterToggleBtn.IsEnabled = !busy;
+
+            // Los tres finales del motor -arranque OK, arranque fallido y parada- pasan por
+            // aqui, asi que es el sitio que garantiza que el tooltip de la bandeja nunca miente
+            // sobre si el fisico esta oculto.
+            UpdateTrayTooltip();
         }
 
         // Difumina (o deja nitida) la lista mientras se escanea. El desenfoque entra y sale
@@ -482,24 +513,10 @@ namespace HidusbfModernGui
             MaximizeBtn.ToolTip = max ? "Restaurar" : "Maximizar";
         }
 
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
-        {
-            // Release the HID handle before the process goes. Leaving it open on the way
-            // out could veto a later CM_Query_And_Remove_SubTree on that device.
-            _meterTimer?.Stop();
-            _rainbowTimer?.Stop();
-
-            // Si hay un guardado con debounce pendiente, escribirlo YA: cerrar dentro de la
-            // ventana de 750 ms no debe perder el ultimo color/player que eligio el usuario.
-            if (_intentSave != null && _intentSave.IsEnabled && _lastIntent != null)
-            {
-                _intentSave.Stop();
-                IntentStore.Save(_lastIntent);
-            }
-
-            _meter.Dispose();
-            Application.Current.Shutdown();
-        }
+        // La X NO cierra: esconde a la bandeja, para que el mando virtual y la luz sigan
+        // aplicandose mientras juegas. Se sale por el menu del icono. La primera vez que pasa,
+        // un globo lo explica (ver MainWindow.Tray.cs).
+        private void CloseButton_Click(object sender, RoutedEventArgs e) => HideToTray();
 
         // Reads the real system state: the hash of the installed .sys plus the
         // registry, never what this app wrote earlier.
