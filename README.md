@@ -10,6 +10,17 @@ Interfaz moderna y gratuita para el driver [hidusbf](https://github.com/LordOfMi
 - **Medidor de tasa real.** La app no solo muestra la tasa que *pidió*: abre la interfaz HID del dispositivo seleccionado y mide la llegada de reportes en vivo, mostrando PEDIDA vs MEDIDA (mediana, min/max de los huecos). Es la respuesta con números a "¿se aplicó el overclock?". Limitación honesta: mide reportes HID, no el bus USB; un ratón quieto no genera datos y mide "sin datos", no 0 Hz mentiroso.
 - **Mando: Configurar + Luces (solo USB/cable).** El botón mando del sidebar abre un hub con dos partes:
   - **Luces del mando** — lo de siempre: color de la barra de luz con selector y hex, LED de jugador (las 5 luces bajo el touchpad) con brillo, un efecto arcoíris por pasos calculado en OKLab (velocidad ajustable hasta 360 colores/s), y animaciones de los LEDs de jugador (Carga, Estrellas, Respiración) con su propia barra de velocidad. La app recuerda tu último color/efecto y lo restaura al abrir y al reconectar el mando. Perfiles en JSON que guardan luz y, si quieres, la tasa.
+
+    La pagina de **LUCES** ya no pide elegir el mando: lo resuelve sola, y sigue
+    encontrandolo cuando el mando virtual esta encendido y HidHide oculta el fisico.
+
+    El color se elige con tres barras (tono, saturacion y brillo del color) o
+    escribiendo el hex. Ojo con dos "brillos" que no son lo mismo: la barra de
+    **brillo del color** es cuanto se acerca al negro; los segmentos de **BRILLO** son la
+    intensidad del LED del mando, una propiedad del hardware.
+
+    Con **+** guardas el color actual en tu paleta (hasta 12, en
+    `%APPDATA%\UltraPolling\palette.json`); con clic derecho lo quitas.
   - **Configurar el mando** — un remapeador robusto con **visualizador en vivo** del mando transformado (lo que ve el juego) y **modo streamer** (overlay transparente para OBS). El mando en vivo se dibuja con un diseño vectorial propio incluido en la app. Si prefieres una apariencia distinta, puedes instalar un **skin** propio en `%APPDATA%\UltraPolling\skins\<nombre>\` (una imagen base + sus sprites + un `skin.json`); la app lo detecta al abrir y el botón RECARGAR SKIN lo aplica en caliente. Los skins **no se distribuyen con la app**: el arte de un skin es de su autor, y usar o compartir arte ajeno es responsabilidad de quien lo instala.
     - **Curvas de respuesta v2:** Simplificado a modo **Lineal** (por defecto) y **Editor**. En el Editor puedes arrastrar 3 puntos de control con colores fijos con significado (Verde = Zona Baja/precisión, Ámbar = Zona Media/progresividad, Rojo = Zona Alta/límite).
     - **Biblioteca "MIS CURVAS":** Guarda, carga y borra tus curvas personalizadas con nombre de forma independiente al perfil de remapeo general.

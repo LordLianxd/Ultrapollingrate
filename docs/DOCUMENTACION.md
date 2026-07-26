@@ -2,7 +2,7 @@
 
 Este documento explica cómo está construida la app por dentro: los módulos, los flujos de datos, las decisiones de diseño y las lecciones que dejaron los bugs reales. El [README](../README.md) cubre el uso; esto cubre el **cómo y el porqué**.
 
-Última actualización: 2026-07-18 (tras el editor de curvas v2: RESPUESTA en Lineal+Editor, puntos de colores, biblioteca MIS CURVAS y botón "¿CÓMO FUNCIONA?").
+Última actualización: 2026-07-26 (tras el rediseño de LUCES: selector de color con barras HSB y hex, paleta propia hasta 12 colores, resolución automática del mando sin desplegable, y LED de jugador/brillo en segmentos).
 
 ---
 
@@ -29,6 +29,7 @@ Todo el código propio vive en `HidusbfModernGui/` (WPF, .NET 9, x64). Núcleo p
 | `ColourMath.cs` / `ColourRamp.cs` / `RainbowWalker.cs` | Color en OKLab, rampas y el arcoíris por pasos (velocidad en colores/s con avance fraccional). |
 | `PlayerLedWalker.cs` | Animaciones de los LEDs de jugador (Carga, Estrellas, Respiración). |
 | `LightIntent.cs` / `LightProfile.cs` | La "intención" de luz del usuario (qué color/efecto/velocidades quiere) y los perfiles con nombre. |
+| `PalettePreset.cs` | Los colores que el usuario guarda (`palette.json`). `Add` es pura y testeable: normaliza, rechaza repetidos y al llegar al tope tira el mas viejo. |
 | `ControllerState.cs` | Estado normalizado del mando: `StickInput`, `ControllerState`, enums `ResponseCurve`/`PadButton`/`TouchZone`, `CurvePoint`. |
 | `InputTransform.cs` | Toda la matemática del remapeo: deadzone radial, curvas (exponente, sigmoide, escalón, **PCHIP** para la curva del Editor), hair-trigger, remapeo de botones, zonas del touchpad. |
 | `RemapSettings.cs` | Los valores AMIGABLES que ve el usuario (%) y su conversión a parámetros del motor (getters derivados). Incluye los 5 puntos de la curva Editor por stick. |
@@ -54,6 +55,7 @@ Todo el código propio vive en `HidusbfModernGui/` (WPF, .NET 9, x64). Núcleo p
 | `PadVisualHost.cs` | Contenedor que elige entre `PadVisual` (vector) y `SkinnedPadVisual` (imagen + sprites) según el skin disponible. Mantiene la lógica unificada, el feed indiferente al backend de dibujo. |
 | `VisualizerFeed.cs` | Feed de datos a ~60 fps: lee el mando físico O bien devuelve un lector propio si el motor está parado (lección L1), aplica `RemapEngine.Transform` para que la visual = salida transformada, coordina con el motor para ceder la fuente al arrancar. |
 | `StreamerWindow.xaml(.cs)` | Ventana overlay transparente: dibuja el mando en vivo sobre fondo 100% transparente (apto para captura OBS), cierra sin parar el engine, visible independientemente del config pad. |
+| `ColourPicker.xaml(.cs)` | Tres barras HSB con su valor, hex editable y vista previa. Los fondos de saturacion y brillo se recalculan con el tono: una barra que muestra el rojo mientras el color es azul miente sobre lo que hara al arrastrarla. |
 | `MainWindow.xaml(.cs)` | Toda la UI (una sola ventana WPF): dashboard, sistema/driver, hub del mando (Configurar + Luces). |
 
 ### Persistencia (todo en `%APPDATA%\UltraPolling`)
@@ -64,6 +66,7 @@ Todo el código propio vive en `HidusbfModernGui/` (WPF, .NET 9, x64). Núcleo p
 | `profiles.json` | Perfiles de luz (+ tasa opcional). |
 | `remap-profiles.json` | Perfiles del remapeador (`RemapSettings` completo) + el pseudo-perfil `__ultimo_usado__`. |
 | `curves.json` | Biblioteca de curvas del Editor con nombre (MIS CURVAS). |
+| `palette.json` | La paleta propia del usuario (hasta 12 colores; al llegar al tope entra el nuevo y sale el más viejo). |
 
 ## 3. Flujos clave
 
@@ -75,7 +78,7 @@ Un botón hace todo: activa el filtro hidusbf del dispositivo → escribe la tas
 
 La UI edita una `LightIntent` (color/LED/efecto/velocidades) → se aplica al instante por HID output report 0x02 → se persiste con debounce. Al abrir la app o reconectar el mando, la intención se reaplica. Los efectos (arcoíris OKLab, Carga/Estrellas/Respiración) corren en un motor unificado con timers en el hilo de UI.
 
-**Con el mando virtual activo**, el escaneo de dispositivos (PowerShell, proceso externo) no ve el físico oculto — así que la página de luces lo resuelve **en-proceso** (nuestro exe está whitelisteado) y lo inyecta en la lista como "DualSense (oculto por HidHide)". Ver lección L3.
+**Con el mando virtual activo**, el escaneo de dispositivos (PowerShell, proceso externo) no ve el físico oculto — así que la página de luces ya no depende de una lista: resuelve `_lightPadId` sola, primero contra el escaneo normal y, si no aparece, con el resolutor **en-proceso** de HidHide (nuestro exe está whitelisteado). Se vuelve a resolver al terminar cada escaneo, para que cambiar el mando de puerto no deje un identificador muerto. Ver lecciones L3 (el porqué del resolutor en-proceso) y L7 (por qué ya no hay desplegable de por medio).
 
 ### 3.3 Motor del mando virtual (interruptor maestro)
 
@@ -145,7 +148,7 @@ El arte de un skin es intelectual propiedad del autor — ilustraciones, fotogra
 
 - `HidusbfModernGui.Tests/` (xUnit, `net9.0` **sin** WPF). **Linkea los archivos fuente individualmente** en el csproj — todo archivo nuevo del núcleo hay que añadirlo ahí o los tests no lo ven.
 - Por eso mismo, nada que toque Nefarius/HidSharp/WPF puede linkearse: la capa de E/S se verifica a mano con hardware.
-- Correr: `dotnet test HidusbfModernGui.Tests\HidusbfModernGui.Tests.csproj` (318 tests al escribir esto).
+- Correr: `dotnet test HidusbfModernGui.Tests\HidusbfModernGui.Tests.csproj` (402 tests al escribir esto).
 
 ## 5. Compilar y empaquetar
 
@@ -164,6 +167,17 @@ El paquete es un exe self-contained de un solo archivo + la carpeta `DRIVER` (ve
 - **L4 — Dos dominios de coordenadas = conversión explícita en la frontera.** Los puntos de la curva viven post-deadzone; el canvas dibuja entrada cruda. Colocar puntos sin convertir los despegaba de la curva en cuanto la zona muerta dejaba de ser 0. Arreglo: `DomainToRaw`/`RawToDomain` leyendo inner/outer en vivo.
 - **L5 — Single-file ≠ app normal.** `Assembly.Location` = "" en el publish de un solo archivo; como esa ruta era la whitelist de HidHide, el portable se habría ocultado el mando a sí mismo. `Environment.ProcessPath` siempre.
 - **L6 — El trabajo pesado de dispositivos NUNCA en el hilo de UI.** Reinicios PnP, HidHide, `Thread.Join` del lector y los ~1 s del escaneo PowerShell congelaban la ventana. Todo va por `Task.Run`, con banderas (`_engineBusy`, `_overclockBusy`) para no auto-dispararse rescans.
+- **L7 — Un control que solo puede tener un valor no es una eleccion.** El desplegable de
+  mando de la pagina de luces era una lista de un elemento que habia que confirmar. El
+  resolutor que lo sustituye ya existia y ya se llamaba desde ahi mismo, para el caso
+  dificil (HidHide ocultando el mando); solo faltaba hacerlo el unico camino.
+- **L8 — Mutar el estado en memoria antes de saber si el disco lo acepto.** Los dos caminos
+  de la paleta cambiaban la lista viva y luego intentaban guardar: si el guardado fallaba, la
+  pantalla decia una cosa y el archivo otra, y el color "quitado" reaparecia al reabrir. Se
+  trabaja sobre una copia y solo se adopta si el disco la acepto.
+- **L9 — Un inventario de consumidores hecho a ojo se queda corto.** El plan afirmaba que
+  dos sitios leian los desplegables del LED de jugador; eran nueve. Lo que salvo la migracion
+  no fue el inventario, sino comprobar con grep al final que no quedaba ni una referencia.
 
 ## 7. Seguridad y límites deliberados
 
