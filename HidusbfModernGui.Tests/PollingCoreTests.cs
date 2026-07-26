@@ -1,4 +1,5 @@
 using HidusbfModernGui;
+using System.Linq;
 using Xunit;
 
 namespace HidusbfModernGui.Tests
@@ -424,6 +425,52 @@ namespace HidusbfModernGui.Tests
         {
             Assert.False(PollingCore.RateMatches(0, 1000));
             Assert.False(PollingCore.RateMatches(1000, 0));
+        }
+
+        // Con huecos perfectamente iguales, el p95 tiene que coincidir con la mediana: si no,
+        // el calculo esta metiendo dispersion donde no la hay.
+        [Fact]
+        public void P95_OnAFlatRun_EqualsTheMedian()
+        {
+            var gaps = Enumerable.Repeat(0.125, 200).ToList();
+            var s = PollingCore.Summarise(gaps);
+            Assert.NotNull(s);
+            Assert.Equal(0.125, s!.Value.P95GapMs, 6);
+        }
+
+        // 100 huecos: 95 buenos y 5 malos. El p95 debe caer en la frontera, no arrastrado por
+        // los 5 malos (eso seria el maximo) ni ciego a ellos (eso seria la mediana).
+        [Fact]
+        public void P95_IgnoresTheWorstFivePercentButSeesTheRest()
+        {
+            var gaps = Enumerable.Repeat(1.0, 95).Concat(Enumerable.Repeat(9.0, 5)).ToList();
+            var s = PollingCore.Summarise(gaps);
+            Assert.NotNull(s);
+            Assert.Equal(1.0, s!.Value.MedianGapMs, 6);
+            Assert.Equal(9.0, s.Value.MaxGapMs, 6);   // el maximo si los ve
+            Assert.Equal(1.0, s.Value.P95GapMs, 6);   // el p95 no se deja arrastrar
+        }
+
+        // Un solo hueco: el p95 no puede salirse del array. Es el caso que revienta si el
+        // indice se calcula sin acotar.
+        [Fact]
+        public void P95_WithASingleGap_IsThatGap()
+        {
+            var s = PollingCore.Summarise(new List<double> { 0.5 });
+            Assert.NotNull(s);
+            Assert.Equal(0.5, s!.Value.P95GapMs, 6);
+        }
+
+        // El p95 nunca puede quedar por debajo de la mediana ni por encima del maximo.
+        // Invariante que tiene que aguantar con una tanda irregular de verdad.
+        [Fact]
+        public void P95_SitsBetweenTheMedianAndTheMax()
+        {
+            var gaps = new List<double> { 0.1, 0.2, 0.15, 3.0, 0.12, 0.9, 0.13, 0.11, 2.2, 0.14 };
+            var s = PollingCore.Summarise(gaps);
+            Assert.NotNull(s);
+            Assert.True(s!.Value.P95GapMs >= s.Value.MedianGapMs);
+            Assert.True(s.Value.P95GapMs <= s.Value.MaxGapMs);
         }
     }
 
