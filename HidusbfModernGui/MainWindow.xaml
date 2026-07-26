@@ -606,17 +606,51 @@
                                      perfil ya no pertenece a una de ellas: guarda las dos a la vez. -->
                                 <Border Grid.Row="0" Style="{StaticResource SegmentGroup}" Margin="24,16,24,0">
                                     <StackPanel Orientation="Horizontal">
-                                        <!-- OJO: el segmento inicial NO se marca aqui. Un IsChecked="True" en XAML
-                                                 dispara Checked mientras se PARSEA, antes de que existan los paneles
-                                                 hermanos que el handler toca, y la app se cae al arrancar. Se marca en
-                                                 Window_Loaded, cuando el arbol ya esta entero. -->
-                                        <RadioButton x:Name="ConfigTabBtn" Content="CONFIGURAR EL MANDO" GroupName="MandoNav"
+                                        <!-- Icono + etiqueta corta. La etiqueta larga ("CONFIGURAR EL MANDO")
+                                             repetia "EL MANDO" en dos de los tres segmentos cuando la seccion
+                                             entera YA es el mando: el icono dice de que va y una palabra basta
+                                             para distinguirlos.
+                                             El Fill del icono se ata al Foreground del propio RadioButton: un
+                                             Path NO hereda Foreground, y sin esto el icono se quedaria del
+                                             color de las inactivas al activarse el segmento.
+                                             AutomationProperties.Name porque el contenido ya no es una cadena.
+                                             OJO: el segmento inicial NO se marca aqui. Un IsChecked="True" en
+                                             XAML dispara Checked mientras se PARSEA, antes de que existan los
+                                             paneles hermanos que el handler toca, y la app se cae al arrancar.
+                                             Se marca en Window_Loaded, con el arbol ya entero. -->
+                                        <RadioButton x:Name="ConfigTabBtn" GroupName="MandoNav" Checked="ShowConfigPanel"
                                                      Style="{StaticResource SegmentButton}"
-                                                     Checked="ShowConfigPanel"/>
-                                        <RadioButton x:Name="LucesTabBtn" Content="LUCES DEL MANDO" GroupName="MandoNav"
-                                                     Style="{StaticResource SegmentButton}" Checked="ShowLucesPanel"/>
-                                        <RadioButton x:Name="PerfilesTabBtn" Content="PERFILES" GroupName="MandoNav"
-                                                     Style="{StaticResource SegmentButton}" Checked="ShowPerfilesPanel"/>
+                                                     AutomationProperties.Name="Configurar el mando"
+                                                     ToolTip="Botones, sticks, gatillos y touchpad">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Path Data="{StaticResource GamepadIconPath}" Stretch="Uniform" Width="17" Height="17"
+                                                      VerticalAlignment="Center" Margin="0,0,9,0"
+                                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                                <TextBlock Text="CONFIGURAR" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </RadioButton>
+                                        <RadioButton x:Name="LucesTabBtn" GroupName="MandoNav" Checked="ShowLucesPanel"
+                                                     Style="{StaticResource SegmentButton}"
+                                                     AutomationProperties.Name="Luces del mando"
+                                                     ToolTip="Color de la barra y LED de jugador">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Path Data="{StaticResource BulbIconPath}" Stretch="Uniform" Width="17" Height="17"
+                                                      VerticalAlignment="Center" Margin="0,0,9,0"
+                                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                                <TextBlock Text="LUCES" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </RadioButton>
+                                        <RadioButton x:Name="PerfilesTabBtn" GroupName="MandoNav" Checked="ShowPerfilesPanel"
+                                                     Style="{StaticResource SegmentButton}"
+                                                     AutomationProperties.Name="Perfiles"
+                                                     ToolTip="Guarda luz, configuracion y tasa en un solo perfil">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Path Data="{StaticResource ProfileIconPath}" Stretch="Uniform" Width="17" Height="17"
+                                                      VerticalAlignment="Center" Margin="0,0,9,0"
+                                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                                <TextBlock Text="PERFILES" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </RadioButton>
                                     </StackPanel>
                                 </Border>
 
