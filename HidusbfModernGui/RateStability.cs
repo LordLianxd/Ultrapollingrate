@@ -27,6 +27,12 @@ namespace HidusbfModernGui
         public static RateSteadiness Classify(double medianGapMs, double p95GapMs, int sampleCount)
         {
             if (sampleCount < MinSamples) return RateSteadiness.NoData;
+
+            // Los guardas de abajo comparan numeros, y IEEE754 hace que toda comparacion
+            // con NaN de falso y que Infinity <= Infinity de verdadero: un guarda que
+            // parece cubrir "numeros imposibles" deja pasar NaN e Infinity sin tocarlos.
+            if (!double.IsFinite(medianGapMs) || !double.IsFinite(p95GapMs)) return RateSteadiness.NoData;
+
             if (medianGapMs <= 0 || p95GapMs <= 0) return RateSteadiness.NoData;
 
             // Imposible por definicion: si llega, la medida esta rota y no se interpreta.

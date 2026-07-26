@@ -49,4 +49,29 @@ public class RateStabilityTests
     [Fact]
     public void P95BelowTheMedian_IsNoData()
         => Assert.Equal(RateSteadiness.NoData, RateStability.Classify(0.125, 0.100, 500));
+
+    // NaN hace que toda comparacion de falso, asi que sin guarda de finitud el valor se
+    // cuela por todos los "if" y sale como Irregular: un diagnostico seguro sobre una
+    // muestra rota. Cubre mediana NaN, p95 NaN y los dos a la vez.
+    [Theory]
+    [InlineData(double.NaN, 0.130)]
+    [InlineData(0.125, double.NaN)]
+    [InlineData(double.NaN, double.NaN)]
+    public void NaN_IsNoData(double median, double p95)
+        => Assert.Equal(RateSteadiness.NoData, RateStability.Classify(median, p95, 500));
+
+    // Infinity <= Infinity es verdadero en IEEE754, asi que sin guarda de finitud una
+    // medida totalmente rota (mediana y p95 en +Infinity) pasaba todos los "if" y
+    // terminaba en Regular: el chip mas tranquilizador para la medida mas rota posible.
+    [Fact]
+    public void BothInfinity_IsNoData()
+        => Assert.Equal(RateSteadiness.NoData,
+                        RateStability.Classify(double.PositiveInfinity, double.PositiveInfinity, 500));
+
+    // Un p95 en +Infinity con mediana finita tambien es una medida rota, no un flujo
+    // erratico de verdad.
+    [Fact]
+    public void P95Infinity_IsNoData()
+        => Assert.Equal(RateSteadiness.NoData,
+                        RateStability.Classify(0.125, double.PositiveInfinity, 500));
 }
