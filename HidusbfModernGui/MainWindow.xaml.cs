@@ -51,6 +51,7 @@ namespace HidusbfModernGui
 
             BuildHeaderSpectrum();
             BuildLoadingIndicator();
+            RefreshPrivilegeState();
             RefreshStatus();
 
             // La luz guardada se aplica AQUI, antes del escaneo: el usuario ve su color a la
@@ -475,12 +476,32 @@ namespace HidusbfModernGui
             UpdateWarningBanner();
         }
 
-        // The driver warning is the only surface that explains a Warn/Error header
-        // dot, so it lives in its own status-bar slot instead of the scrolling
-        // StatusLogText line. RefreshStatus() is the only writer of this element;
-        // RefreshDevicesList()'s "Scanning..." / "Scan completed..." chatter only
-        // ever touches StatusLogText, so it can never clobber an unacknowledged
-        // warning off the screen the way the old single-line log did.
+        // El aviso del driver es lo unico que explica un punto de estado en Warn/Error, asi
+        // que vive en Ajustes > ESTADO DEL SISTEMA y no en la barra inferior, que ahora es
+        // muda y se retira sola: un aviso que se borra a los seis segundos no es un aviso.
+        // RefreshStatus() es el UNICO que escribe aqui; la cháchara del escaneo va a
+        // StatusLogText y no puede pisarlo.
+        // El "ADMIN" de la barra vieja era una etiqueta escrita a mano. Aqui, bajo el rotulo
+        // PERMISOS, se lee como el resultado de una comprobacion - asi que se comprueba. El
+        // manifiesto pide requireAdministrator, o sea que deberia ser siempre cierto; si algun
+        // dia deja de serlo, esto lo dira en vez de seguir afirmandolo.
+        private void RefreshPrivilegeState()
+        {
+            try
+            {
+                using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+                var principal = new System.Security.Principal.WindowsPrincipal(identity);
+                bool admin = principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+                PrivilegeText.Text = admin ? "Administrador" : "Usuario estandar";
+                PrivilegeText.Foreground = StatusBrush(admin ? StatusLevel.Ok : StatusLevel.Warn);
+            }
+            catch (Exception ex)
+            {
+                PrivilegeText.Text = "Desconocido";
+                System.Diagnostics.Debug.WriteLine($"RefreshPrivilegeState fallo: {ex.Message}");
+            }
+        }
+
         private void UpdateWarningBanner()
         {
             string? warning = _driverState.Warning;
@@ -3527,11 +3548,31 @@ namespace HidusbfModernGui
             MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
-        // Helper to output to the console log at the bottom
+        // Cuanto se queda un mensaje antes de que la barra se vuelva a callar. 6 s: lo
+        // suficiente para leer una frase sin volver a mirar, poco para que estorbe.
+        private static readonly TimeSpan StatusLinger = TimeSpan.FromSeconds(6);
+        private DispatcherTimer? _statusHide;
+
+        // La barra es MUDA: aparece al tener algo que decir y se retira sola. Cada mensaje
+        // nuevo reinicia la cuenta, asi que una rafaga (escaneo -> resultado) no parpadea.
         private void LogStatus(string message)
         {
             string timestamp = DateTime.Now.ToString("HH:mm:ss");
             StatusLogText.Text = $"[{timestamp}] {message}";
+            StatusBar.Visibility = Visibility.Visible;
+
+            _statusHide ??= new DispatcherTimer { Interval = StatusLinger };
+            _statusHide.Tick -= StatusHide_Tick;
+            _statusHide.Tick += StatusHide_Tick;
+            _statusHide.Stop();
+            _statusHide.Start();
+        }
+
+        private void StatusHide_Tick(object? sender, EventArgs e)
+        {
+            _statusHide!.Stop();
+            StatusBar.Visibility = Visibility.Collapsed;
+            StatusLogText.Text = "";
         }
     }
 }

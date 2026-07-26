@@ -448,6 +448,28 @@
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <StackPanel Margin="24" MaxWidth="620" HorizontalAlignment="Left">
 
+                                    <!-- Estado del sistema. Vivia en la barra inferior, ocupando una franja
+                                         permanente en TODAS las pantallas para repetir siempre lo mismo. Es
+                                         estado fijo: su sitio es aqui, junto al servicio y al modo del driver
+                                         que lo explican. -->
+                                    <TextBlock Text="ESTADO DEL SISTEMA" Style="{StaticResource SectionHeading}"/>
+                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                            BorderThickness="1" Padding="18" Margin="0,8,0,20">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="PERMISOS" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Width="90"/>
+                                                <TextBlock x:Name="PrivilegeText" Text="Administrador" Style="{StaticResource DataText}"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <!-- Solo aparece cuando hay algo que advertir. El color lo pone
+                                                 RefreshStatus segun DriverState, asi que sigue codificando un
+                                                 hecho y no decorando. -->
+                                            <TextBlock x:Name="WarningText" Text="" Style="{StaticResource DataText}"
+                                                       FontSize="12" TextWrapping="Wrap" Margin="0,14,0,0"
+                                                       Visibility="Collapsed"/>
+                                        </StackPanel>
+                                    </Border>
+
                                     <TextBlock Text="SERVICIO" Style="{StaticResource SectionHeading}"/>
                                     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
                                             BorderThickness="1" Padding="18" Margin="0,8,0,20">
@@ -1487,32 +1509,18 @@
                         </TabItem>
                     </TabControl>
 
-                    <!-- Status / Log Bar at Bottom -->
-                    <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Height="30">
+                    <!-- Barra MUDA. Solo aparece cuando hay algo pasajero que decir (un perfil
+                         guardado, una tasa escrita, un error) y se retira sola: ocupar una franja
+                         permanente en todas las pantallas para repetir lo mismo era ruido.
+                         Lo que era fijo -el aviso del driver y ADMIN- vive ahora en Ajustes, que
+                         es donde se va a mirar el estado del sistema. -->
+                    <Border x:Name="StatusBar" Grid.Row="2" Background="{StaticResource SurfaceBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Height="30"
+                            Visibility="Collapsed">
                         <Grid Margin="16,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock Grid.Column="0" x:Name="StatusLogText" Text="" Style="{StaticResource DataText}"
+                            <TextBlock x:Name="StatusLogText" Text="" Style="{StaticResource DataText}"
                                        FontSize="11" Foreground="{StaticResource TextLabelBrush}"
                                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-
-                            <!-- Sticky driver warning. Only RefreshStatus() writes this; routine
-                                 scan chatter on StatusLogText cannot overwrite it. Coloured per
-                                 DriverState.HeaderStatus, so the colour still encodes real state
-                                 rather than decorating. Collapsed (no eleventh colour, no space
-                                 taken) when there is nothing to warn about. -->
-                            <TextBlock Grid.Column="1" x:Name="WarningText" Text="" Style="{StaticResource DataText}"
-                                       FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                       MaxWidth="420" Margin="16,0" Visibility="Collapsed"
-                                       ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
-
-                            <TextBlock Grid.Column="2" Text="ADMIN" Style="{StaticResource SectionHeading}"
-                                       VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
                 </Grid>
