@@ -213,11 +213,21 @@ namespace HidusbfModernGui
             var result = new List<UsbDeviceModel>();
             try
             {
-                // Query present parent PNP USB devices and their bus speed
+                // Dispositivos USB padre presentes y su velocidad de bus.
+                //
+                // La velocidad se pide para TODOS de una vez, pasando la lista por la tuberia,
+                // en vez de llamar a Get-PnpDeviceProperty dispositivo por dispositivo dentro
+                // de un ForEach-Object. Medido en este equipo con 7 dispositivos: 3728 ms el
+                // bucle contra 2469 ms el lote, misma salida. Cada invocacion del cmdlet abria
+                // su propia consulta CIM, y eso costaba ~260 ms por dispositivo.
+                //
+                // Lo que queda (unos 2,5 s) es casi todo arranque de powershell.exe (~790 ms)
+                // mas la carga del modulo PnpDevice (~1,1 s). Bajar de ahi pide enumerar en
+                // proceso con las APIs del Config Manager, no otra vuelta de tuerca al script.
                 var psi = new ProcessStartInfo
                 {
                     FileName = "powershell.exe",
-                    Arguments = "-NoProfile -Command \"Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -like 'USB\\*' -and $_.InstanceId -notlike '*&MI_*' -and $_.Service -notin @('USBHUB3', 'usbhub', 'hubmsp', 'pci', 'usbxhci', 'ROOT_HUB30') } | ForEach-Object { $speedProp = Get-PnpDeviceProperty -InstanceId $_.InstanceId -KeyName '{3464F7A4-2444-40B1-980A-E0903CB6D912} 10' -ErrorAction SilentlyContinue; [PSCustomObject]@{ FriendlyName = $_.FriendlyName; InstanceId = $_.InstanceId; Status = $_.Status; Class = $_.Class; Speed = if ($speedProp -and $null -ne $speedProp.Data) { [int]$speedProp.Data } else { 0 } } } | ConvertTo-Json -Compress\"",
+                    Arguments = "-NoProfile -Command \"$d = Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -like 'USB\\*' -and $_.InstanceId -notlike '*&MI_*' -and $_.Service -notin @('USBHUB3', 'usbhub', 'hubmsp', 'pci', 'usbxhci', 'ROOT_HUB30') }; $sp = $d | Get-PnpDeviceProperty -KeyName '{3464F7A4-2444-40B1-980A-E0903CB6D912} 10' -ErrorAction SilentlyContinue; $m = @{}; foreach ($s in $sp) { $m[$s.InstanceId] = $s.Data }; $d | ForEach-Object { [PSCustomObject]@{ FriendlyName = $_.FriendlyName; InstanceId = $_.InstanceId; Status = $_.Status; Class = $_.Class; Speed = $(if ($m.ContainsKey($_.InstanceId) -and $null -ne $m[$_.InstanceId]) { [int]$m[$_.InstanceId] } else { 0 }) } } | ConvertTo-Json -Compress\"",
                     RedirectStandardOutput = true,
                     UseShellExecute = false,
                     CreateNoWindow = true

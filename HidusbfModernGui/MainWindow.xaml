@@ -201,7 +201,11 @@
                                  El panel de detalle pasa a ancho FIJO: su contenido (numero
                                  grande, tabla de campos, combo) no mejora por ser mas ancho,
                                  asi que todo el ancho extra va a la lista, que si lo usa. -->
-                            <Grid Margin="24,20,24,10" MaxWidth="1500" HorizontalAlignment="Center">
+                            <!-- Stretch y no Center: con Center el Grid se dimensiona a su CONTENIDO, y
+                                 mientras se escanea la lista esta vacia, asi que la columna se encogia y
+                                 el encabezado salia cortado ("DISPOSITIVC" con el boton encima). El
+                                 MaxWidth sigue poniendo el techo. -->
+                            <Grid Margin="24,20,24,10" MaxWidth="1500" HorizontalAlignment="Stretch">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>   <!-- Main operations -->
                                     <ColumnDefinition Width="430"/> <!-- Monitor & Graph -->
@@ -230,16 +234,21 @@
                                         </Button>
                                     </Grid>
 
-                                    <!-- Loading indicator. The scan is a PowerShell round trip (~1s), so
-                                         this is a real wait, not a fake one staged to look busy. Three
-                                         dots pulsing in sequence; built in code-behind so the stagger
-                                         lives next to the spectrum's. -->
-                                    <StackPanel x:Name="LoadingIndicator" Grid.Row="1" Orientation="Horizontal"
-                                                HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                Visibility="Collapsed" Panel.ZIndex="10"/>
+                                    <!-- Indicador de carga: anillo de puntos que giran, construido en
+                                         code-behind (son 12 elipses colocadas por trigonometria). Se muestra
+                                         durante una espera REAL - el escaneo de dispositivos -, no como
+                                         adorno. La lista de debajo se difumina mientras tanto, para que
+                                         quede claro que lo que se ve es viejo y esta a punto de cambiar. -->
+                                    <Canvas x:Name="LoadingIndicator" Grid.Row="1" Width="52" Height="52"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            Visibility="Collapsed" Panel.ZIndex="10">
+                                        <Canvas.RenderTransform>
+                                            <RotateTransform x:Name="LoadingSpin" CenterX="26" CenterY="26"/>
+                                        </Canvas.RenderTransform>
+                                    </Canvas>
 
                                     <!-- Scrollable Devices List -->
-                                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <ScrollViewer x:Name="DevicesScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                         <ListBox x:Name="DevicesListBox"
                                                  Background="Transparent" BorderThickness="0"
                                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"

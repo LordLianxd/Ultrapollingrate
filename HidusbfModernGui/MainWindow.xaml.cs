@@ -292,35 +292,74 @@ namespace HidusbfModernGui
         }
 
         // Three dots pulsing in sequence. Shown only while a scan is genuinely running.
+        // Anillo de 12 puntos que decrecen y se apagan segun se alejan de la cabeza, girando a
+        // saltos de 30 grados. Los saltos son a proposito: un giro continuo a esta escala se
+        // ve como un borron, y el escalonado es lo que hace que se lea el sentido de giro.
+        //
+        // Un solo Storyboard sobre el contenedor en vez de 12 animaciones sueltas: es una sola
+        // cosa que gira, no doce que parpadean cada una a su ritmo.
+        private const int LoadingDots = 12;
+
         private void BuildLoadingIndicator()
         {
             var white = (Brush)FindResource("TextDataBrush");
             LoadingIndicator.Children.Clear();
 
-            for (int i = 0; i < 3; i++)
+            const double centre = 26, ring = 19;
+
+            for (int i = 0; i < LoadingDots; i++)
             {
+                // i = 0 es la cabeza. El tamano cae de 8 a 2.5 px y la opacidad de 1 a 0.18
+                // dando la vuelta, que es lo que dibuja la "estela".
+                double t = (double)i / LoadingDots;
+                double size = 8.0 - 5.5 * t;
+                double angle = -Math.PI / 2 + i * (2 * Math.PI / LoadingDots);
+
                 var dot = new System.Windows.Shapes.Ellipse
                 {
-                    Width = 7,
-                    Height = 7,
+                    Width = size,
+                    Height = size,
                     Fill = white,
-                    Opacity = 0.2,
-                    Margin = new Thickness(5, 0, 5, 0)
+                    Opacity = 1.0 - 0.82 * t,
                 };
+                Canvas.SetLeft(dot, centre + ring * Math.Cos(angle) - size / 2);
+                Canvas.SetTop(dot, centre + ring * Math.Sin(angle) - size / 2);
                 LoadingIndicator.Children.Add(dot);
-
-                var pulse = new DoubleAnimation
-                {
-                    From = 0.15,
-                    To = 1.0,
-                    Duration = TimeSpan.FromMilliseconds(520),
-                    AutoReverse = true,
-                    RepeatBehavior = RepeatBehavior.Forever,
-                    BeginTime = TimeSpan.FromMilliseconds(i * 170),
-                    EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
-                };
-                dot.BeginAnimation(UIElement.OpacityProperty, pulse);
             }
+
+            var spin = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
+            for (int i = 1; i <= LoadingDots; i++)
+            {
+                spin.KeyFrames.Add(new DiscreteDoubleKeyFrame(
+                    i * (360.0 / LoadingDots),
+                    KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(i * (900.0 / LoadingDots)))));
+            }
+            LoadingSpin.BeginAnimation(RotateTransform.AngleProperty, spin);
+        }
+
+        // Difumina (o deja nitida) la lista mientras se escanea. El desenfoque entra y sale
+        // animado: aparecer de golpe se lee como un fallo de dibujado, no como un estado.
+        private void SetDevicesBusy(bool busy)
+        {
+            LoadingIndicator.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
+
+            if (DevicesScroll.Effect is not System.Windows.Media.Effects.BlurEffect blur)
+            {
+                blur = new System.Windows.Media.Effects.BlurEffect
+                {
+                    Radius = 0,
+                    KernelType = System.Windows.Media.Effects.KernelType.Gaussian,
+                };
+                DevicesScroll.Effect = blur;
+            }
+
+            var fade = new DoubleAnimation
+            {
+                To = busy ? 9.0 : 0.0,
+                Duration = TimeSpan.FromMilliseconds(180),
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseOut },
+            };
+            blur.BeginAnimation(System.Windows.Media.Effects.BlurEffect.RadiusProperty, fade);
         }
 
         // Window controls
@@ -2920,9 +2959,8 @@ namespace HidusbfModernGui
             // restored once the new models exist.
             string? selectedInstanceId = (DevicesListBox.SelectedItem as UsbDeviceModel)?.InstanceId;
 
-            // Shown for the duration of a real wait: ScanDevices is a PowerShell round
-            // trip of roughly a second. Not staged busywork.
-            LoadingIndicator.Visibility = Visibility.Visible;
+            // Se muestra durante una espera REAL (el escaneo de dispositivos), no como adorno.
+            SetDevicesBusy(true);
 
             // Scan in background so UI doesn't stutter
             Task.Run(() =>
@@ -2938,7 +2976,7 @@ namespace HidusbfModernGui
                     // empty list, telling the user something is still loading when nothing is.
                     Dispatcher.Invoke(() =>
                     {
-                        LoadingIndicator.Visibility = Visibility.Collapsed;
+                        SetDevicesBusy(false);
                         LogStatus($"Scan failed: {ex.Message}");
                     });
                     return;
@@ -2946,7 +2984,7 @@ namespace HidusbfModernGui
 
                 Dispatcher.Invoke(() =>
                 {
-                    LoadingIndicator.Visibility = Visibility.Collapsed;
+                    SetDevicesBusy(false);
                     _allDevices = devices;
                     ApplyFilters();
 
