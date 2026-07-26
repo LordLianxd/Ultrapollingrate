@@ -731,6 +731,243 @@ git add -u && git commit -m "feat(ui): paleta propia con boton de guardar el col
 
 ---
 
+### Task 5B: LED de jugador y efecto, en segmentos con icono
+
+**Files:**
+- Modify: `HidusbfModernGui/MainWindow.xaml` (las dos tarjetas, líneas ~1378-1406)
+- Modify: `HidusbfModernGui/MainWindow.xaml.cs` (`BuildLightControls`, `LightCombo_Changed`, `PlayerEffect_Changed`)
+- Modify: `HidusbfModernGui/Theme.xaml` (estilo `MiniSegment`, iconos)
+
+**Interfaces:**
+- Consumes: `SegmentButton`/`SegmentGroup` ya existen (los usa la sub-nav del mando); aquí se añade `MiniSegment`, la versión cuadrada y pequeña para un número o un icono suelto.
+
+**Dos choques entre la maqueta y el hardware.** Copiarla al pie de la letra daría un control que miente sobre el mando:
+
+1. **No hay "jugador 5".** `PlayerLeds` tiene seis valores: `Off, Player1..Player4, All`. Los cinco huecos numerados de la maqueta son en realidad **cuatro jugadores más "todas encendidas"**. El sexto segmento va con un icono de las cinco barras y el rótulo accesible "Todas", no con un "5" que prometería un jugador que la consola no tiene.
+2. **El brillo tiene tres niveles, no cuatro.** `LedBrightness` es `High/Medium/Low`. La maqueta enseña cuatro soles; el cuarto no podría hacer nada. Van tres, de menos a más lleno.
+
+**Y un choque de nombres.** La maqueta llama "EFECTO PRINCIPAL" a lo que en el código es el efecto de los **LED** (Ninguno/Carga/Estrellas/Respiración). La página ya tiene otra tarjeta llamada **EFECTO**, que es la del **color** (rainbow). Dos tarjetas llamadas casi igual, gobernando cosas distintas, es peor que un rótulo largo: se rotulan **EFECTO DE LOS LED** y **EFECTO DEL COLOR**.
+
+- [ ] **Step 1: El estilo del segmento pequeño.** En `Theme.xaml`, junto a `SegmentButton`:
+
+```xml
+<!-- Segmento cuadrado para un numero o un icono suelto: el mismo lenguaje que
+     SegmentButton (activo = pastilla clara con tinta oscura) pero al tamano de una casilla.
+     Se usa para elegir jugador y brillo, donde la etiqueta es un simbolo y no una palabra. -->
+<Style x:Key="MiniSegment" TargetType="RadioButton">
+    <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="{StaticResource TextLabelBrush}"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Width" Value="34"/>
+    <Setter Property="Height" Value="30"/>
+    <Setter Property="Margin" Value="0,0,6,0"/>
+    <Setter Property="Template">
+        <Setter.Value>
+            <ControlTemplate TargetType="RadioButton">
+                <Border x:Name="Seg" CornerRadius="7" Background="{StaticResource SurfaceAltBrush}"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsChecked" Value="True">
+                        <Setter TargetName="Seg" Property="Background" Value="{StaticResource TextDataBrush}"/>
+                        <Setter TargetName="Seg" Property="BorderBrush" Value="{StaticResource TextDataBrush}"/>
+                        <Setter Property="Foreground" Value="{StaticResource BgBrush}"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                    </Trigger>
+                    <MultiTrigger>
+                        <MultiTrigger.Conditions>
+                            <Condition Property="IsMouseOver" Value="True"/>
+                            <Condition Property="IsChecked" Value="False"/>
+                        </MultiTrigger.Conditions>
+                        <Setter TargetName="Seg" Property="BorderBrush" Value="{StaticResource TextLabelBrush}"/>
+                        <Setter Property="Foreground" Value="{StaticResource TextDataBrush}"/>
+                    </MultiTrigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate>
+        </Setter.Value>
+    </Setter>
+</Style>
+```
+
+- [ ] **Step 2: Los iconos que faltan.** En `Theme.xaml`, junto a `ProfileIconPath`:
+
+```xml
+<!-- Las cinco barras del LED de jugador todas encendidas: el sexto valor de PlayerLeds
+     (All), que NO es un "jugador 5". -->
+<Geometry x:Key="AllLedsIconPath">M3,10H5V14H3V10M7,10H9V14H7V10M11,10H13V14H11V10M15,10H17V14H15V10M19,10H21V14H19V10Z</Geometry>
+<!-- Brillo: tres soles con el nucleo cada vez mayor. El rayo lo pone el mismo path; lo que
+     cambia entre niveles es el tamano al que se dibuja, no la silueta. -->
+<Geometry x:Key="StarIconPath">M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z</Geometry>
+<Geometry x:Key="ClockIconPath">M12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12.5,7H11V13L15.75,15.85L16.5,14.62L12.5,12.25V7Z</Geometry>
+```
+
+(`SunIconPath` ya existe, del interruptor de día/noche.)
+
+- [ ] **Step 3: La tarjeta LED DE JUGADOR.** Sustituir en `MainWindow.xaml` el `Border` de LED DE JUGADOR entero por:
+
+```xml
+<Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+        BorderThickness="1" CornerRadius="10" Padding="16,14" Margin="0,8,0,0">
+    <StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+            <Path Data="{StaticResource ProfileIconPath}" Stretch="Uniform" Width="16" Height="16"
+                  VerticalAlignment="Center" Margin="0,0,10,0" Fill="{StaticResource TextDataBrush}"/>
+            <TextBlock Text="LUCES DE JUGADOR" Style="{StaticResource SectionHeading}"
+                       FontSize="12" VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- Jugador y brillo, construidos en code-behind: son seis y tres segmentos que
+             cargan cada uno su valor del enum, y escribirlos a mano aqui invitaria a que
+             la lista y el enum se separasen. -->
+        <StackPanel Orientation="Horizontal">
+            <StackPanel x:Name="PlayerLedRow" Orientation="Horizontal" VerticalAlignment="Center"/>
+            <Border Width="1" Background="{StaticResource BorderBrush}" Margin="10,2,16,2"/>
+            <StackPanel x:Name="BrightnessRow" Orientation="Horizontal" VerticalAlignment="Center"/>
+        </StackPanel>
+    </StackPanel>
+</Border>
+
+<Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+        BorderThickness="1" CornerRadius="10" Padding="16,14" Margin="0,12,0,0">
+    <StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,14,0">
+            <Path Data="{StaticResource StarIconPath}" Stretch="Uniform" Width="16" Height="16"
+                  VerticalAlignment="Center" Margin="0,0,10,0" Fill="{StaticResource TextDataBrush}"/>
+            <!-- "DE LOS LED", no "PRINCIPAL": mas abajo hay otra tarjeta de efecto, la del
+                 COLOR. Dos rotulos casi iguales gobernando cosas distintas confunden mas
+                 que un rotulo largo. -->
+            <TextBlock Text="EFECTO DE LOS LED" Style="{StaticResource SectionHeading}"
+                       FontSize="12" VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+            <ComboBox x:Name="PlayerEffectList" Width="150" VerticalAlignment="Center"
+                      SelectionChanged="PlayerEffect_Changed"/>
+            <Path Data="{StaticResource ClockIconPath}" Stretch="Uniform" Width="15" Height="15"
+                  VerticalAlignment="Center" Margin="18,0,10,0" Fill="{StaticResource TextLabelBrush}"/>
+            <Slider x:Name="PlayerSpeed" Minimum="2" Maximum="20" Value="6" Width="140"
+                    IsSnapToTickEnabled="True" TickFrequency="1"
+                    VerticalAlignment="Center" ValueChanged="PlayerSpeed_Changed"
+                    AutomationProperties.Name="Velocidad del efecto de los LED"/>
+            <TextBlock x:Name="PlayerSpeedText" Text="" Style="{StaticResource DataText}"
+                       VerticalAlignment="Center" Margin="10,0,0,0"/>
+        </StackPanel>
+    </StackPanel>
+</Border>
+```
+
+Y la tarjeta de rainbow que hay debajo cambia su rótulo de `EFECTO` a **`EFECTO DEL COLOR`**.
+
+La frase *"Las 5 luces bajo el touchpad. El patron es simetrico, como en la consola."* se va: los segmentos numerados y el icono ya lo enseñan.
+
+- [ ] **Step 4: Construir los segmentos en code-behind.** En `BuildLightControls()`, sustituyendo el relleno de `PlayerLedList` y `BrightnessList`:
+
+```csharp
+// Seis segmentos, no cinco: PlayerLeds trae Off, cuatro jugadores y All. El ultimo lleva
+// el icono de las cinco barras y no un "5", porque un jugador 5 no existe en el mando.
+foreach (var (contenido, valor, nombre) in new (object, PlayerLeds, string)[]
+         {
+             (Icono("ProfileIconPath"), PlayerLeds.Off,    "Ninguna"),
+             ("1", PlayerLeds.Player1, "Jugador 1"),
+             ("2", PlayerLeds.Player2, "Jugador 2"),
+             ("3", PlayerLeds.Player3, "Jugador 3"),
+             ("4", PlayerLeds.Player4, "Jugador 4"),
+             (Icono("AllLedsIconPath"), PlayerLeds.All, "Todas encendidas"),
+         })
+{
+    var seg = new RadioButton
+    {
+        Style = (Style)FindResource("MiniSegment"),
+        GroupName = "PlayerLed",
+        Content = contenido,
+        Tag = valor,
+    };
+    System.Windows.Automation.AutomationProperties.SetName(seg, nombre);
+    seg.ToolTip = nombre;
+    seg.Checked += PlayerLed_Checked;
+    PlayerLedRow.Children.Add(seg);
+}
+
+// Tres niveles, no cuatro: LedBrightness es High/Medium/Low. El sol crece con el nivel.
+foreach (var (tamano, valor, nombre) in new (double, LedBrightness, string)[]
+         {
+             (11, LedBrightness.Low,    "Brillo bajo"),
+             (14, LedBrightness.Medium, "Brillo medio"),
+             (17, LedBrightness.High,   "Brillo alto"),
+         })
+{
+    var seg = new RadioButton
+    {
+        Style = (Style)FindResource("MiniSegment"),
+        GroupName = "LedBrightness",
+        Content = Icono("SunIconPath", tamano),
+        Tag = valor,
+    };
+    System.Windows.Automation.AutomationProperties.SetName(seg, nombre);
+    seg.ToolTip = nombre;
+    seg.Checked += Brightness_Checked;
+    BrightnessRow.Children.Add(seg);
+}
+```
+
+con el helper y los dos handlers:
+
+```csharp
+// El Fill se ata al Foreground del segmento: un Path no lo hereda, y sin esto el icono del
+// segmento activo se quedaria gris sobre la pastilla clara (la leccion L7, otra vez).
+private System.Windows.Shapes.Path Icono(string clave, double tamano = 15)
+{
+    var p = new System.Windows.Shapes.Path
+    {
+        Data = (Geometry)FindResource(clave),
+        Stretch = Stretch.Uniform,
+        Width = tamano,
+        Height = tamano,
+    };
+    p.SetBinding(System.Windows.Shapes.Shape.FillProperty,
+        new Binding("Foreground") { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(RadioButton), 1) });
+    return p;
+}
+
+private void PlayerLed_Checked(object sender, RoutedEventArgs e)
+{
+    if (_updatingLight) return;
+    ApplyLightNow();
+}
+
+private void Brightness_Checked(object sender, RoutedEventArgs e)
+{
+    if (_updatingLight) return;
+    ApplyLightNow();
+}
+```
+
+- [ ] **Step 5: Los lectores del valor.** `CurrentLight()` y `RememberLight()` leen hoy `((ComboBoxItem)PlayerLedList.SelectedItem).Tag`. Sustituir por dos ayudantes que recorren la fila, para que el valor salga de un solo sitio:
+
+```csharp
+// null si aun no se ha construido la fila (el arranque llama a esto antes de tiempo por
+// varios caminos); los llamadores ya saben salirse cuando no hay valor.
+private PlayerLeds? CurrentPlayerLed()
+    => PlayerLedRow.Children.OfType<RadioButton>().FirstOrDefault(r => r.IsChecked == true)?.Tag as PlayerLeds?;
+
+private LedBrightness? CurrentBrightness()
+    => BrightnessRow.Children.OfType<RadioButton>().FirstOrDefault(r => r.IsChecked == true)?.Tag as LedBrightness?;
+```
+
+y `SelectComboByTag(PlayerLedList, ...)` / `SelectComboByTag(BrightnessList, ...)` pasan a marcar el segmento cuyo `Tag` coincide, **bajo `_updatingLight`** para que restaurar la intención guardada no escriba al mando.
+
+- [ ] **Step 6: Verificación** — build 0/0, suite completa PASS. Manual, con el mando: pulsar cada uno de los seis segmentos de jugador y **mirar el mando**, comprobando que el patrón de LED coincide (el de "todas" enciende las cinco, el del icono de persona las apaga); los tres de brillo, notando la diferencia; elegir Estrellas y ver que la barra del reloj cambia la cadencia; cerrar y reabrir y comprobar que vuelve lo elegido.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add -u && git commit -m "feat(ui): LED de jugador y efecto, en segmentos con icono"
+```
+
+---
+
 ### Task 6: Documentación y verificación integral
 
 **Files:**
@@ -790,7 +1027,8 @@ git add -u && git commit -m "docs: luces sin selector de mando y con paleta prop
 
 ## Self-review
 
-- **Cobertura del pedido:** quitar el desplegable de mando → Task 4; rehacer el apartado de color con barras y valores → Task 3; paleta propia con "+" → Tasks 2 y 5. ✓
+- **Cobertura del pedido:** quitar el desplegable de mando → Task 4; rehacer el apartado de color con barras y valores → Task 3; paleta propia con "+" → Tasks 2 y 5; LED de jugador y efecto en segmentos con icono → Task 5B. ✓
+- **Dos correcciones a la maqueta, no omisiones:** seis segmentos de jugador y no cinco (`PlayerLeds` trae `Off..Player4` y `All`, y no existe un jugador 5), y tres de brillo y no cuatro (`LedBrightness` es `High/Medium/Low`). Copiar la maqueta al pie de la letra habría dejado dos controles prometiendo estados que el mando no tiene. ✓
 - **Placeholders:** ninguno; el hex, la paleta y el selector van con su código y sus casos de prueba completos. ✓
 - **Tipos consistentes:** `ColourMath.ToHex/TryParseHex` (Task 1) los consumen `PaletteStore` (2), `ColourPicker` (3) y `MainWindow` (5); `_lightPadId` (Task 4) lo consumen los cuatro sitios enumerados; `ColourPicker` conserva `SelectedColor`/`ColorChanged`, así que Task 3 no arrastra cambios a `MainWindow`. ✓
 - **Riesgo cubierto — perder el mando oculto:** Task 4 conserva el resolutor en-proceso como respaldo y lo pone en la verificación manual como el caso que sí hay que probar. ✓
