@@ -78,6 +78,52 @@ namespace HidusbfModernGui.Tests
             Assert.True(Math.Abs(back.G - g) <= 1, $"G {back.G} vs {g}");
             Assert.True(Math.Abs(back.B - b) <= 1, $"B {back.B} vs {b}");
         }
+
+        [Fact]
+        public void ToHex_IsSixUppercaseDigitsWithoutHash()
+        {
+            Assert.Equal("FF0000", ColourMath.ToHex(255, 0, 0));
+            Assert.Equal("0A0B0C", ColourMath.ToHex(10, 11, 12));
+            Assert.Equal("000000", ColourMath.ToHex(0, 0, 0));
+        }
+
+        [Theory]
+        [InlineData("F83E64", 248, 62, 100)]
+        [InlineData("#F83E64", 248, 62, 100)]
+        [InlineData("  f83e64  ", 248, 62, 100)]
+        [InlineData("#FFF", 255, 255, 255)]
+        [InlineData("0f0", 0, 255, 0)]
+        public void TryParseHex_AcceptsTheFormsAUserActuallyTypes(string text, byte r, byte g, byte b)
+        {
+            Assert.True(ColourMath.TryParseHex(text, out byte pr, out byte pg, out byte pb));
+            Assert.Equal(r, pr);
+            Assert.Equal(g, pg);
+            Assert.Equal(b, pb);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        [InlineData("GGGGGG")]
+        [InlineData("12345")]
+        [InlineData("1234567")]
+        [InlineData("#12")]
+        public void TryParseHex_RejectsWhatIsNotAColour(string? text)
+            => Assert.False(ColourMath.TryParseHex(text, out _, out _, out _));
+
+        // Ida y vuelta: lo que se formatea se vuelve a leer igual. Sin esto, el campo podria
+        // mostrar un valor que el mismo no acepta al reescribirlo.
+        [Fact]
+        public void ToHex_RoundTripsThroughTryParseHex()
+        {
+            foreach (var (r, g, b) in new[] { ((byte)0, (byte)0, (byte)0), ((byte)255, (byte)255, (byte)255),
+                                              ((byte)248, (byte)62, (byte)100), ((byte)1, (byte)128, (byte)254) })
+            {
+                Assert.True(ColourMath.TryParseHex(ColourMath.ToHex(r, g, b), out byte pr, out byte pg, out byte pb));
+                Assert.Equal(r, pr); Assert.Equal(g, pg); Assert.Equal(b, pb);
+            }
+        }
     }
 
     public class OklabTests

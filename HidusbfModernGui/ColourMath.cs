@@ -131,6 +131,33 @@ namespace HidusbfModernGui
             }
             return lo;
         }
+
+        // Hex SIN almohadilla al escribir: el campo es editable y el usuario teclea encima. Una
+        // almohadilla que el no puso y que no puede borrar sin invalidar el valor estorba. Al leer
+        // se acepta igual, con o sin ella, en 3 o 6 digitos, con espacios y en cualquier caja.
+        public static string ToHex(byte r, byte g, byte b) => $"{r:X2}{g:X2}{b:X2}";
+
+        public static bool TryParseHex(string? text, out byte r, out byte g, out byte b)
+        {
+            r = g = b = 0;
+            if (string.IsNullOrWhiteSpace(text)) return false;
+
+            string s = text.Trim().TrimStart('#');
+            if (s.Length == 3)
+            {
+                // La forma corta duplica cada digito: "0f0" es "00ff00", no "0f0000".
+                s = string.Concat(s[0], s[0], s[1], s[1], s[2], s[2]);
+            }
+            if (s.Length != 6) return false;
+
+            if (!int.TryParse(s, System.Globalization.NumberStyles.HexNumber,
+                              System.Globalization.CultureInfo.InvariantCulture, out int v)) return false;
+
+            r = (byte)((v >> 16) & 0xFF);
+            g = (byte)((v >> 8) & 0xFF);
+            b = (byte)(v & 0xFF);
+            return true;
+        }
     }
 
     // How to trade vividness against smoothness. No measurement settles this - a vivid
