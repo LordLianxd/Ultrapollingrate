@@ -2,7 +2,7 @@
 
 Este documento explica cómo está construida la app por dentro: los módulos, los flujos de datos, las decisiones de diseño y las lecciones que dejaron los bugs reales. El [README](../README.md) cubre el uso; esto cubre el **cómo y el porqué**.
 
-Última actualización: 2026-07-26 (tras el rediseño de LUCES: selector de color con barras HSB y hex, paleta propia hasta 12 colores, resolución automática del mando sin desplegable, y LED de jugador/brillo en segmentos).
+Última actualización: 2026-07-26 (tras el rediseño de la página de DISPOSITIVOS: lista y detalle en tarjetas, percentil 95 y `RateStability` para clasificar la regularidad del flujo, y ENTRE REPORTES en vez de LATENCIA; y tras el rediseño de LUCES: selector de color con barras HSB y hex, paleta propia hasta 12 colores, resolución automática del mando sin desplegable, y LED de jugador/brillo en segmentos).
 
 ---
 
@@ -25,7 +25,8 @@ Todo el código propio vive en `HidusbfModernGui/` (WPF, .NET 9, x64). Núcleo p
 
 | Archivo | Responsabilidad |
 |---|---|
-| `PollingCore.cs` | Aritmética del polling: slots↔Hz según modo del driver y velocidad del bus, latencias, niveles de estado. |
+| `PollingCore.cs` | Aritmética del polling: slots↔Hz según modo del driver y velocidad del bus, latencias, niveles de estado, y `RateSample` (mediana, min/max y percentil 95 de los huecos entre reportes). |
+| `RateStability.cs` | Clasifica el flujo en regular / irregular / sin datos comparando el hueco del percentil 95 con la mediana. p95 y no el máximo —que `RateSample` ya trae—, porque un único pico del planificador dispara el máximo aunque los otros mil huecos sean perfectos. Por debajo de 30 muestras no clasifica: decir "sin datos" es mejor que adivinar. `Classify` también rechaza entradas no finitas (`double.IsFinite`) antes de comparar: en IEEE754 toda comparación con NaN da falso e `Infinity <= Infinity` da **verdadero**, así que un guarda que solo compara números deja pasar una medida corrupta como "Regular", la respuesta más tranquilizadora posible. |
 | `ColourMath.cs` / `ColourRamp.cs` / `RainbowWalker.cs` | Color en OKLab, rampas y el arcoíris por pasos (velocidad en colores/s con avance fraccional). |
 | `PlayerLedWalker.cs` | Animaciones de los LEDs de jugador (Carga, Estrellas, Respiración). |
 | `LightIntent.cs` / `LightProfile.cs` | La "intención" de luz del usuario (qué color/efecto/velocidades quiere) y los perfiles con nombre. |
@@ -73,6 +74,14 @@ Todo el código propio vive en `HidusbfModernGui/` (WPF, .NET 9, x64). Núcleo p
 ### 3.1 Overclock de polling (APLICAR CAMBIOS)
 
 Un botón hace todo: activa el filtro hidusbf del dispositivo → escribe la tasa en el registro → **replug por software** (quitar del árbol PnP + re-enumerar). El replug importa: un reinicio PnP a secas no basta porque el dispositivo nunca abandona el bus y sus descriptores — donde vive la tasa — no se releen. El medidor luego responde con números si el cambio aplicó de verdad.
+
+**La página de dispositivos, en tarjetas.** La lista y el detalle comparten el mismo estilo `DeviceCard`; la fila seleccionada se distingue por borde blanco (`TextDataBrush`) y fondo `SurfaceAltBrush`, no por color — ver lección L12.
+
+- **`ResolvedRate` (`UsbDeviceModel.cs`)** es la tasa que el usuario debería leer, resuelta a través del modo activo del driver y la velocidad de bus del dispositivo. Devuelve `null` cuando `BusSpeed` es `Unknown`, porque `ResolveHighRateSlot` necesita la velocidad para elegir entre el mapeo de slots Low/Full-Speed y el de High/SuperSpeed — sin ese dato cualquier número sería una suposición disfrazada de medición, no una tasa resuelta.
+- **La pastilla de estado de cada fila** (`ActiveChipText`) se muestra siempre, en todas las filas de la lista: dice `ACTIVO - <tasa>` solo cuando `ResolvedRate` no es `null`, y `POR DEFECTO` en cualquier otro caso — filtro apagado, velocidad desconocida o sin tasa puesta. Se mantiene visible aunque no haya tasa porque el punto de color de al lado es la única señal en la lista de un `StatusLevel.Warn`/`Error`; ocultar la pastilla entera habría tapado también esos dos estados.
+- **La tarjeta MEDIDA** muestra el número grande (lo que el dispositivo hace de verdad) y, debajo, **PEDIDA** con un punto que compara ambas tasas; si no coinciden aparece un aviso ámbar explicando que la tasa se escribió pero no se aplicó (falta un RECONECTAR). El distintivo de regularidad (`REGULAR`/`IRREGULAR`/`SIN DATOS`, vía `RateStability.Classify`) contesta una pregunta distinta — cómo de regular llega el flujo — y por eso vive junto al rótulo MEDIDA, no junto a PEDIDA.
+- **ENTRE REPORTES no es LATENCIA** — ver la explicación completa en el [README](../README.md). En corto: el reporte 0x01 del DualSense no trae marca de tiempo de origen, así que el instante del movimiento físico no es un dato que la app tenga; ENTRE REPORTES es el hueco medido entre llegadas consecutivas, no el retardo mando→pantalla.
+- **El percentil 95** (`PollingCore.cs`) usa rango más cercano sobre el mismo array ya ordenado de la mediana: `índice = techo(n × 0.95) − 1`, acotado al último índice. No trunca porque con 100 muestras `100 × 0.95` da exactamente `95.0` en IEEE754, y truncar (`(int)(n * 0.95)` sin el techo) cae en el índice 95 — la primera muestra *mala* de las cinco peores, en vez del índice 94, la última *buena*.
 
 ### 3.2 Luces
 
@@ -148,7 +157,7 @@ El arte de un skin es intelectual propiedad del autor — ilustraciones, fotogra
 
 - `HidusbfModernGui.Tests/` (xUnit, `net9.0` **sin** WPF). **Linkea los archivos fuente individualmente** en el csproj — todo archivo nuevo del núcleo hay que añadirlo ahí o los tests no lo ven.
 - Por eso mismo, nada que toque Nefarius/HidSharp/WPF puede linkearse: la capa de E/S se verifica a mano con hardware.
-- Correr: `dotnet test HidusbfModernGui.Tests\HidusbfModernGui.Tests.csproj` (402 tests al escribir esto).
+- Correr: `dotnet test HidusbfModernGui.Tests\HidusbfModernGui.Tests.csproj` (428 tests al escribir esto).
 
 ## 5. Compilar y empaquetar
 
@@ -178,6 +187,17 @@ El paquete es un exe self-contained de un solo archivo + la carpeta `DRIVER` (ve
 - **L9 — Un inventario de consumidores hecho a ojo se queda corto.** El plan afirmaba que
   dos sitios leian los desplegables del LED de jugador; eran nueve. Lo que salvo la migracion
   no fue el inventario, sino comprobar con grep al final que no quedaba ni una referencia.
+- **L10 — Lo que se afirma hay que poder medirlo.** La maqueta traía una pastilla verde que
+  decía "STABLE"; el medidor solo exponía mediana, mínimo y máximo, así que no había con qué
+  respaldarla. Se añadió la medida —el percentil 95— ANTES que la pastilla, y cuando no
+  alcanza para decidir, la pastilla dice "SIN DATOS" en vez de verde.
+- **L11 — El rótulo tiene que decir lo que el número es.** La maqueta llamaba "LATENCIA" al
+  hueco entre reportes. Son cosas distintas y la app no mide la segunda: no tiene el instante
+  de origen. Rotularlo así habría afirmado un retardo total falso por dos órdenes de
+  magnitud. Se rotula "ENTRE REPORTES".
+- **L12 — En monocromo, la jerarquía es contraste.** La maqueta usaba morado para la fila
+  seleccionada y el botón de aplicar. Se resolvió con borde blanco + fondo más claro, y con
+  un botón invertido: más fuerte que el color, y sin gastar un color de estado en decorar.
 
 ## 7. Seguridad y límites deliberados
 
@@ -194,3 +214,4 @@ Los specs y planes de implementación viven en `docs/superpowers/`:
 - `plans/2026-07-18-stick-curves.md` — las curvas Dinámica/Digital (ejecutado; esas curvas se retiran en v2).
 - `plans/2026-07-18-editor-de-curvas.md` — editor de curvas v1 + arreglo de luces con HidHide (ejecutado).
 - `plans/2026-07-18-editor-curvas-v2.md` — editor v2 (ejecutado): RESPUESTA queda en Lineal+Editor con degradación honesta de perfiles viejos, puntos de colores con significado (verde=zona baja, ámbar=media, rojo=alta), biblioteca "MIS CURVAS" con nombre (`CurveLibraryStore`), y botón "¿CÓMO FUNCIONA?" con la documentación para el usuario.
+- `plans/2026-07-26-pagina-dispositivos.md` — la página de dispositivos en tarjetas (ejecutado): percentil 95 y `RateStability` para clasificar la regularidad del flujo, lista y detalle en tarjetas monocromas con selección por contraste, y ENTRE REPORTES en vez de LATENCIA.

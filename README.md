@@ -8,6 +8,24 @@ Interfaz moderna y gratuita para el driver [hidusbf](https://github.com/LordOfMi
 
 - **Overclock de polling rate USB.** Cambia la tasa de sondeo de ratones, teclados y mandos: desde 125 Hz hasta 8000 Hz, según el modo del driver y de lo que aguante el dispositivo. El techo real depende de la clase de velocidad USB (Low/Full/High Speed) y del firmware del dispositivo; ningún número está garantizado en un hardware concreto.
 - **Medidor de tasa real.** La app no solo muestra la tasa que *pidió*: abre la interfaz HID del dispositivo seleccionado y mide la llegada de reportes en vivo, mostrando PEDIDA vs MEDIDA (mediana, min/max de los huecos). Es la respuesta con números a "¿se aplicó el overclock?". Limitación honesta: mide reportes HID, no el bus USB; un ratón quieto no genera datos y mide "sin datos", no 0 Hz mentiroso.
+
+  La lista son tarjetas; la seleccionada se marca con borde blanco y un fondo algo
+  más claro. Las que tienen una tasa puesta llevan una pastilla con la tasa
+  **resuelta**.
+
+  En el detalle, **MEDIDA** es lo que el dispositivo hace de verdad y **PEDIDA** lo
+  que se le escribió: el punto entre las dos es la razón de ser de esta pantalla.
+  La pastilla de al lado dice otra cosa distinta — cómo de **regular** llega el
+  flujo (`REGULAR` / `IRREGULAR` / `SIN DATOS`).
+
+  **ENTRE REPORTES** es el hueco mediano entre la llegada de un reporte y el
+  siguiente. **No es latencia.** La latencia sería el retardo desde que mueves el
+  stick hasta que el juego lo ve, y en esa cadena hay eslabones que esta app no
+  puede ver: el firmware del mando, la pila HID de Windows y el motor del juego.
+  El reporte del DualSense no trae marca de tiempo de origen, así que el instante
+  del movimiento es desconocido y la resta es imposible. Subir la tasa acorta un
+  eslabón de esa cadena — la espera al sondeo, de ~0,5 ms a ~0,06 ms al pasar de
+  1000 a 8000 Hz —, no la cadena entera, que sigue midiéndose en decenas de ms.
 - **Mando: Configurar + Luces (solo USB/cable).** El botón mando del sidebar abre un hub con dos partes:
   - **Luces del mando** — lo de siempre: color de la barra de luz con selector y hex, LED de jugador (las 5 luces bajo el touchpad) con brillo, un efecto arcoíris por pasos calculado en OKLab (velocidad ajustable hasta 360 colores/s), y animaciones de los LEDs de jugador (Carga, Estrellas, Respiración) con su propia barra de velocidad. La app recuerda tu último color/efecto y lo restaura al abrir y al reconectar el mando. Perfiles en JSON que guardan luz y, si quieres, la tasa.
 
