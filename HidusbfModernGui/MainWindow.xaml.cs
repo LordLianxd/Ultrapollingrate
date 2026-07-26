@@ -22,6 +22,14 @@ namespace HidusbfModernGui
         private bool _overclockBusy;
         private StreamerWindow? _streamerWindow;
 
+        // El mando de las luces se resuelve solo. Antes habia un desplegable, pero con un unico
+        // mando conectado era una lista de un elemento que el usuario tenia que confirmar.
+        //
+        // El orden importa: primero el escaneo (nombre bonito, y coincide con lo que se ve en
+        // Dispositivos) y si no, el resolutor en-proceso, que es el que sigue encontrando el mando
+        // cuando HidHide lo oculta y el escaneo por PowerShell ya no lo ve.
+        private string? _lightPadId;
+
         // Navegacion del configurador (Task PS3): hub de tarjetas <-> 4 sub-paginas.
         // Logica pura en ConfigNav (probada aparte); este campo es el unico estado de
         // navegacion, y UpdateConfigPages() el unico sitio que traduce Current a Visibility.
@@ -592,9 +600,9 @@ namespace HidusbfModernGui
             LucesPanel.Visibility = Visibility.Collapsed;
             PerfilesPanel.Visibility = Visibility.Visible;
 
-            // Aplicar un perfil escribe la luz, y eso necesita un mando resuelto en
-            // PlayStationList. Sin esta llamada, entrar directo a PERFILES sin pasar por
-            // LUCES dejaria la mitad de luz del perfil sin efecto y en silencio.
+            // Aplicar un perfil escribe la luz, y eso necesita _lightPadId resuelto. Sin esta
+            // llamada, entrar directo a PERFILES sin pasar por LUCES dejaria la mitad de luz
+            // del perfil sin efecto y en silencio.
             RefreshPlayStationDevices();
             LoadGameProfiles();
         }
@@ -2183,8 +2191,8 @@ namespace HidusbfModernGui
             // Guarded end to end, not just around the two SelectedIndex assignments below:
             // both of them fire LightCombo_Changed, which calls ApplyLightNow() the moment
             // _updatingLight is false. Relying on RefreshPlayStationDevices() happening to
-            // call this before PlayStationList gets its ItemsSource (so ApplyLightNow()'s
-            // null-model check bails out) is an accident of call order, not a guarantee.
+            // call this before _lightPadId is resolved (so ApplyLightNow()'s null check bails
+            // out) is an accident of call order, not a guarantee.
             try
             {
                 _updatingLight = true;
@@ -2384,10 +2392,10 @@ namespace HidusbfModernGui
             // when the stale timer fires - a redundant duplicate write.
             _lightDebounce?.Stop();
 
-            if (PlayStationList.SelectedItem is not UsbDeviceModel model) return;
+            if (_lightPadId == null) return;
             if (PlayerLedList.SelectedItem == null || BrightnessList.SelectedItem == null) return;
 
-            var result = DualSenseLight.Apply(model.InstanceId, CurrentLight());
+            var result = DualSenseLight.Apply(_lightPadId, CurrentLight());
             if (!result.Success) LogStatus($"No se pudo cambiar la luz: {result.Error}");
             RememberLight();
         }
@@ -2477,35 +2485,18 @@ namespace HidusbfModernGui
         private void RefreshPlayStationDevices()
         {
             BuildLightControls();
-            var ps = _allDevices.Where(DualSenseLight.IsPlayStation).ToList();
 
             // Con HidHide ocultando el fisico, el escaneo (PowerShell, proceso externo sin
-            // whitelist) no lo ve, pero NOSOTROS si: se resuelve en-proceso y se inyecta una
-            // entrada sintetica para que la pagina de luces siga funcionando con el motor activo.
-            if (ps.Count == 0)
-            {
-                var hiddenId = HidHideControl.FindPhysicalGamepadInstanceId();
-                if (hiddenId != null)
-                    ps.Add(new UsbDeviceModel
-                    {
-                        Name = "DualSense (oculto por HidHide)",
-                        InstanceId = hiddenId,
-                        Status = "OK",
-                        Class = "HIDClass",
-                    });
-            }
+            // whitelist) no lo ve, pero NOSOTROS si: el resolutor en-proceso sigue encontrando
+            // el mando y la pagina de luces sigue funcionando con el motor activo.
+            _lightPadId = _allDevices.FirstOrDefault(DualSenseLight.IsPlayStation)?.InstanceId
+                          ?? HidHideControl.FindPhysicalGamepadInstanceId();
 
-            PlayStationList.ItemsSource = ps;
-            if (ps.Count > 0 && PlayStationList.SelectedItem == null) PlayStationList.SelectedIndex = 0;
-
-            LightEmptyState.Visibility = ps.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-            LightPanel.Visibility = ps.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+            bool hayMando = _lightPadId != null;
+            LightEmptyState.Visibility = hayMando ? Visibility.Collapsed : Visibility.Visible;
+            LightPanel.Visibility = hayMando ? Visibility.Visible : Visibility.Collapsed;
             UpdateSwatch();
         }
-
-        // Selecting a different controller must not write to it. The user has not asked for a
-        // colour on this device yet.
-        private void PlayStationList_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateSwatch();
 
         private void Picker_ColorChanged(object? sender, EventArgs e)
         {
@@ -2575,7 +2566,7 @@ namespace HidusbfModernGui
 
         private void Effect_Tick(object? sender, EventArgs e)
         {
-            if (PlayStationList.SelectedItem is not UsbDeviceModel model) return;
+            if (_lightPadId == null) return;
             if (PlayerLedList.SelectedItem == null || BrightnessList.SelectedItem == null) return;
 
             byte r, g, b;
@@ -2614,7 +2605,7 @@ namespace HidusbfModernGui
             }
 
             var brightness = (LedBrightness)((ComboBoxItem)BrightnessList.SelectedItem).Tag;
-            DualSenseLight.Apply(model.InstanceId, new LightState(r, g, b, player, brightness));
+            DualSenseLight.Apply(_lightPadId, new LightState(r, g, b, player, brightness));
         }
 
         private void Rainbow_Toggled(object sender, RoutedEventArgs e)
@@ -2811,7 +2802,7 @@ namespace HidusbfModernGui
 
             if (p.Light != null)
             {
-                if (PlayStationList.SelectedItem is UsbDeviceModel)
+                if (_lightPadId != null)
                 {
                     ApplyProfileLight(p.Light);
                     notes.Add("luz");

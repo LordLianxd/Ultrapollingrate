@@ -1338,12 +1338,6 @@
                                         <ColumnDefinition Width="*"/>    <!-- controls -->
                                     </Grid.ColumnDefinitions>
 
-                                    <StackPanel Grid.Row="0" Grid.ColumnSpan="2">
-                                        <TextBlock Text="MANDO" Style="{StaticResource SectionHeading}"/>
-                                        <ComboBox x:Name="PlayStationList" Width="320" HorizontalAlignment="Left" Margin="0,8,0,20"
-                                                  DisplayMemberPath="Name" SelectionChanged="PlayStationList_SelectionChanged"/>
-                                    </StackPanel>
-
                                     <StackPanel x:Name="ColorSection" Grid.Row="1" Grid.Column="0" Margin="0,0,20,0">
                                     <TextBlock Text="COLOR" Style="{StaticResource SectionHeading}"/>
                                     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
