@@ -669,17 +669,21 @@
                                             </Grid.RenderTransform>
                                             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                                 <StackPanel Margin="24">
-                                                    <TextBlock Text="CONFIGURAR EL MANDO" Style="{StaticResource SectionHeading}"/>
+                                                    <!-- Sin rotulo de pagina: el segmento de arriba ya dice CONFIGURAR y
+                                                         repetirlo debajo era decir dos veces donde estas.
 
-                                                    <!-- Interruptor maestro (Task 14). Apagado por defecto = mando NATIVO:
+                                                         Interruptor maestro (Task 14). Apagado por defecto = mando NATIVO:
                                                          el juego ve el DualSense fisico y la app no toca nada. Encendido =
                                                          fisico oculto (HidHide) + DS4 virtual (ViGEm) con los ajustes de
                                                          abajo aplicados en vivo. El estado de al lado lee el driver real
                                                          (IsHiding/Connected), no una bandera. La explicacion larga que antes
                                                          vivia siempre visible ahora esta en el "?" (Task PS3): se consulta,
-                                                         no se lee cada vez. -->
+                                                         no se lee cada vez.
+
+                                                         Padding 18 -> 14,10: la tarjeta guarda UNA fila, y el hueco de una
+                                                         tarjeta con parrafos dentro la dejaba flotando en vacio. -->
                                                     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                            BorderThickness="1" Padding="18" Margin="0,8,0,20">
+                                                            BorderThickness="1" Padding="14,10" Margin="0,0,0,12">
                                                         <StackPanel>
                                                             <!-- Una sola fila: icono, titulo y el interruptor. Antes eran un rotulo,
                                                                  un boton con la frase entera dentro y una linea de estado debajo,
