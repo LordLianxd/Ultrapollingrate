@@ -60,6 +60,7 @@ namespace HidusbfModernGui
 
             BuildHeaderSpectrum();
             BuildLoadingIndicator();
+            BuildEngineSpinner();
             RefreshPrivilegeState();
             RefreshStatus();
 
@@ -333,20 +334,34 @@ namespace HidusbfModernGui
         // cosa que gira, no doce que parpadean cada una a su ritmo.
         private const int LoadingDots = 12;
 
+        // El anillo grande, centrado sobre la lista de dispositivos mientras se escanea.
         private void BuildLoadingIndicator()
+            => BuildDotRing(LoadingIndicator, LoadingSpin, LoadingDots, centre: 26, ring: 19, headSize: 8.0);
+
+        // El anillo pequeno de la fila MANDO VIRTUAL. Menos puntos que el grande a proposito:
+        // a 18 px, doce se tocarian entre si y el anillo se leeria como un circulo solido, que
+        // es justo lo contrario de lo que tiene que comunicar.
+        private const int EngineDots = 8;
+
+        private void BuildEngineSpinner()
+            => BuildDotRing(EngineSpinner, EngineSpin, EngineDots, centre: 9, ring: 6.5, headSize: 4.0);
+
+        // Dibuja el anillo y le engancha el giro. Los saltos discretos son a proposito: un giro
+        // continuo a estas escalas se ve como un borron, y el escalonado es lo que hace que se
+        // lea el sentido de giro.
+        private void BuildDotRing(Canvas host, RotateTransform spin, int dots,
+                                  double centre, double ring, double headSize)
         {
             var white = (Brush)FindResource("TextDataBrush");
-            LoadingIndicator.Children.Clear();
+            host.Children.Clear();
 
-            const double centre = 26, ring = 19;
-
-            for (int i = 0; i < LoadingDots; i++)
+            for (int i = 0; i < dots; i++)
             {
-                // i = 0 es la cabeza. El tamano cae de 8 a 2.5 px y la opacidad de 1 a 0.18
-                // dando la vuelta, que es lo que dibuja la "estela".
-                double t = (double)i / LoadingDots;
-                double size = 8.0 - 5.5 * t;
-                double angle = -Math.PI / 2 + i * (2 * Math.PI / LoadingDots);
+                // i = 0 es la cabeza. El tamano cae al 31% y la opacidad al 18% dando la
+                // vuelta, que es lo que dibuja la "estela".
+                double t = (double)i / dots;
+                double size = headSize * (1.0 - 0.69 * t);
+                double angle = -Math.PI / 2 + i * (2 * Math.PI / dots);
 
                 var dot = new System.Windows.Shapes.Ellipse
                 {
@@ -357,17 +372,26 @@ namespace HidusbfModernGui
                 };
                 Canvas.SetLeft(dot, centre + ring * Math.Cos(angle) - size / 2);
                 Canvas.SetTop(dot, centre + ring * Math.Sin(angle) - size / 2);
-                LoadingIndicator.Children.Add(dot);
+                host.Children.Add(dot);
             }
 
-            var spin = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
-            for (int i = 1; i <= LoadingDots; i++)
+            var turn = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
+            for (int i = 1; i <= dots; i++)
             {
-                spin.KeyFrames.Add(new DiscreteDoubleKeyFrame(
-                    i * (360.0 / LoadingDots),
-                    KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(i * (900.0 / LoadingDots)))));
+                turn.KeyFrames.Add(new DiscreteDoubleKeyFrame(
+                    i * (360.0 / dots),
+                    KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(i * (900.0 / dots)))));
             }
-            LoadingSpin.BeginAnimation(RotateTransform.AngleProperty, spin);
+            spin.BeginAnimation(RotateTransform.AngleProperty, turn);
+        }
+
+        // Enciende o apaga el anillo de la fila MANDO VIRTUAL. Se llama en los dos sentidos
+        // -al arrancar el motor y al pararlo-, porque las dos operaciones reinician el devnode
+        // y las dos tardan lo mismo en volver.
+        private void SetEngineBusyVisual(bool busy)
+        {
+            EngineSpinner.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
+            MasterToggleBtn.IsEnabled = !busy;
         }
 
         // Difumina (o deja nitida) la lista mientras se escanea. El desenfoque entra y sale
@@ -815,11 +839,12 @@ namespace HidusbfModernGui
         // DispatcherTimer and every *.Text/*.Content assignment below are safe as written.
         private async Task StartEngine()
         {
-            // Sin "Aplicando...": el interruptor se deshabilita y se atenua mientras dura la
-            // operacion, y eso ya dice que esta ocupado. Un texto que aparece y se va en un
-            // segundo no se llega a leer, solo parpadea. La linea sigue reservada para lo que
-            // SI hay que contar: un error de arranque o un revert parcial.
-            MasterToggleBtn.IsEnabled = false;
+            // Sigue sin "Aplicando...": un texto que aparece y se va no se llega a leer, solo
+            // parpadea, y la linea de estado esta reservada para lo que SI hay que contar (un
+            // error de arranque o un revert parcial). La espera la dice el anillo: el
+            // interruptor atenuado por si solo se lee como "deshabilitado", no como
+            // "trabajando", y esto tarda varios segundos porque reinicia el devnode del mando.
+            SetEngineBusyVisual(true);
 
             _padVirtual = new VirtualPad();
             _padReader = new DualSenseReader();
@@ -854,7 +879,7 @@ namespace HidusbfModernGui
                 // apagado. Dejarlo encendido seria la peor version de este control - decir que
                 // el juego ve tu configuracion cuando sigue viendo el mando nativo.
                 SetMasterSwitch(false);
-                MasterToggleBtn.IsEnabled = true;
+                SetEngineBusyVisual(false);
                 return;
             }
 
@@ -872,7 +897,7 @@ namespace HidusbfModernGui
             _engineTimer.Tick += EngineTick;
             _engineTimer.Start();
             UpdateEngineStatus();
-            MasterToggleBtn.IsEnabled = true;
+            SetEngineBusyVisual(false);
         }
 
         // Trabajo puro de dispositivo (ViGEm/HID/HidHide), sin tocar ningun control de UI,
@@ -980,8 +1005,10 @@ namespace HidusbfModernGui
 
         private async Task StopEngine()
         {
-            // Igual que al arrancar: el interruptor atenuado ya dice que esta ocupado.
-            MasterToggleBtn.IsEnabled = false;
+            // Igual que al arrancar, y por el mismo motivo: quitar el mando virtual devuelve el
+            // fisico reiniciando su devnode, que tarda lo mismo que ocultarlo. El anillo cubre
+            // las dos operaciones porque las dos hacen esperar.
+            SetEngineBusyVisual(true);
 
             // El timer del passthrough vive y muere en el hilo de UI; pararlo aqui, antes
             // del trabajo pesado de fondo, deja de empujar reportes al virtual de inmediato.
@@ -1006,7 +1033,7 @@ namespace HidusbfModernGui
             // El fisico volvio a estar visible: si el visualizador sigue en pantalla,
             // recupera su propia fuente (antes usaba _padReader, que ya no existe).
             if (ConfigPadVisual.IsVisible) _visualFeed.StartOwnReader();
-            MasterToggleBtn.IsEnabled = true;
+            SetEngineBusyVisual(false);
         }
 
         private void CleanupEngine()

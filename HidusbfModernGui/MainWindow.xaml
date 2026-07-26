@@ -751,6 +751,18 @@
                                                                 </StackPanel>
 
                                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                                    <!-- Anillo de espera del motor. Encender o apagar el mando virtual reinicia el
+                                                                         devnode del DualSense y tarda varios segundos; hasta ahora la unica senal
+                                                                         era el interruptor atenuado, que se lee como "deshabilitado", no como
+                                                                         "trabajando". Es el MISMO anillo del escaneo, a escala de fila, para que
+                                                                         la app tenga una sola forma de decir "espera" y no dos. -->
+                                                                    <Canvas x:Name="EngineSpinner" Width="18" Height="18"
+                                                                            VerticalAlignment="Center" Margin="0,0,10,0"
+                                                                            Visibility="Collapsed">
+                                                                        <Canvas.RenderTransform>
+                                                                            <RotateTransform x:Name="EngineSpin" CenterX="9" CenterY="9"/>
+                                                                        </Canvas.RenderTransform>
+                                                                    </Canvas>
                                                                     <CheckBox x:Name="MasterToggleBtn" Style="{StaticResource SwitchToggle}"
                                                                               Margin="0,0,12,0" AutomationProperties.Name="Mando virtual"
                                                                               ToolTip="Enciende el mando virtual para que tus ajustes lleguen al juego"
