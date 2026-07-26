@@ -778,9 +778,16 @@
                                                 </Button>
                                                 <TextBlock Grid.Column="1" Text="Asignacion de botones" Style="{StaticResource SectionHeading}"
                                                            FontSize="13" VerticalAlignment="Center" Margin="12,0,0,0"/>
-                                                <Button x:Name="BotonesHelpBtn" Grid.Column="2" Style="{StaticResource RoundIconButton}" Click="BotonesHelp_Click" ToolTip="Ayuda">
-                                                    <TextBlock Text="?" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextDataBrush}"/>
-                                                </Button>
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                                    <!-- Dia/noche de ESTA pagina: la lamina del mando existe en dos versiones y esto
+                                                         elige cual se dibuja. No es un tema para toda la app. -->
+                                                    <CheckBox x:Name="DiagramDayCheck" Content="Modo dia" VerticalAlignment="Center"
+                                                              Margin="0,0,14,0" Foreground="{StaticResource TextDataBrush}" FontSize="12"
+                                                              Click="DiagramDay_Click"/>
+                                                    <Button x:Name="BotonesHelpBtn" Style="{StaticResource RoundIconButton}" Click="BotonesHelp_Click" ToolTip="Ayuda">
+                                                        <TextBlock Text="?" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextDataBrush}"/>
+                                                    </Button>
+                                                </StackPanel>
                                                 <Popup x:Name="BotonesHelpPopup" Grid.Column="2" PlacementTarget="{Binding ElementName=BotonesHelpBtn}"
                                                        Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="None"
                                                        Opened="AnimatePopupOpen">

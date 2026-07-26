@@ -1017,6 +1017,11 @@ namespace HidusbfModernGui
         // vectorial sobre panel oscuro. Lo fija BuildButtonDiagram y lo leen todos los
         // colores del diagrama, para que no haya dos criterios distintos.
         private bool _diagramIsLight;
+
+        // Modo del diagrama, leido de las preferencias la primera vez que se construye.
+        private AppTheme _diagramMode = AppTheme.Noche;
+        private bool _diagramModeLoaded;
+
         private PadButton _pickerSource;
 
         // Nombre reservado bajo el que se autoguarda el ultimo estado (distinto de los
@@ -1125,6 +1130,17 @@ namespace HidusbfModernGui
 
         // ===== Diagrama de botones (Task BT2) =====
         //
+        // El diagrama se construye una sola vez (_diagramBuilt), asi que cambiar de modo obliga a
+        // rehacerlo entero: la lamina, las 16 lineas y las 16 pildoras se crearon con los pinceles
+        // del modo anterior y no hay forma de retintarlas sin recorrerlas una a una.
+        private void RebuildButtonDiagram()
+        {
+            DiagramCanvas.Children.Clear();
+            _pills.Clear();
+            _diagramBuilt = false;
+            BuildButtonDiagram();
+        }
+
         // Se construye una sola vez: la imagen y las 16 lineas no cambian, solo el texto de
         // las etiquetas (RefreshButtonPills) y su resalte. La llama UpdateConfigPages() al
         // entrar a PageBotones por primera vez; _diagramBuilt la hace idempotente.
@@ -1133,6 +1149,13 @@ namespace HidusbfModernGui
             if (_diagramBuilt) return;
             _diagramBuilt = true;
 
+            if (!_diagramModeLoaded)
+            {
+                _diagramMode = UiPrefsStore.Load().Theme;
+                _diagramModeLoaded = true;
+                DiagramDayCheck.IsChecked = _diagramMode == AppTheme.Dia;
+            }
+
             DiagramCanvas.Width = PadDiagram.CanvasWidth;
             DiagramCanvas.Height = PadDiagram.CanvasHeight;
 
@@ -1140,8 +1163,12 @@ namespace HidusbfModernGui
             // UNA bandera gobierna las tres decisiones de color (papel del panel, estilo de
             // pildora, tinta de las lineas), para que no exista la combinacion imposible de
             // un panel blanco con un mando dibujado para fondo negro.
-            var bg = TryLoadDiagramImage();
-            _diagramIsLight = bg != null;
+            var bg = TryLoadDiagramImage(_diagramMode);
+            // Claro SOLO en modo dia y con su lamina cargada. En noche el panel es oscuro, igual que
+            // con el respaldo vectorial, asi que las tres decisiones de color de abajo no distinguen
+            // entre "noche con imagen" y "sin imagen": el papel de la lamina de noche es exactamente
+            // el SurfaceBrush del panel.
+            _diagramIsLight = bg != null && _diagramMode == AppTheme.Dia;
 
             DiagramPanel.Background = (Brush)FindResource(_diagramIsLight ? "DiagramPaperBrush" : "SurfaceBrush");
 
@@ -1220,18 +1247,39 @@ namespace HidusbfModernGui
             RefreshButtonPills();
         }
 
-        // Fondo del diagrama: diagram.png de la carpeta del skin instalado. Vive FUERA del
-        // repo por la misma razon que el resto del arte del skin (ver DOCUMENTACION.md), asi
-        // que faltar es un caso normal, no un error: entonces se dibuja el mando vectorial.
-        // Nunca lanza - una imagen rota jamas puede dejar la pagina en blanco.
-        private ImageSource? TryLoadDiagramImage()
+        // Cambiar de modo se aplica al pulsar y se guarda: sin boton "Aplicar", como todo aqui.
+        private void DiagramDay_Click(object sender, RoutedEventArgs e)
+        {
+            _diagramMode = DiagramDayCheck.IsChecked == true ? AppTheme.Dia : AppTheme.Noche;
+            RebuildButtonDiagram();
+
+            var prefs = UiPrefsStore.Load();
+            prefs.Theme = _diagramMode;
+            UiPrefsStore.Save(prefs);
+
+            // Si la lamina del modo elegido no esta instalada se cae al mando vectorial, y eso hay
+            // que decirlo: el usuario acaba de pulsar algo y veria un dibujo distinto sin motivo.
+            if (!_diagramIsLight && _diagramMode == AppTheme.Dia)
+                LogStatus("Falta diagram.png en la carpeta del skin: se dibuja el mando vectorial.");
+            else
+                LogStatus(_diagramMode == AppTheme.Dia ? "Diagrama en modo dia." : "Diagrama en modo noche.");
+        }
+
+        // Fondo del diagrama: la lamina del modo elegido, de la carpeta del skin instalado.
+        //   Dia   -> diagram.png        (tinta oscura sobre papel blanco)
+        //   Noche -> diagram_noche.png  (tinta clara sobre papel #0A0A0A)
+        // Vive FUERA del repo por la misma razon que el resto del arte del skin (ver
+        // DOCUMENTACION.md), asi que faltar es un caso normal, no un error: entonces se dibuja el
+        // mando vectorial. Nunca lanza - una imagen rota jamas puede dejar la pagina en blanco.
+        private ImageSource? TryLoadDiagramImage(AppTheme mode)
         {
             try
             {
                 var dir = PadSkinLoader.FindFirstSkinDir(PadSkinLoader.DefaultSkinsRoot);
                 if (dir == null) return null;
 
-                string path = System.IO.Path.Combine(dir, "diagram.png");
+                string file = mode == AppTheme.Dia ? "diagram.png" : "diagram_noche.png";
+                string path = System.IO.Path.Combine(dir, file);
                 if (!System.IO.File.Exists(path)) return null;
 
                 var bmp = new System.Windows.Media.Imaging.BitmapImage();
