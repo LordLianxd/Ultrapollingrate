@@ -226,7 +226,7 @@
                                             <TextBlock Text="DISPOSITIVOS CONECTADOS" Style="{StaticResource SectionHeading}"/>
                                             <TextBlock Style="{StaticResource DataText}"
                                                        FontSize="11" Foreground="{StaticResource TextLabelBrush}" Margin="10,0,0,0">
-                                                <Run Text="("/><Run x:Name="DeviceCountText" Text="0"/><Run Text=")"/>
+                                                <Run Text="("/><Run x:Name="DeviceCountText" Text="0"/><Run Text=" de "/><Run x:Name="DeviceCountTotalText" Text="0"/><Run Text=")"/>
                                             </TextBlock>
                                         </StackPanel>
                                         <Button Style="{StaticResource RoundIconButton}" Click="RefreshDevicesBtn_Click"

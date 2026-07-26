@@ -1393,7 +1393,7 @@ namespace HidusbfModernGui
                     // solo dispara una vez, pero RefreshButtonPills() cambia el texto (y por
                     // tanto el ancho) cada vez que el remapeo cambia, y una pildora mas ancha
                     // reposicionada solo en Loaded quedaria descuadrada de su columna.
-                    // SizeChanged cubre tambien el primer layout (0 -> tamaño real), asi que
+                    // SizeChanged cubre tambien el primer layout (0 -> tamano real), asi que
                     // no hace falta Loaded ademas.
                     pill.SizeChanged += (_, _) =>
                     {
@@ -3232,7 +3232,11 @@ namespace HidusbfModernGui
                 (!onlyFiltered || d.FilterActive)).ToList();
 
             DevicesListBox.ItemsSource = filtered;
+            // "(n de m)": n es lo que pasa el filtro, m es el total conectado. Mostrar
+            // solo n bajo el titulo CONECTADOS mentiria con el filtro activo - por
+            // ejemplo "CONECTADOS (1)" con 1 de 12 dispositivos coincidiendo.
             DeviceCountText.Text = filtered.Count.ToString();
+            DeviceCountTotalText.Text = _allDevices.Count.ToString();
         }
 
         // Event: Checkbox filter changed
@@ -3434,7 +3438,7 @@ namespace HidusbfModernGui
             }
             if (DetailRateCombo.SelectedItem is not ComboBoxItem item)
             {
-                LogStatus("Elige una TASA OBJETIVO.");
+                LogStatus("Elige una tasa en CONFIGURACIÓN DE TASA.");
                 return;
             }
             int rate = (int)item.Tag;

@@ -36,7 +36,7 @@
          declarado en la ventana.
          Rellenos los dos, sin trazo, para que a 15 px se lean como silueta y no como un
          garabato de lineas. Son del mismo juego de siluetas que el resto de iconos de esta
-         app (Material Design Icons), que estan dibujadas para leerse pequeñas: la primera
+         app (Material Design Icons), que estan dibujadas para leerse pequenas: la primera
          version, hecha a mano, daba un sol de rayos sueltos y una luna cuyos destellos se
          pegaban al creciente y parecia un pato. -->
     <Geometry x:Key="SunIconPath">M3.55,19.09L4.96,20.5L6.76,18.71L5.34,17.29M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M20,13H23V11H20M17.24,18.71L19.04,20.5L20.45,19.09L18.66,17.29M20.45,5L19.04,3.6L17.24,5.39L18.66,6.81M13,1H11V4H13M6.76,5.39L4.96,3.6L3.55,5L5.34,6.81L6.76,5.39M1,13H4V11H1M13,20H11V23H13</Geometry>
@@ -652,7 +652,7 @@
 
     <!-- Interruptor de dia/noche del diagrama: una pastilla con un pulsador que se desliza.
          Un CheckBox normal aqui era feo y crudo - la casilla cuadrada no dice nada de lo que
-         hace, y este control cambia un DIBUJO, asi que tiene que enseñarlo.
+         hace, y este control cambia un DIBUJO, asi que tiene que ensenarlo.
          El sol y la luna ocupan posiciones FIJAS (izquierda y derecha) y el pulsador tapa una
          de las dos: la que se ve es el modo en el que estas. La pastilla se invierte con el
          modo, igual que el panel que gobierna. Blanco y negro de la paleta, sin colores nuevos.
@@ -971,7 +971,8 @@
     <!-- Tarjeta de la lista de dispositivos (Task DP3), la fila de flat-row de antes
          pasada a tarjeta. Seleccionada se marca con borde blanco y fondo un punto mas
          claro, ninguno de los dos cambia el grosor: ver el comentario de BorderThickness
-         mas abajo. Nada consume este estilo todavia -lo hacen las Tasks DP4 y DP5-. -->
+         mas abajo. Consumida por la fila de la lista (DP4) y por las tres tarjetas del
+         detalle del dispositivo (DP5). -->
     <Style x:Key="DeviceCard" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
         <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
