@@ -121,4 +121,66 @@ public class StickTelemetryTests
         Assert.Empty(t.Trail);
         Assert.Equal(DriftLevel.Unknown, t.Drift);
     }
+
+    // El caso que encontro la revision adversarial: caminar el stick hacia afuera un
+    // paso chico a la vez (0.01, 0.02, ..., 0.14), sin salirse nunca de RestRadius
+    // (0.15), hacia que la version vieja -que media la ULTIMA muestra, no la media de
+    // la racha- terminara en Alta con solo 0.14 de desplazamiento. Eso es un
+    // movimiento deliberado y lento, no una deriva; no debe sonar la alarma.
+    [Fact]
+    public void Drift_SlowDeliberateWalkWithinRestRadius_DoesNotReportAlta()
+    {
+        var t = EnReposo(0, 0);
+        for (int i = 1; i <= 14; i++) t.Push(i / 100.0, 0);
+        Assert.NotEqual(DriftLevel.Alta, t.Drift);
+    }
+
+    // El arreglo no puede quedarse ciego a una deriva real: un stick quieto de verdad,
+    // con el temblor de mano tipico (unas milesimas), sobre un offset grande, debe
+    // seguir reportando Alta.
+    [Fact]
+    public void Drift_GenuineRestWithTinyJitter_StillReportsAlta()
+    {
+        var t = new StickTelemetry();
+        double[] jitter = { 0.0, 0.005, -0.005, 0.003, -0.003 };
+        for (int i = 0; i < 60; i++)
+            t.Push(0.12 + jitter[i % jitter.Length], 0);
+        Assert.Equal(DriftLevel.Alta, t.Drift);
+    }
+
+    // Una racha que se corta a la mitad no debe reportar nada hasta que una racha
+    // COMPLETA de RestSamples termine: el reposo interrumpido no cuenta como reposo.
+    [Fact]
+    public void Drift_RestRunBrokenPartway_DoesNotReportUntilAFullRunCompletes()
+    {
+        var t = new StickTelemetry();
+        for (int i = 0; i < StickTelemetry.RestSamples - 5; i++) t.Push(0.1, 0);
+        // Rompe la racha por RestSpread (se aleja de la media) sin salirse de RestRadius.
+        t.Push(0.1 + StickTelemetry.RestSpread * 1.5, 0);
+        Assert.Equal(DriftLevel.Unknown, t.Drift);
+
+        // Todavia falta para completar una racha nueva.
+        for (int i = 0; i < StickTelemetry.RestSamples - 5; i++) t.Push(0.1, 0);
+        Assert.Equal(DriftLevel.Unknown, t.Drift);
+
+        // Ahora si se completa la racha nueva.
+        for (int i = 0; i < 5; i++) t.Push(0.1, 0);
+        Assert.NotEqual(DriftLevel.Unknown, t.Drift);
+    }
+
+    // NewValuesPerSecond debe ser una ventana deslizante, no un promedio de toda la
+    // vida del objeto: muchisimas muestras identicas seguidas de una rafaga de
+    // TrailLength muestras todas distintas debe dar una tasa cercana a la tasa de
+    // reportes completa, no una tasa diluida por las muestras viejas.
+    [Fact]
+    public void NewValues_BurstAfterManyIdenticalPushes_IsNotDilutedByLifetimeAverage()
+    {
+        var t = new StickTelemetry();
+        for (int i = 0; i < 100_000; i++) t.Push(0.5, 0.5);
+
+        for (int i = 0; i < StickTelemetry.TrailLength; i++) t.Push(i / 1000.0, 0);
+
+        double rate = t.NewValuesPerSecond(1000);
+        Assert.True(rate > 900.0, $"se esperaba una tasa cercana a 1000, salio {rate}");
+    }
 }
