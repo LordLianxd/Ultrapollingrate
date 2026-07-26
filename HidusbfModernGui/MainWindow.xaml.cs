@@ -2000,32 +2000,44 @@ namespace HidusbfModernGui
             R2Arc.Value = snap.R2;
         }
 
-        // La lamina es opcional, igual que las skins del mando: si el PNG no esta, los arcos se
-        // dibujan solos y no se avisa de nada. Un dibujo de fondo que falta no es un error.
+        // Las laminas son opcionales: si el PNG no esta, el arco se dibuja solo y no se avisa de
+        // nada. Un dibujo de fondo que falta no es un error.
+        //
+        // Viven en art\, NO en skins\ps5\. La primera version las buscaba ahi y cargo por error
+        // el "triggers.png" que YA existia en ese juego de skin desde el 19 de julio: el sprite
+        // de los gatillos del diagrama del mando, de 241 px y con L2/R2 pintados dentro. Salio
+        // gigante, borroso y con letras. La carpeta de skin es del skin del mando; el arte de
+        // una pagina es otra cosa y no puede compartir espacio de nombres con ella.
         private void LoadTriggerArtwork()
         {
-            if (TriggerArtwork == null || TriggerArtwork.Source != null) return;
+            LoadArtworkInto(L2Artwork, "trigger_l.png");
+            LoadArtworkInto(R2Artwork, "trigger_r.png");
+        }
+
+        private void LoadArtworkInto(System.Windows.Controls.Image? destino, string archivo)
+        {
+            if (destino == null || destino.Source != null) return;
             try
             {
                 string ruta = System.IO.Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "UltraPolling", "skins", "ps5", "triggers.png");
+                    "UltraPolling", "art", archivo);
                 if (!System.IO.File.Exists(ruta)) return;
 
                 var bmp = new System.Windows.Media.Imaging.BitmapImage();
                 bmp.BeginInit();
                 bmp.UriSource = new Uri(ruta);
-                // Sin esto el archivo se queda bloqueado y el usuario no puede reemplazarlo
-                // sin cerrar la app - que es exactamente el problema que ya nos costo hoy.
+                // Sin esto el archivo se queda bloqueado y no se puede reemplazar sin cerrar la
+                // app - justo el problema que ya nos costo varias vueltas hoy.
                 bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
                 bmp.EndInit();
 
-                TriggerArtwork.Source = bmp;
-                TriggerArtwork.Visibility = Visibility.Visible;
+                destino.Source = bmp;
+                destino.Visibility = Visibility.Visible;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Lamina de gatillos: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Lamina {archivo}: {ex.Message}");
             }
         }
 
