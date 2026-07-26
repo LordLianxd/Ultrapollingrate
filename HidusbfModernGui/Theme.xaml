@@ -401,6 +401,92 @@
         </Setter>
     </Style>
 
+    <!-- Interruptor de opcion: pastilla lisa con pulsador deslizante, para las filas
+         "etiqueta a la izquierda, interruptor a la derecha" del panel de opciones del mando
+         en vivo. Es el mismo lenguaje que DayNightToggle pero sin iconos: aqui lo que se
+         enciende no es un dibujo, es un modo, y el nombre de la fila ya lo dice.
+         Apagado: pista hundida y pulsador gris. Encendido: pista blanca y pulsador negro -
+         el mismo par invertido que usa el resto de la app. -->
+    <Style x:Key="SwitchToggle" TargetType="CheckBox">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Width" Value="44"/>
+        <Setter Property="Height" Value="24"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Border x:Name="Track" CornerRadius="12"
+                            Background="{StaticResource SurfaceAltBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <Ellipse x:Name="Knob" Width="18" Height="18" HorizontalAlignment="Left"
+                                 Margin="2,0,0,0" Fill="{StaticResource TextLabelBrush}">
+                            <Ellipse.RenderTransform>
+                                <TranslateTransform x:Name="KnobShift" X="0"/>
+                            </Ellipse.RenderTransform>
+                        </Ellipse>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Track" Property="Background" Value="{StaticResource TextDataBrush}"/>
+                            <Setter TargetName="Track" Property="BorderBrush" Value="{StaticResource TextDataBrush}"/>
+                            <Setter TargetName="Knob" Property="Fill" Value="{StaticResource BgBrush}"/>
+                            <!-- 20 px: lo que va de tope a tope dejando 2 px de aire a cada lado. -->
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="KnobShift" Storyboard.TargetProperty="X"
+                                                         To="20" Duration="0:0:0.15">
+                                            <DoubleAnimation.EasingFunction>
+                                                <CubicEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="KnobShift" Storyboard.TargetProperty="X"
+                                                         To="0" Duration="0:0:0.15">
+                                            <DoubleAnimation.EasingFunction>
+                                                <CubicEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Track" Property="BorderBrush" Value="{StaticResource TextLabelBrush}"/>
+                        </Trigger>
+                        <!-- Deshabilitado no se oculta: "Overlay atraviesa clic" solo sirve con el
+                             streamer abierto, y verlo apagado explica por que no responde. -->
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.35"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Fila de opcion: nombre a la izquierda, interruptor a la derecha, con una linea fina
+         debajo que la separa de la siguiente. La ultima fila de un grupo pone
+         BorderThickness="0" para no dejar una linea colgando al final. -->
+    <Style x:Key="OptionRow" TargetType="Border">
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        <Setter Property="Padding" Value="14,11"/>
+    </Style>
+
+    <Style x:Key="OptionRowLabel" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
+        <Setter Property="Foreground" Value="{StaticResource TextDataBrush}"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
     <!-- Interruptor de dia/noche del diagrama: una pastilla con un pulsador que se desliza.
          Un CheckBox normal aqui era feo y crudo - la casilla cuadrada no dice nada de lo que
          hace, y este control cambia un DIBUJO, asi que tiene que enseñarlo.

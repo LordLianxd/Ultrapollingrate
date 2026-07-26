@@ -922,40 +922,57 @@ namespace HidusbfModernGui
             UpdateCurveLiveDot(raw, outState);
         }
 
-        // MODO STREAMER: ventana overlay transparente/siempre-encima con solo el
-        // mando, para capturar en OBS. StreamerToggle es un Button normal (no
-        // ToggleButton: InstrumentButton esta definido para TargetType="Button" y
-        // ToggleButton no deriva de Button), asi que el estado abierto/cerrado se
-        // lee de _streamerWindow y el texto del boton se actualiza a mano.
-        private void StreamerToggle_Click(object sender, RoutedEventArgs e)
+        // Alto mientras el codigo (y no el usuario) mueve los interruptores del panel: el
+        // overlay se puede cerrar desde su propia barra, y al apagar el interruptor desde
+        // ahi no puede volver a entrar aqui y cerrarlo otra vez.
+        private bool _updatingStreamerSwitches;
+
+        // MODO STREAMER: ventana overlay transparente/siempre-encima con solo el mando, para
+        // capturar en OBS. Es un ESTADO (abierto o cerrado), asi que es un interruptor y no un
+        // boton: antes habia que leer el texto ("MODO STREAMER" / "CERRAR STREAMER") para
+        // saber en cual de los dos estabas.
+        private void StreamerToggle_Changed(object sender, RoutedEventArgs e)
         {
-            if (_streamerWindow == null)
+            if (_updatingStreamerSwitches) return;
+
+            if (StreamerToggle.IsChecked == true)
             {
+                if (_streamerWindow != null) return;   // ya abierto
+
                 _streamerWindow = new StreamerWindow { Owner = this };
                 _streamerWindow.Closed += (_, _) =>
                 {
                     _streamerWindow = null;
-                    StreamerToggle.Content = "MODO STREAMER";
-                    StreamerClickThrough.IsChecked = false;
-                    StreamerClickThrough.IsEnabled = false;
+                    // El overlay se puede cerrar desde su propia barra, no solo desde aqui:
+                    // los dos interruptores tienen que volver solos a su sitio.
+                    _updatingStreamerSwitches = true;
+                    try
+                    {
+                        StreamerToggle.IsChecked = false;
+                        StreamerClickThrough.IsChecked = false;
+                        StreamerClickThrough.IsEnabled = false;
+                    }
+                    finally { _updatingStreamerSwitches = false; }
                     UpdateVisualizerRunState();   // para el feed si el pad tampoco esta visible
                 };
                 _streamerWindow.Show();
-                StreamerToggle.Content = "CERRAR STREAMER";
                 StreamerClickThrough.IsEnabled = true;
                 UpdateVisualizerRunState();   // asegura el feed vivo aunque el foco cambie despues
             }
             else
             {
-                _streamerWindow.Close();   // el handler Closed limpia la referencia, el texto y el checkbox
+                _streamerWindow?.Close();   // el handler Closed deja los dos interruptores en su sitio
             }
         }
 
         // Apaga (o prende) el pasa-clic del overlay desde la ventana principal, que nunca es
         // ella misma click-through: es la unica via no destructiva de recuperar el toolbar del
         // overlay una vez que el pasa-clic lo vuelve inalcanzable (ver StreamerWindow.SetClickThrough).
-        private void StreamerClickThrough_Click(object sender, RoutedEventArgs e)
-            => _streamerWindow?.SetClickThrough(StreamerClickThrough.IsChecked == true);
+        private void StreamerClickThrough_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_updatingStreamerSwitches) return;
+            _streamerWindow?.SetClickThrough(StreamerClickThrough.IsChecked == true);
+        }
 
         // Mueve el punto vivo de cada canvas a (entrada, salida) segun el stick actual. La entrada
         // es la MAGNITUD cruda del stick (0..1); la salida, la misma curva que dibuja DrawCurve
@@ -1100,7 +1117,7 @@ namespace HidusbfModernGui
 
             CheckEngineDrivers();
 
-            SkinStatusText.Text = ConfigPadVisual.StatusText;
+            RefreshSkinStatus();
         }
 
         // Task SK3: recarga el skin instalado (por si se instalo/actualizo con la app
@@ -1109,10 +1126,17 @@ namespace HidusbfModernGui
         {
             ConfigPadVisual.ReloadSkin();
             _streamerWindow?.Pad.ReloadSkin();
-            SkinStatusText.Text = ConfigPadVisual.StatusText;
+            RefreshSkinStatus();
         }
 
-        private void Calibration_Click(object sender, RoutedEventArgs e)
+        // Que se esta dibujando (el skin instalado o el mando vectorial) ya no ocupa una linea
+        // de texto en el panel: vive en el ToolTip del boton que lo recarga, que es el unico
+        // sitio donde hace falta saberlo. La informacion no se pierde, deja de estorbar.
+        private void RefreshSkinStatus() => ReloadSkinBtn.ToolTip = ConfigPadVisual.StatusText;
+
+        // Checked/Unchecked y no Click, aqui y en los dos de abajo: Click solo cubre el clic
+        // de raton y cualquier otro camino que cambie el estado se lo salta.
+        private void Calibration_Changed(object sender, RoutedEventArgs e)
             => ConfigPadVisual.ShowCalibration = CalibrationCheck.IsChecked == true;
 
         // Si falta ViGEmBus o HidHide, el interruptor maestro se desactiva y el estado dice

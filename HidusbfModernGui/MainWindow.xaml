@@ -655,32 +655,70 @@
                                                                     <Path Data="{StaticResource SettingsIconPath}" Fill="{StaticResource TextLabelBrush}"
                                                                           Width="14" Height="14" Stretch="Uniform"/>
                                                                 </Button>
+                                                                <!-- HorizontalOffset negativo: la tuerca vive pegada al borde derecho del
+                                                                     panel, asi que un popup anclado por su izquierda se salia de la ventana
+                                                                     y cortaba los interruptores. -294 = ancho del panel (320) menos el de
+                                                                     la tuerca (26), o sea alinear los dos bordes derechos.
+                                                                     WPF solo voltea un popup solo cuando se sale de la PANTALLA, no de la
+                                                                     ventana, asi que aqui no ayudaba. -->
                                                                 <Popup x:Name="LiveOptionsPopup" PlacementTarget="{Binding ElementName=LiveGearBtn}"
-                                                                       Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="None"
+                                                                       Placement="Bottom" HorizontalOffset="-294"
+                                                                       StaysOpen="False" AllowsTransparency="True" PopupAnimation="None"
                                                                        Opened="AnimatePopupOpen">
+                                                                    <!-- Lista de opciones: una fila por modo, nombre a la izquierda e
+                                                                         interruptor a la derecha. Cada uno de estos es un ESTADO
+                                                                         (encendido/apagado), no una accion, y un interruptor lo dice de un
+                                                                         vistazo: con los botones de antes habia que leer el texto para
+                                                                         saber si el modo streamer estaba abierto o cerrado.
+                                                                         RECARGAR SKIN se queda como boton porque no es un estado: es una
+                                                                         accion que se dispara y termina. -->
                                                                     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                            BorderThickness="1" Padding="16" MinWidth="300">
+                                                                            BorderThickness="1" CornerRadius="10" MinWidth="320">
                                                                         <StackPanel>
-                                                                            <!-- Estado del skin (Task SK3): que se esta dibujando (skin instalado o el
-                                                                                 vectorial) y control para recargar tras instalar/actualizar uno. -->
-                                                                            <TextBlock x:Name="SkinStatusText" Style="{StaticResource FieldLabel}" TextWrapping="Wrap"/>
-                                                                            <Button Content="RECARGAR SKIN" Style="{StaticResource InstrumentButton}"
-                                                                                    HorizontalAlignment="Stretch" Margin="0,12,0,0" Click="ReloadSkin_Click"/>
-                                                                            <CheckBox x:Name="CalibrationCheck" Content="Modo calibracion" Margin="0,12,0,0"
-                                                                                      Foreground="{StaticResource TextDataBrush}" Click="Calibration_Click"/>
-
-                                                                            <Border Height="1" Background="{StaticResource BorderBrush}" Margin="0,16,0,0"/>
+                                                                            <Border Style="{StaticResource OptionRow}">
+                                                                                <Grid>
+                                                                                    <TextBlock Text="Modo calibracion" Style="{StaticResource OptionRowLabel}"
+                                                                                               ToolTip="Dibuja el recuadro de cada parte del skin sobre el mando"/>
+                                                                                    <CheckBox x:Name="CalibrationCheck" Style="{StaticResource SwitchToggle}"
+                                                                                              HorizontalAlignment="Right" AutomationProperties.Name="Modo calibracion"
+                                                                                              Checked="Calibration_Changed" Unchecked="Calibration_Changed"/>
+                                                                                </Grid>
+                                                                            </Border>
 
                                                                             <!-- Modo streamer: overlay transparente para capturar por ventana, ver StreamerWindow. -->
-                                                                            <Button x:Name="StreamerToggle" Content="MODO STREAMER" Style="{StaticResource InstrumentButton}"
-                                                                                    HorizontalAlignment="Stretch" Margin="0,16,0,0" Click="StreamerToggle_Click"/>
+                                                                            <Border Style="{StaticResource OptionRow}">
+                                                                                <Grid>
+                                                                                    <TextBlock Text="Modo streamer" Style="{StaticResource OptionRowLabel}"
+                                                                                               ToolTip="Abre una ventana solo con el mando, transparente y siempre encima, para capturarla en OBS"/>
+                                                                                    <CheckBox x:Name="StreamerToggle" Style="{StaticResource SwitchToggle}"
+                                                                                              HorizontalAlignment="Right" AutomationProperties.Name="Modo streamer"
+                                                                                              Checked="StreamerToggle_Changed" Unchecked="StreamerToggle_Changed"/>
+                                                                                </Grid>
+                                                                            </Border>
+
                                                                             <!-- Apaga el pasa-clic del overlay sin destruirlo: una vez ON desde la barra del
                                                                                  propio streamer, el raton lo atraviesa entero y su ToggleButton deja de ser
                                                                                  alcanzable, asi que esta ventana (nunca click-through) es el unico camino de
                                                                                  vuelta. Solo usable con el streamer abierto. -->
-                                                                            <CheckBox x:Name="StreamerClickThrough" Content="Overlay atraviesa clic" Margin="0,12,0,0"
-                                                                                      IsEnabled="False" Foreground="{StaticResource TextDataBrush}"
-                                                                                      Click="StreamerClickThrough_Click"/>
+                                                                            <Border Style="{StaticResource OptionRow}">
+                                                                                <Grid>
+                                                                                    <TextBlock Text="Overlay atraviesa clic" Style="{StaticResource OptionRowLabel}"
+                                                                                               ToolTip="El raton pasa a traves del overlay hasta el juego que hay debajo"/>
+                                                                                    <CheckBox x:Name="StreamerClickThrough" Style="{StaticResource SwitchToggle}"
+                                                                                              HorizontalAlignment="Right" IsEnabled="False"
+                                                                                              AutomationProperties.Name="Overlay atraviesa clic"
+                                                                                              Checked="StreamerClickThrough_Changed" Unchecked="StreamerClickThrough_Changed"/>
+                                                                                </Grid>
+                                                                            </Border>
+
+                                                                            <!-- Ultima fila sin linea inferior, y una accion en vez de un interruptor.
+                                                                                 Que skin se esta dibujando ya no ocupa una linea de texto: vive en
+                                                                                 el ToolTip de este boton, que es justo donde se necesita saberlo. -->
+                                                                            <Border Style="{StaticResource OptionRow}" BorderThickness="0">
+                                                                                <Button x:Name="ReloadSkinBtn" Content="RECARGAR SKIN"
+                                                                                        Style="{StaticResource InstrumentButton}"
+                                                                                        HorizontalAlignment="Stretch" Click="ReloadSkin_Click"/>
+                                                                            </Border>
                                                                         </StackPanel>
                                                                     </Border>
                                                                 </Popup>
