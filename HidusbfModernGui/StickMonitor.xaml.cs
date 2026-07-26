@@ -75,6 +75,10 @@ namespace HidusbfModernGui
         // propio a partir de las muestras que le llegan por Push, nadie de fuera la fija.
         public DriftLevel Drift => _telemetry.Drift;
 
+        // Espejo de StickTelemetry.NewValuesPerSecond (Task 4, metrica VALORES NUEVOS): la
+        // tasa de reportes la conoce quien llama (PollingMeter), no este control.
+        public double NewValuesPerSecond(double reportHz) => _telemetry.NewValuesPerSecond(reportHz);
+
         // Empuja una muestra nueva (x, y en -1..1, convencion ControllerState: Y arriba
         // positivo). Antes de que Loaded corra no hay nada que mover todavia; el telemetro
         // sigue acumulando igual, asi que el primer Build ya arranca con rastro si Push
