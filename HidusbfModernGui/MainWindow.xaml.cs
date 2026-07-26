@@ -109,6 +109,13 @@ namespace HidusbfModernGui
         private const int DBT_DEVNODES_CHANGED = 0x0007;
         private DispatcherTimer? _deviceChangeDebounce;
 
+        // Cuantas veces se puede APLAZAR un refresco por estar el motor o un replug ocupados,
+        // antes de rendirse. A 500 ms por intento son 15 s, de sobra para el reinicio de
+        // devnode mas lento; el tope existe solo para que una bandera que se quedara colgada
+        // no deje un temporizador latiendo el resto de la sesion.
+        private const int DeviceChangeMaxDeferrals = 30;
+        private int _deviceChangeDeferrals;
+
         protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
@@ -130,17 +137,33 @@ namespace HidusbfModernGui
                     _deviceChangeDebounce.Tick += (s, ev) =>
                     {
                         _deviceChangeDebounce!.Stop();
-                        if (_overclockBusy) return;  // no competir con un replug en curso
-                        // El propio motor provoca este WM_DEVICECHANGE (HidHide reinicia el
-                        // devnode del DualSense al ocultarlo/mostrarlo). Sin este guard, ese
-                        // replug propio dispara un RefreshDevicesList() (~1s de PowerShell) que
-                        // compite por el hilo de UI con el propio Start/StopEngine.
-                        if (_engineBusy) return;
+
+                        // Ocupados = APLAZAR, nunca descartar. Antes aqui habia dos "return"
+                        // secos, y como el temporizador ya se habia parado en la linea de
+                        // arriba, el aviso se perdia para siempre.
+                        //
+                        // No era un caso raro: al apagar el mando virtual, HidHide devuelve el
+                        // fisico reiniciando su devnode, y ese revert tarda MUCHO mas que estos
+                        // 500 ms, asi que el WM_DEVICECHANGE de nuestro propio replug llegaba
+                        // SIEMPRE con _engineBusy en true. Resultado: la lista se quedaba con la
+                        // foto anterior al motor, la luz no se reaplicaba (se reaplica justo
+                        // aqui) y el medidor seguia muerto -su handle se lo lleva el reinicio
+                        // del devnode-, con lo que MEDIDA no volvia a dar señal y parecia que el
+                        // overclock se hubiera perdido.
+                        if (_overclockBusy || _engineBusy)
+                        {
+                            if (++_deviceChangeDeferrals <= DeviceChangeMaxDeferrals)
+                                _deviceChangeDebounce.Start();
+                            return;
+                        }
+
+                        _deviceChangeDeferrals = 0;
                         _intentReapplied = false;   // permitir reaplicar al mando reaparecido
                         RefreshDevicesList();        // repuebla _allDevices y reaplica la luz
                     };
                 }
                 _deviceChangeDebounce.Stop();
+                _deviceChangeDeferrals = 0;   // aviso nuevo: el presupuesto de aplazamientos vuelve a empezar
                 _deviceChangeDebounce.Start();
             }
             else if (msg == WM_GETMINMAXINFO)
