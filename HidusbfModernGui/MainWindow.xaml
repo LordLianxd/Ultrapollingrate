@@ -366,81 +366,130 @@
                                             </Style>
                                         </StackPanel.Style>
 
-                                        <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextDataBrush}" FontSize="15"/>
+                                        <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextDataBrush}" FontSize="15" Margin="0,0,0,16"/>
 
-                                        <!-- MEASURED is the headline, not requested. Writing bInterval to the
-                                             registry reconfigures nothing until the device is re-enumerated, so
-                                             the requested value is a promise, not a fact. Showing it at 46px was
-                                             the app telling the user 8000 Hz while the pad ran at 1000. The big
-                                             number is now what the device is actually doing. -->
-                                        <TextBlock Text="MEDIDA" Style="{StaticResource FieldLabel}" Margin="0,16,0,0"/>
-                                        <TextBlock x:Name="MeasuredText" Text="--" Style="{StaticResource RateDisplay}"/>
-                                        <TextBlock x:Name="MeasuredGapText" Text="--" Style="{StaticResource DataText}"
-                                                   Foreground="{StaticResource TextLabelBrush}" FontSize="15"/>
+                                        <!-- Tarjeta MEDIDA. MEASURED is the headline, not requested. Writing
+                                             bInterval to the registry reconfigures nothing until the device is
+                                             re-enumerated, so the requested value is a promise, not a fact.
+                                             Showing it at 46px was the app telling the user 8000 Hz while the pad
+                                             ran at 1000. The big number is now what the device is actually doing.
 
-                                        <!-- Requested drops to a secondary line. The dot compares the two: that
-                                             comparison is the whole product. -->
-                                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
-                                            <TextBlock Text="PEDIDA" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Width="70"/>
-                                            <TextBlock Text="{Binding DisplayRate}" Style="{StaticResource DataText}" VerticalAlignment="Center"/>
-                                            <Ellipse x:Name="MeasuredDot" Style="{StaticResource StatusDot}" Margin="10,0,0,0"/>
-                                        </StackPanel>
-                                        <TextBlock x:Name="MatchHintText" Text="" Style="{StaticResource FieldLabel}"
-                                                   Foreground="{StaticResource StatusWarnBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                             El distintivo de regularidad (a la derecha del rotulo) dice como de
+                                             REGULAR llega el flujo, no si la tasa es la pedida - eso lo dice el
+                                             punto de PEDIDA, justo debajo. Son dos preguntas distintas: un mando
+                                             puede ir a la tasa correcta con tirones, y uno a tasa equivocada
+                                             puede ir finisimo. -->
+                                        <Border Style="{StaticResource DeviceCard}">
+                                            <StackPanel>
+                                                <Grid>
+                                                    <TextBlock Text="MEDIDA" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
+                                                    <!-- Colapsado hasta que UpdateMeasuredReadout tenga una muestra
+                                                         valida que clasificar: un distintivo con un valor viejo
+                                                         junto a un numero que dice "sin datos" miente peor que no
+                                                         tener distintivo. -->
+                                                    <Border x:Name="SteadinessChip" Style="{StaticResource StatusChip}"
+                                                            HorizontalAlignment="Right" Visibility="Collapsed">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Ellipse x:Name="SteadinessChipDot" Style="{StaticResource StatusDot}" Margin="0,0,6,0"/>
+                                                            <TextBlock x:Name="SteadinessChipText" Text="" Style="{StaticResource ChipText}"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </Grid>
 
-                                        <Rectangle Height="1" Fill="{StaticResource BorderBrush}" Margin="0,22"/>
+                                                <TextBlock x:Name="MeasuredText" Text="--" Style="{StaticResource RateDisplay}" Margin="0,6,0,0"/>
 
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="110"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="26"/>
-                                                <RowDefinition Height="26"/>
-                                                <RowDefinition Height="26"/>
-                                                <RowDefinition Height="26"/>
-                                            </Grid.RowDefinitions>
+                                                <!-- ENTRE REPORTES, no LATENCIA: este numero es el hueco entre
+                                                     llegadas de reportes HID. La latencia -el retardo desde que se
+                                                     mueve el stick- esta app no la mide ni puede medirla, porque el
+                                                     reporte no trae marca de tiempo de origen: el instante del
+                                                     evento fisico es un dato que no existe aqui, y llamarlo
+                                                     latencia afirmaria un retardo total equivocado en dos ordenes
+                                                     de magnitud. -->
+                                                <TextBlock Text="ENTRE REPORTES" Style="{StaticResource FieldLabel}" Margin="0,12,0,0"/>
+                                                <TextBlock x:Name="MeasuredGapText" Text="--" Style="{StaticResource DataText}"
+                                                           Foreground="{StaticResource TextLabelBrush}" FontSize="15"/>
 
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="VELOCIDAD" Style="{StaticResource FieldLabel}"/>
-                                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SpeedText}" Style="{StaticResource DataText}"/>
+                                                <!-- Requested drops to a secondary line. The dot compares the two: that
+                                                     comparison is the whole product. -->
+                                                <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                                                    <TextBlock Text="PEDIDA" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Width="70"/>
+                                                    <TextBlock Text="{Binding DisplayRate}" Style="{StaticResource DataText}" VerticalAlignment="Center"/>
+                                                    <Ellipse x:Name="MeasuredDot" Style="{StaticResource StatusDot}" Margin="10,0,0,0"/>
+                                                </StackPanel>
+                                                <TextBlock x:Name="MatchHintText" Text="" Style="{StaticResource FieldLabel}"
+                                                           Foreground="{StaticResource StatusWarnBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                            </StackPanel>
+                                        </Border>
 
-                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="bINTERVAL" Style="{StaticResource FieldLabel}"/>
-                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding BIntervalText}" Style="{StaticResource DataText}"/>
+                                        <!-- Tarjeta ESPECIFICACIONES TECNICAS: la rejilla de cuatro filas de
+                                             siempre, mas el instance id al final. -->
+                                        <TextBlock Text="ESPECIFICACIONES TÉCNICAS" Style="{StaticResource SectionHeading}" Margin="0,16,0,8"/>
+                                        <Border Style="{StaticResource DeviceCard}">
+                                            <StackPanel>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="110"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="26"/>
+                                                        <RowDefinition Height="26"/>
+                                                        <RowDefinition Height="26"/>
+                                                        <RowDefinition Height="26"/>
+                                                    </Grid.RowDefinitions>
 
-                                            <!-- StatusDot is a whole-device fact (filter + speed + rate), so it is
-                                                 anchored to FILTRO, the row it tracks most closely, not to
-                                                 VELOCIDAD, which it does not describe. -->
-                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="FILTRO" Style="{StaticResource FieldLabel}"/>
-                                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding FilterText}" Style="{StaticResource DataText}"/>
-                                            <Ellipse   Grid.Row="2" Grid.Column="2" Style="{StaticResource StatusDot}"
-                                                       Fill="{Binding StatusDot, Converter={StaticResource StatusToBrush}}"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="VELOCIDAD" Style="{StaticResource FieldLabel}"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SpeedText}" Style="{StaticResource DataText}"/>
 
-                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="INTERVALO" Style="{StaticResource FieldLabel}"/>
-                                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding IntervalModeText}" Style="{StaticResource DataText}"/>
-                                        </Grid>
+                                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="bINTERVAL" Style="{StaticResource FieldLabel}"/>
+                                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding BIntervalText}" Style="{StaticResource DataText}"/>
 
-                                        <TextBlock Text="INSTANCE ID" Style="{StaticResource FieldLabel}" Margin="0,14,0,3"/>
-                                        <TextBlock Text="{Binding InstanceId}" Style="{StaticResource DataText}" FontSize="10"
-                                                   Foreground="{StaticResource TextLabelBrush}" TextWrapping="Wrap"/>
+                                                    <!-- StatusDot is a whole-device fact (filter + speed + rate), so it is
+                                                         anchored to FILTRO, the row it tracks most closely, not to
+                                                         VELOCIDAD, which it does not describe. -->
+                                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="FILTRO" Style="{StaticResource FieldLabel}"/>
+                                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding FilterText}" Style="{StaticResource DataText}"/>
+                                                    <Ellipse   Grid.Row="2" Grid.Column="2" Style="{StaticResource StatusDot}"
+                                                               Fill="{Binding StatusDot, Converter={StaticResource StatusToBrush}}"/>
 
-                                        <TextBlock Text="TASA OBJETIVO" Style="{StaticResource FieldLabel}" Margin="0,22,0,6"/>
-                                        <ComboBox x:Name="DetailRateCombo" Width="150" HorizontalAlignment="Left"
-                                                  FontFamily="{StaticResource MonoFont}"
-                                                  SelectionChanged="DetailRateCombo_SelectionChanged"/>
+                                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="INTERVALO" Style="{StaticResource FieldLabel}"/>
+                                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding IntervalModeText}" Style="{StaticResource DataText}"/>
+                                                </Grid>
 
-                                        <Button x:Name="ApplyOverclockBtn" Content="APLICAR CAMBIOS"
-                                                Style="{StaticResource InstrumentButton}"
-                                                HorizontalAlignment="Left" Margin="0,22,0,0"
-                                                Click="ApplyOverclock_Click"
-                                                ToolTip="Activa el filtro, escribe la tasa elegida y reconecta el dispositivo (los tres pasos encadenados). Es lo unico que aplica el overclock al 100%."/>
+                                                <TextBlock Text="INSTANCE ID" Style="{StaticResource FieldLabel}" Margin="0,14,0,4"/>
+                                                <!-- Es largo y no cabe: se recorta y el completo vive en el ToolTip.
+                                                     Sirve para pegarlo en un reporte de fallo, asi que tiene que
+                                                     poder leerse entero de algun modo. -->
+                                                <TextBlock Text="{Binding InstanceId}" Style="{StaticResource DataText}" FontSize="11"
+                                                           Foreground="{StaticResource TextLabelBrush}" TextTrimming="CharacterEllipsis"
+                                                           ToolTip="{Binding InstanceId}"/>
+                                            </StackPanel>
+                                        </Border>
 
-                                        <Button x:Name="ResetOverclockBtn" Content="RESTABLECER VALORES"
-                                                Style="{StaticResource SecondaryButton}"
-                                                Click="ResetOverclock_Click"
-                                                HorizontalAlignment="Left" Margin="0,10,0,0"
-                                                ToolTip="Quita el filtro, borra la tasa guardada en el registro y reconecta: deja el dispositivo como estaba antes de tocarlo."/>
+                                        <!-- Tarjeta CONFIGURACION DE TASA: el combo a lo ancho y los dos botones
+                                             en fila, debajo. Los handlers no cambian. -->
+                                        <TextBlock Text="CONFIGURACIÓN DE TASA" Style="{StaticResource SectionHeading}" Margin="0,16,0,8"/>
+                                        <Border Style="{StaticResource DeviceCard}">
+                                            <StackPanel>
+                                                <ComboBox x:Name="DetailRateCombo"
+                                                          FontFamily="{StaticResource MonoFont}"
+                                                          SelectionChanged="DetailRateCombo_SelectionChanged"/>
+
+                                                <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                                    <Button x:Name="ApplyOverclockBtn" Content="APLICAR CAMBIOS"
+                                                            Style="{StaticResource PrimaryButton}"
+                                                            Click="ApplyOverclock_Click"
+                                                            ToolTip="Activa el filtro, escribe la tasa elegida y reconecta el dispositivo (los tres pasos encadenados). Es lo unico que aplica el overclock al 100%."/>
+
+                                                    <Button x:Name="ResetOverclockBtn" Content="RESTABLECER VALORES"
+                                                            Style="{StaticResource SecondaryButton}"
+                                                            Click="ResetOverclock_Click"
+                                                            Margin="10,0,0,0"
+                                                            ToolTip="Quita el filtro, borra la tasa guardada en el registro y reconecta: deja el dispositivo como estaba antes de tocarlo."/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
                                     </StackPanel>
                                 </Grid>
                             </Grid>

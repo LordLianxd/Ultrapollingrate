@@ -3274,6 +3274,9 @@ namespace HidusbfModernGui
                 // Cleared, or a mismatch warning from the previously selected device
                 // would sit here talking about a device that is no longer on screen.
                 MatchHintText.Text = "";
+                // Sin muestra no hay nada que clasificar: un distintivo colgado con el
+                // valor del dispositivo anterior seria peor que no tener distintivo.
+                SteadinessChip.Visibility = Visibility.Collapsed;
                 DrawSpectrum(Array.Empty<double>(), null);
                 return;
             }
@@ -3291,6 +3294,7 @@ namespace HidusbfModernGui
                 MeasuredText.Text = "--";
                 MeasuredGapText.Text = "--";
                 MeasuredDot.Fill = (Brush)FindResource("TextMutedBrush");
+                SteadinessChip.Visibility = Visibility.Collapsed;
                 return;
             }
 
@@ -3303,6 +3307,9 @@ namespace HidusbfModernGui
                 MeasuredGapText.Text = "--";
                 MeasuredDot.Fill = (Brush)FindResource("TextMutedBrush");
                 MatchHintText.Text = "";
+                // Snapshot() vuelve null tanto si nunca llego nada como si el flujo
+                // lleva 2 s callado: en los dos casos no hay muestra que clasificar.
+                SteadinessChip.Visibility = Visibility.Collapsed;
                 return;
             }
 
@@ -3310,6 +3317,22 @@ namespace HidusbfModernGui
             MeasuredText.Text = $"{hz:0.#} Hz";
             MeasuredText.Foreground = (Brush)FindResource("TextDataBrush");
             MeasuredGapText.Text = $"{sample.Value.MedianGapMs:0.###} ms";
+
+            // El distintivo dice como de REGULAR llega el flujo, no si la tasa es la
+            // pedida - eso lo dice el punto de PEDIDA, justo debajo. Son dos preguntas
+            // distintas: un mando puede ir a la tasa correcta con tirones, y uno a tasa
+            // equivocada puede ir finisimo.
+            var firmeza = RateStability.Classify(
+                sample.Value.MedianGapMs, sample.Value.P95GapMs, sample.Value.Count);
+
+            (SteadinessChipText.Text, var puntoFirmeza) = firmeza switch
+            {
+                RateSteadiness.Regular   => ("REGULAR",   StatusLevel.Ok),
+                RateSteadiness.Irregular => ("IRREGULAR", StatusLevel.Warn),
+                _                        => ("SIN DATOS", StatusLevel.Idle),
+            };
+            SteadinessChipDot.Fill = StatusBrush(puntoFirmeza);
+            SteadinessChip.Visibility = Visibility.Visible;
 
             // Green when the device is doing what was asked; amber when it is not. This
             // one dot is the answer to the question the app could never answer before.
