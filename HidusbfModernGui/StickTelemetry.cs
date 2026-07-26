@@ -25,12 +25,14 @@ namespace HidusbfModernGui
         // Radio que separa "quieto" de "en movimiento" para detectar el reposo.
         public const double RestRadius = 0.15;
 
-        // Cuanto puede alejarse una muestra de la media de la racha actual y seguir
-        // contando como parte del mismo reposo. Un temblor de mano real en un stick
-        // quieto queda muy por debajo de esto; un movimiento deliberado, aunque sea
-        // lento, lo supera enseguida. Sin este limite, "dentro de RestRadius del
-        // centro" tambien deja pasar un barrido lento del stick de punta a punta:
-        // radio-al-centro no es lo mismo que "las muestras estan quietas entre si".
+        // Cuanto puede moverse la media entre la primera y la segunda mitad de la
+        // ventana de RestSamples muestras y seguir contando como reposo. NO es una
+        // tolerancia por muestra: una muestra sola, comparada contra la media de la
+        // racha, no distingue temblor de movimiento, porque un barrido lento tiene
+        // pasos mas chicos que el propio temblor. Lo que si los distingue es la
+        // TENDENCIA: el temblor tiene una media estable de punta a punta de la
+        // ventana; un movimiento, por lento que sea, mueve esa media. Por eso se
+        // parte la ventana en dos mitades y se compara la media de cada una.
         public const double RestSpread = 0.02;
 
         // Un DualSense sano se queda muy por debajo de esto.
@@ -53,10 +55,6 @@ namespace HidusbfModernGui
         private int _windowNewCount;
 
         private (double X, double Y)? _previous;
-
-        private int _restRun;
-        private double _restMeanX;
-        private double _restMeanY;
 
         public IReadOnlyList<(double X, double Y)> Trail
         {
@@ -111,57 +109,76 @@ namespace HidusbfModernGui
 
             _previous = (x, y);
 
-            UpdateDrift(x, y);
+            UpdateDrift();
         }
 
-        // Solo se mide la deriva cuando hay RestSamples muestras seguidas de reposo, y
-        // "reposo" quiere decir dos cosas a la vez: cerca del centro (RestRadius, para
-        // que un stick clavado a fondo no cuente como quieto) Y cerca de las demas
-        // muestras de la racha (RestSpread, contra la media que se lleva de la racha).
-        // Solo el radio-al-centro no alcanza: caminar el stick hacia afuera un paso
-        // pequeno a la vez, sin salirse nunca de RestRadius, tambien pasaria esa prueba
-        // aunque el stick se este moviendo de verdad. La media es incremental para no
-        // recorrer la racha en cada Push. Si el usuario mueve el stick la racha se
-        // corta y la ultima lectura buena de Drift/DriftRadius se conserva tal cual, en
-        // vez de recalcularse sobre ruido de movimiento.
-        private void UpdateDrift(double x, double y)
+        // Solo se mide la deriva cuando hay RestSamples muestras Y esas muestras dicen
+        // "reposo". La version vieja de esto comparaba cada muestra nueva contra la
+        // media de la racha (RestSpread como tolerancia POR MUESTRA) y cortaba la
+        // racha entera al primer desvio. Eso se rompe con un potenciometro gastado que
+        // alterna entre dos codigos de contacto cerca del centro: cada muestra se aleja
+        // de la anterior mas que RestSpread, asi que la racha se corta en CADA Push y
+        // Drift se queda en Unknown para siempre, aunque el stick no se este moviendo -
+        // exactamente el pad roto que este indicador deberia atrapar. El problema de
+        // fondo es que "quieto" contra "en movimiento" no se puede decidir muestra por
+        // muestra: un contacto ruidoso en un stick quieto de verdad salta de muestra a
+        // muestra tanto como (o mas que) un barrido lento y deliberado. Lo unico que
+        // los distingue es la TENDENCIA a lo largo de la ventana: el ruido tiene una
+        // media estable de punta a punta; el movimiento no.
+        //
+        // Por eso ahora se mira la ventana completa de las ultimas RestSamples
+        // muestras: se parte en dos mitades y se compara la media de la primera contra
+        // la de la segunda (RestSpread). Si difieren poco, es la misma tendencia -
+        // reposo, aunque salte muestra a muestra. Ademas cada muestra de la ventana
+        // debe seguir dentro de RestRadius del centro, para que un stick clavado a
+        // fondo no cuente como quieto solo porque no se mueve.
+        //
+        // Se recalcula desde el anillo _trail en cada Push (O(RestSamples), no O(1)):
+        // RestSamples es chico (30) asi que el costo es insignificante, y recorrer la
+        // ventana entera deja el calculo obvio a simple vista en vez de tener que
+        // confiar en una actualizacion incremental de dos mitades que se deslizan.
+        //
+        // Si la ventana no es reposo (se sale de RestRadius o la tendencia se mueve),
+        // no se toca nada: la ultima lectura buena de Drift/DriftRadius se conserva tal
+        // cual, en vez de recalcularse sobre ruido de movimiento.
+        private void UpdateDrift()
         {
-            double r = Math.Sqrt(x * x + y * y);
-            if (r > RestRadius)
+            if (_count < RestSamples) return;
+
+            int half = RestSamples / 2;
+            int second = RestSamples - half;
+            double sumFirstX = 0, sumFirstY = 0, sumSecondX = 0, sumSecondY = 0;
+
+            for (int i = 0; i < RestSamples; i++)
             {
-                _restRun = 0;
+                int idx = (_head - RestSamples + i + _trail.Length) % _trail.Length;
+                var s = _trail[idx];
+                double r = Math.Sqrt(s.X * s.X + s.Y * s.Y);
+                if (r > RestRadius)
+                {
+                    // Al menos una muestra de la ventana esta lejos del centro: no es
+                    // reposo, sea cual sea la tendencia.
+                    return;
+                }
+
+                if (i < half) { sumFirstX += s.X; sumFirstY += s.Y; }
+                else { sumSecondX += s.X; sumSecondY += s.Y; }
+            }
+
+            double meanFirstX = sumFirstX / half, meanFirstY = sumFirstY / half;
+            double meanSecondX = sumSecondX / second, meanSecondY = sumSecondY / second;
+            double dx = meanSecondX - meanFirstX, dy = meanSecondY - meanFirstY;
+            double trend = Math.Sqrt(dx * dx + dy * dy);
+            if (trend > RestSpread)
+            {
+                // La media se mueve de la primera mitad de la ventana a la segunda:
+                // es tendencia, no ruido - el stick se esta moviendo de verdad.
                 return;
             }
 
-            if (_restRun > 0)
-            {
-                double dx = x - _restMeanX;
-                double dy = y - _restMeanY;
-                double spread = Math.Sqrt(dx * dx + dy * dy);
-                if (spread > RestSpread)
-                {
-                    // Se aleja demasiado de la media de la racha actual: no es la misma
-                    // racha de reposo, aunque siga dentro de RestRadius del centro.
-                    _restRun = 0;
-                }
-            }
-
-            if (_restRun == 0)
-            {
-                _restMeanX = x;
-                _restMeanY = y;
-                _restRun = 1;
-            }
-            else
-            {
-                _restRun++;
-                _restMeanX += (x - _restMeanX) / _restRun;
-                _restMeanY += (y - _restMeanY) / _restRun;
-            }
-
-            if (_restRun < RestSamples) return;
-
-            double meanR = Math.Sqrt(_restMeanX * _restMeanX + _restMeanY * _restMeanY);
+            double meanX = (sumFirstX + sumSecondX) / RestSamples;
+            double meanY = (sumFirstY + sumSecondY) / RestSamples;
+            double meanR = Math.Sqrt(meanX * meanX + meanY * meanY);
             DriftRadius = meanR;
             Drift = meanR <= DriftOk ? DriftLevel.Ok
                 : meanR <= DriftLeve ? DriftLevel.Leve
@@ -193,9 +210,6 @@ namespace HidusbfModernGui
             _windowComparisons = 0;
             _windowNewCount = 0;
             _previous = null;
-            _restRun = 0;
-            _restMeanX = 0.0;
-            _restMeanY = 0.0;
             DriftRadius = 0.0;
             Drift = DriftLevel.Unknown;
         }

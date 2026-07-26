@@ -148,24 +148,29 @@ public class StickTelemetryTests
         Assert.Equal(DriftLevel.Alta, t.Drift);
     }
 
-    // Una racha que se corta a la mitad no debe reportar nada hasta que una racha
-    // COMPLETA de RestSamples termine: el reposo interrumpido no cuenta como reposo.
+    // Esta prueba antes se llamaba "RestRunBrokenPartway...DoesNotReport" y exigia
+    // Unknown mientras una racha no terminara sin interrupciones: esa expectativa
+    // pertenecia a la regla vieja por RACHA (tolerancia por muestra), la misma que
+    // se reescribio porque no distingue ruido de movimiento. Fisicamente esta
+    // secuencia es un stick quieto en 0.1 con UN salto de contacto ruidoso en el
+    // medio, no un stick en movimiento: 25 muestras en 0.1, un pico a 0.13, otras 25
+    // en 0.1. Con la regla por tendencia esa muestra suelta pesa 1/30 de la ventana
+    // y no mueve la media de mitad a mitad, asi que la ventana SI es reposo y
+    // reportar Alta con un radio cercano a 0.1 es la respuesta correcta. Negarse a
+    // reportar por un solo valor atipico es la misma falla de "queda mudo" que
+    // motivo reescribir la regla: un pad con un contacto sucio no reportaria nunca.
     [Fact]
-    public void Drift_RestRunBrokenPartway_DoesNotReportUntilAFullRunCompletes()
+    public void Drift_SingleOutlierDoesNotBlindTheIndicator()
     {
         var t = new StickTelemetry();
         for (int i = 0; i < StickTelemetry.RestSamples - 5; i++) t.Push(0.1, 0);
-        // Rompe la racha por RestSpread (se aleja de la media) sin salirse de RestRadius.
+        // Un pico de ruido de un solo contacto: se aleja de la media pero sigue
+        // dentro de RestRadius.
         t.Push(0.1 + StickTelemetry.RestSpread * 1.5, 0);
-        Assert.Equal(DriftLevel.Unknown, t.Drift);
-
-        // Todavia falta para completar una racha nueva.
         for (int i = 0; i < StickTelemetry.RestSamples - 5; i++) t.Push(0.1, 0);
-        Assert.Equal(DriftLevel.Unknown, t.Drift);
 
-        // Ahora si se completa la racha nueva.
-        for (int i = 0; i < 5; i++) t.Push(0.1, 0);
-        Assert.NotEqual(DriftLevel.Unknown, t.Drift);
+        Assert.Equal(DriftLevel.Alta, t.Drift);
+        Assert.Equal(0.1, t.DriftRadius, 2);
     }
 
     // NewValuesPerSecond debe ser una ventana deslizante, no un promedio de toda la
@@ -182,5 +187,68 @@ public class StickTelemetryTests
 
         double rate = t.NewValuesPerSecond(1000);
         Assert.True(rate > 900.0, $"se esperaba una tasa cercana a 1000, salio {rate}");
+    }
+
+    // El caso que encontro la revision adversarial sobre la version por RACHA: un
+    // potenciometro gastado que alterna entre dos codigos de contacto cerca del
+    // centro. Cada muestra se aleja de la anterior mas que RestSpread, asi que la
+    // regla vieja (tolerancia por muestra contra la media de la racha) cortaba la
+    // racha en CADA Push y Drift se quedaba en Unknown para siempre - exactamente el
+    // pad roto que este indicador deberia atrapar. Esta es la prueba de regresion:
+    // tiene que reportar Alta, no Unknown.
+    [Fact]
+    public void Drift_DeterministicAlternationNearRest_ReportsAltaNotUnknown()
+    {
+        var t = new StickTelemetry();
+        for (int i = 0; i < 300; i++)
+            t.Push(i % 2 == 0 ? 0.10 + 0.012 : 0.10 - 0.012, 0);
+
+        Assert.Equal(DriftLevel.Alta, t.Drift);
+        Assert.NotEqual(DriftLevel.Unknown, t.Drift);
+    }
+
+    // La misma alternancia determinista, a varias amplitudes alrededor de un offset
+    // real: mientras la tendencia (media de mitad a mitad de la ventana) no se mueva,
+    // debe seguir siendo reposo y reportar Alta, sea cual sea el tamano del salto
+    // muestra a muestra.
+    [Theory]
+    [InlineData(0.01)]  // 0.5x RestSpread
+    [InlineData(0.02)]  // 1x RestSpread
+    [InlineData(0.04)]  // 2x RestSpread
+    public void Drift_AlternationAtVariousAmplitudes_ReportsAlta(double amplitude)
+    {
+        var t = new StickTelemetry();
+        for (int i = 0; i < 300; i++)
+            t.Push(i % 2 == 0 ? 0.10 + amplitude : 0.10 - amplitude, 0);
+
+        Assert.Equal(DriftLevel.Alta, t.Drift);
+    }
+
+    // La caminata lenta y deliberada (el fallo original que motivo la version por
+    // racha) tiene que seguir sin sonar la alarma con la regla nueva por tendencia:
+    // las medias de las dos mitades de la ventana difieren de sobra por encima de
+    // RestSpread mientras el stick recorre 0.01 a 0.14.
+    [Fact]
+    public void Drift_SlowWalk_StillDoesNotReportAlta_UnderTrendRule()
+    {
+        var t = EnReposo(0, 0);
+        for (int i = 1; i <= 14; i++) t.Push(i / 100.0, 0);
+        Assert.NotEqual(DriftLevel.Alta, t.Drift);
+    }
+
+    // Reposo genuino con temblor de mano de verdad (no una alternancia perfecta) sobre
+    // un offset grande: la tendencia de ambas mitades de la ventana es la misma, asi
+    // que debe seguir reportando Alta.
+    [Fact]
+    public void Drift_GenuineRestWithRandomishJitter_ReportsAlta()
+    {
+        var t = new StickTelemetry();
+        var rng = new Random(12345);
+        for (int i = 0; i < 300; i++)
+        {
+            double jitter = (rng.NextDouble() - 0.5) * 2 * 0.012;
+            t.Push(0.10 + jitter, 0);
+        }
+        Assert.Equal(DriftLevel.Alta, t.Drift);
     }
 }
