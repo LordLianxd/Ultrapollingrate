@@ -62,6 +62,7 @@ namespace HidusbfModernGui
             BuildLoadingIndicator();
             BuildEngineSpinner();
             InitTray();
+            ApplySpecsExpanded(UiPrefsStore.Load().SpecsExpanded);
             RefreshPrivilegeState();
             RefreshStatus();
 
@@ -414,6 +415,38 @@ namespace HidusbfModernGui
         // Enciende o apaga el anillo de la fila MANDO VIRTUAL. Se llama en los dos sentidos
         // -al arrancar el motor y al pararlo-, porque las dos operaciones reinician el devnode
         // y las dos tardan lo mismo en volver.
+        // ===== ESPECIFICACIONES TECNICAS: plegar / desplegar =====
+        //
+        // Campos de diagnostico (velocidad de bus, bInterval, filtro, modo de intervalo,
+        // instance id): hacen falta para entender por que una tasa NO se aplico, no para el uso
+        // normal. Plegados de partida, y la eleccion se recuerda.
+        private bool _specsExpanded;
+
+        private void SpecsToggle_Click(object sender, RoutedEventArgs e)
+        {
+            ApplySpecsExpanded(!_specsExpanded);
+
+            // Se guarda al pulsar y no con debounce: es un clic aislado del usuario, no una
+            // rafaga como el arrastre del selector de color.
+            var prefs = UiPrefsStore.Load();
+            prefs.SpecsExpanded = _specsExpanded;
+            UiPrefsStore.Save(prefs);
+        }
+
+        // Deja el panel y el icono coherentes. Un solo sitio los toca, para que no pueda
+        // quedar un ojo abierto sobre una tarjeta plegada.
+        private void ApplySpecsExpanded(bool expanded)
+        {
+            _specsExpanded = expanded;
+            if (SpecsCard == null || SpecsToggleIcon == null) return;
+
+            SpecsCard.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
+            SpecsToggleIcon.Data = (Geometry)FindResource(expanded ? "EyeIconPath" : "EyeOffIconPath");
+            SpecsToggleBtn.ToolTip = expanded
+                ? "Ocultar las especificaciones tecnicas"
+                : "Ver las especificaciones tecnicas";
+        }
+
         private void SetEngineBusyVisual(bool busy)
         {
             EngineSpinner.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;

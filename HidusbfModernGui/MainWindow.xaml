@@ -423,8 +423,27 @@
 
                                         <!-- Tarjeta ESPECIFICACIONES TECNICAS: la rejilla de cuatro filas de
                                              siempre, mas el instance id al final. -->
-                                        <TextBlock Text="ESPECIFICACIONES TÉCNICAS" Style="{StaticResource SectionHeading}" Margin="0,16,0,8"/>
-                                        <Border Style="{StaticResource DeviceCard}">
+                                        <!-- Plegada por defecto. Estos cuatro campos son de diagnostico: hacen
+                                             falta para entender por que una tasa no se aplico, no para el uso
+                                             normal, y de partida empujaban CONFIGURACION DE TASA fuera de la
+                                             vista. El ojo tachado dice que hay algo escondido; el ojo normal,
+                                             que se esta viendo. La eleccion se recuerda entre sesiones: quien
+                                             abre esto suele quererlo abierto siempre. -->
+                                        <Grid Margin="0,16,0,8">
+                                            <TextBlock Text="ESPECIFICACIONES TÉCNICAS" Style="{StaticResource SectionHeading}"
+                                                       VerticalAlignment="Center"/>
+                                            <Button x:Name="SpecsToggleBtn" Style="{StaticResource RoundIconButton}"
+                                                    HorizontalAlignment="Right" Click="SpecsToggle_Click"
+                                                    AutomationProperties.Name="Mostrar u ocultar las especificaciones tecnicas">
+                                                <!-- Fill atado al Foreground del boton a mano: un Path NO hereda
+                                                     Foreground, y sin esto el icono se queda del color por defecto
+                                                     y no acompana al hover ni al atenuado. -->
+                                                <Path x:Name="SpecsToggleIcon" Stretch="Uniform" Width="14" Height="14"
+                                                      Data="{StaticResource EyeOffIconPath}"
+                                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                            </Button>
+                                        </Grid>
+                                        <Border x:Name="SpecsCard" Style="{StaticResource DeviceCard}" Visibility="Collapsed">
                                             <StackPanel>
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>

@@ -24,6 +24,12 @@ namespace HidusbfModernGui
         // bandeja. Se ensena UNA vez en la vida de la instalacion: la primera vez es una
         // sorpresa que hay que explicar, la decima seria ruido.
         public bool TrayHintShown { get; set; }
+
+        // Si la tarjeta ESPECIFICACIONES TECNICAS de la pagina de dispositivos esta desplegada.
+        // Arranca plegada: son campos de diagnostico, no de uso diario. Se recuerda porque
+        // quien la abre suele quererla abierta siempre, y volver a plegarla en cada arranque
+        // seria pelearse con el usuario.
+        public bool SpecsExpanded { get; set; }
     }
 
     // Espejo de los demas stores: mismo %APPDATA%\UltraPolling, escritura con copia
