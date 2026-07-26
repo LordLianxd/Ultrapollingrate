@@ -1290,6 +1290,27 @@
                                             </Grid>
                                             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                                 <StackPanel Margin="24">
+                                                    <!-- Los dos arcos, sobre la lamina de los gatillos. Cada arco dice dos
+                                                         cosas: los guiones encendidos son el recorrido REAL del gatillo
+                                                         ahora mismo, y el guion largo es el punto de disparo configurado.
+                                                         Juntas convierten el ajuste en algo que se comprueba apretando, en
+                                                         vez de adivinar a que porcentaje corresponde el dedo.
+                                                         La lamina es opcional: si el PNG no esta, los arcos se dibujan
+                                                         igual sobre el fondo, como hace el sistema de skins del mando. -->
+                                                    <Grid Margin="0,0,0,20" Height="250">
+                                                        <Image x:Name="TriggerArtwork" Stretch="Uniform"
+                                                               Visibility="Collapsed" Opacity="0.9"/>
+                                                        <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="60"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <local:TriggerArc x:Name="L2Arc" Grid.Column="0"/>
+                                                            <local:TriggerArc x:Name="R2Arc" Grid.Column="2" Mirrored="True"/>
+                                                        </Grid>
+                                                    </Grid>
+
                                                     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
                                                             BorderThickness="1" Padding="18" Margin="0,0,0,16">
                                                         <StackPanel>

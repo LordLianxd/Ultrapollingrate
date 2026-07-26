@@ -49,6 +49,11 @@ namespace HidusbfModernGui
             // estado combinado cada vez que ConfigPadVisual cambia de visibilidad, sin
             // importar por que camino de navegacion llego el usuario.
             ConfigPadVisual.IsVisibleChanged += (s, e) => UpdateVisualizerRunState();
+
+            // Los arcos de los gatillos solo leen el mando mientras su pagina esta a la vista.
+            // Se engancha a la visibilidad y no a los botones de navegacion para que valga
+            // cualquier camino de entrada y de salida, incluido volver con la flecha.
+            PageGatillos.IsVisibleChanged += (s, e) => UpdateTriggerArcRunState();
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -1948,8 +1953,85 @@ namespace HidusbfModernGui
             RememberRemap();
         }
 
+        // ===== Arcos de los gatillos =====
+        //
+        // Un temporizador propio, vivo SOLO mientras la pagina esta a la vista. El lector del
+        // DualSense se abre al entrar y se cierra al salir: un handle HID abierto que nadie
+        // mira no solo gasta, es ademas lo que puede vetar un CM_Query_And_Remove_SubTree
+        // cuando el usuario aplique una tasa (leccion L1).
+        private DispatcherTimer? _triggerTimer;
+
+        private void UpdateTriggerArcRunState()
+        {
+            bool visible = PageGatillos != null && PageGatillos.IsVisible;
+
+            if (!visible)
+            {
+                _triggerTimer?.Stop();
+                _triggerTimer = null;
+                // Solo se cierra el lector si lo abrimos NOSOTROS. Con el motor del mando
+                // virtual encendido el lector es suyo, y cerrarlo aqui congelaria el juego.
+                if (!_engineRunning && !_engineBusy) _visualFeed.StopOwnReader();
+                return;
+            }
+
+            if (!_engineRunning && !_engineBusy) _visualFeed.StartOwnReader();
+            LoadTriggerArtwork();
+
+            if (_triggerTimer != null) return;
+            // 60 fps: es un indicador para calibrar con el dedo, y por debajo de eso se nota
+            // que el arco va detras del gatillo.
+            _triggerTimer = new DispatcherTimer(DispatcherPriority.Render)
+            {
+                Interval = TimeSpan.FromMilliseconds(16)
+            };
+            _triggerTimer.Tick += TriggerArcTick;
+            _triggerTimer.Start();
+        }
+
+        private void TriggerArcTick(object? sender, EventArgs e)
+        {
+            // Con el motor encendido el mando fisico esta oculto y quien lo lee es el motor;
+            // sin motor, el lector propio del visualizador. Se prueban los dos en ese orden.
+            var snap = _engineRunning ? _padReader?.Snapshot() : _visualFeed.PhysicalSnapshot();
+            if (snap == null) return;
+
+            L2Arc.Value = snap.L2;
+            R2Arc.Value = snap.R2;
+        }
+
+        // La lamina es opcional, igual que las skins del mando: si el PNG no esta, los arcos se
+        // dibujan solos y no se avisa de nada. Un dibujo de fondo que falta no es un error.
+        private void LoadTriggerArtwork()
+        {
+            if (TriggerArtwork == null || TriggerArtwork.Source != null) return;
+            try
+            {
+                string ruta = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "UltraPolling", "skins", "ps5", "triggers.png");
+                if (!System.IO.File.Exists(ruta)) return;
+
+                var bmp = new System.Windows.Media.Imaging.BitmapImage();
+                bmp.BeginInit();
+                bmp.UriSource = new Uri(ruta);
+                // Sin esto el archivo se queda bloqueado y el usuario no puede reemplazarlo
+                // sin cerrar la app - que es exactamente el problema que ya nos costo hoy.
+                bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                bmp.EndInit();
+
+                TriggerArtwork.Source = bmp;
+                TriggerArtwork.Visibility = Visibility.Visible;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Lamina de gatillos: {ex.Message}");
+            }
+        }
+
         private void L2Point_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
+            if (L2Arc != null) L2Arc.Threshold = L2PointSlider.Value / 100.0;
             UpdateTriggerText();
             if (_updatingRemap) return;
             _remap.L2PointPct = (int)Math.Round(L2PointSlider.Value);
@@ -1958,6 +2040,7 @@ namespace HidusbfModernGui
 
         private void R2Point_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
+            if (R2Arc != null) R2Arc.Threshold = R2PointSlider.Value / 100.0;
             UpdateTriggerText();
             if (_updatingRemap) return;
             _remap.R2PointPct = (int)Math.Round(R2PointSlider.Value);
