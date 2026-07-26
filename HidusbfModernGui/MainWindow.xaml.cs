@@ -2486,16 +2486,26 @@ namespace HidusbfModernGui
         {
             BuildLightControls();
 
-            // Con HidHide ocultando el fisico, el escaneo (PowerShell, proceso externo sin
-            // whitelist) no lo ve, pero NOSOTROS si: el resolutor en-proceso sigue encontrando
-            // el mando y la pagina de luces sigue funcionando con el motor activo.
-            _lightPadId = _allDevices.FirstOrDefault(DualSenseLight.IsPlayStation)?.InstanceId
-                          ?? HidHideControl.FindPhysicalGamepadInstanceId();
+            ResolveLightPad();
 
             bool hayMando = _lightPadId != null;
             LightEmptyState.Visibility = hayMando ? Visibility.Collapsed : Visibility.Visible;
             LightPanel.Visibility = hayMando ? Visibility.Visible : Visibility.Collapsed;
             UpdateSwatch();
+        }
+
+        // Resolver el mando de las luces es barato y hay que rehacerlo cada vez que cambia el
+        // hardware, no solo al entrar a la pagina: con el campo fijado al entrar, desenchufar el
+        // mando o cambiarlo de puerto dejaba un identificador muerto y las luces escribian al vacio
+        // sin decir nada.
+        //
+        // El orden NO es intercambiable: primero el escaneo (nombre bonito, coincide con la lista de
+        // Dispositivos) y si no, el resolutor en-proceso, que es el unico que encuentra el mando
+        // cuando HidHide lo oculta con el mando virtual encendido.
+        private void ResolveLightPad()
+        {
+            _lightPadId = _allDevices.FirstOrDefault(DualSenseLight.IsPlayStation)?.InstanceId
+                          ?? HidHideControl.FindPhysicalGamepadInstanceId();
         }
 
         private void Picker_ColorChanged(object? sender, EventArgs e)
@@ -3037,6 +3047,7 @@ namespace HidusbfModernGui
                 {
                     SetDevicesBusy(false);
                     _allDevices = devices;
+                    ResolveLightPad();   // el mando de las luces puede haber cambiado de puerto o haberse ido
                     ApplyFilters();
 
                     // Re-select the same device by InstanceId among the freshly

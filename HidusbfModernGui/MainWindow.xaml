@@ -1330,7 +1330,7 @@
                                      the left, everything that acts on it on the right. -->
                                 <Grid x:Name="LightPanel">
                                     <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>  <!-- device picker, spans both -->
+                                        <RowDefinition Height="Auto"/>  <!-- fila vacia: se deja para no correr los indices de las de abajo -->
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions>
