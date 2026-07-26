@@ -891,14 +891,38 @@ namespace HidusbfModernGui
             if (++_engineTick % 15 == 0) UpdateEngineStatus();
         }
 
+        // Con el motor CORRIENDO BIEN esto se calla: el interruptor ya dice que esta
+        // encendido, y repetirlo con un contador que sube era ruido.
+        //
+        // Pero solo se calla si todo esta bien. Esta linea es la unica superficie que
+        // distingue "encendido" de "encendido a medias", y ese es justo el estado que hay que
+        // poder ver: el interruptor puesto mientras el fisico sigue visible para el juego, o
+        // el virtual conectado sin que llegue un solo reporte (el lector congelado que ya
+        // aparecio una vez). Un interruptor que dice ON sobre un motor a medias es una
+        // mentira; enumerar las piezas cuando alguna falla es lo que lo impide.
         private void UpdateEngineStatus()
         {
             if (_padReader == null || _padVirtual == null || _padHidHide == null) return;
-            string fisico = _padHidHide.IsHiding ? "fisico OCULTO" : "fisico visible";
-            string virt = _padVirtual.Connected ? "virtual ACTIVO" : "virtual inactivo";
-            string reportes = $"{_padReader.ReportsRead} reportes leidos";
+
+            bool oculto = _padHidHide.IsHiding;
+            bool conectado = _padVirtual.Connected;
+            long reportes = _padReader.ReportsRead;
+
+            // Los reportes tardan unos cuadros en arrancar; solo se considera un fallo tras
+            // ~1 s corriendo, para no acusar de congelado a un motor que acaba de encenderse.
+            bool sinReportes = reportes == 0 && _engineTick > 60;
+
+            if (oculto && conectado && !sinReportes && _hideError == null)
+            {
+                SetMasterStatus("");
+                return;
+            }
+
+            string fisico = oculto ? "fisico OCULTO" : "fisico VISIBLE (el juego sigue viendo tu DualSense)";
+            string virt = conectado ? "virtual ACTIVO" : "virtual INACTIVO";
+            string flujo = sinReportes ? " / SIN reportes: el mando no esta enviando nada" : "";
             string extra = _hideError == null ? "" : $"  (HidHide no oculto: {_hideError})";
-            SetMasterStatus($"MANDO VIRTUAL ACTIVO - {fisico} / {virt} / {reportes}{extra}");
+            SetMasterStatus($"A medias - {fisico} / {virt}{flujo}{extra}");
         }
 
         // Trabajo puro de dispositivo (sin tocar ningun control de UI): revierte HidHide
