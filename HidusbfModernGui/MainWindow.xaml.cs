@@ -2077,7 +2077,7 @@ namespace HidusbfModernGui
 
         // Colores fijos de los 3 puntos del editor - la UNICA excepcion de color del tema
         // monocromo, pedida explicitamente: cada punto tiene identidad propia y la ayuda
-        // ("Â¿COMO FUNCIONA?") los nombra por color. El indice es el contrato:
+        // ("¿COMO FUNCIONA?") los nombra por color. El indice es el contrato:
         //   0 = VERDE  zona baja  (movimientos finos, punteria)
         //   1 = AMBAR  zona media (transicion apuntar<->girar)
         //   2 = ROJO   zona alta  (giros rapidos, tope)
@@ -2783,10 +2783,12 @@ namespace HidusbfModernGui
 
         // The trade-off stated where the choice is made. Every one of these numbers is measured,
         // not estimated - see docs/superpowers/plans/2026-07-16-perceptual-rainbow.md.
+        // Va al ToolTip del propio desplegable y ya no a un parrafo bajo la fila: es un texto
+        // que se lee una vez, al elegir, y despues solo ocupaba sitio permanentemente.
         private void UpdateRainbowHint()
         {
-            if (RainbowStyleHint == null) return;
-            RainbowStyleHint.Text = CurrentRainbowStyle switch
+            if (RainbowStyleList == null) return;
+            RainbowStyleList.ToolTip = CurrentRainbowStyle switch
             {
                 RainbowStyle.Smooth => "Suave: transicion perfectamente pareja, brillo constante. Los colores salen menos saturados - un azul vivo es oscuro, y no se puede tener las dos cosas.",
                 RainbowStyle.Balanced => "Equilibrado: cada tono coge todo el color que puede sin variar el brillo. Mas vivo que Suave, casi tan parejo.",
@@ -2914,16 +2916,27 @@ namespace HidusbfModernGui
             RememberLight();
         }
 
-        // Both numbers are what the timer really delivers, not what was requested - the whole
-        // point of counting in ticks. A label that overpromises is the defect this fixes.
+        // Las cifras son lo que el timer ENTREGA de verdad, no lo que se le pidio - para eso se
+        // cuenta en ticks. Una etiqueta que promete de mas es justo el defecto que esto arregla.
+        //
+        // A la vista queda solo la vuelta, que es la unica que se percibe mirando el mando; los
+        // colores por segundo y el aviso de que se saltan colores viven en el ToolTip. Se
+        // muestran las tres, pero no todas a la vez.
         private void UpdateRainbowSpeedText()
         {
             if (RainbowSpeedText == null || RainbowSpeed == null) return;
 
             var walker = new RainbowWalker(CurrentRainbowStyle);
             double actual = RainbowWalker.ActualColoursPerSecond(TargetColoursPerSecond);
-            string suffix = RainbowWalker.ShowsEveryColour(TargetColoursPerSecond) ? "" : " Â· varios colores/cuadro";
-            RainbowSpeedText.Text = $"{actual:0.#}/s Â· vuelta {walker.CycleSeconds(TargetColoursPerSecond):0.#} s{suffix}";
+            double vuelta = walker.CycleSeconds(TargetColoursPerSecond);
+
+            RainbowSpeedText.Text = $"{vuelta:0.#} s";
+
+            string extra = RainbowWalker.ShowsEveryColour(TargetColoursPerSecond)
+                ? ""
+                : "\nA esta velocidad el mando salta varios colores por cuadro: se ve fluido, pero no pasa por todos.";
+            RainbowSpeedText.ToolTip =
+                $"Una vuelta completa cada {vuelta:0.#} s, a {actual:0.#} colores por segundo.{extra}";
         }
 
         // ===== PERFILES (seccion propia) =====

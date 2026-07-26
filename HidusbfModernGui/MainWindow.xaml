@@ -1500,32 +1500,49 @@
                                     <TextBlock Text="EFECTO DEL COLOR" Style="{StaticResource SectionHeading}" Margin="0,20,0,0"/>
                                     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
                                             BorderThickness="1" Padding="18" Margin="0,8,0,0">
-                                        <StackPanel>
-                                            <!-- One row, not three: this card grew two rows and pushed RESTAURAR
-                                                 and the anti-cheat warning off the bottom of the window. -->
-                                            <StackPanel Orientation="Horizontal">
-                                                <CheckBox x:Name="RainbowCheck" Content="Rainbow" Foreground="{StaticResource TextDataBrush}"
-                                                          FontSize="12" VerticalAlignment="Center" Margin="0,0,14,0"
-                                                          Checked="Rainbow_Toggled" Unchecked="Rainbow_Toggled"/>
-                                                <ComboBox x:Name="RainbowStyleList" Width="118" VerticalAlignment="Center" Margin="0,0,18,0"
-                                                          SelectionChanged="RainbowStyle_Changed"/>
-                                                <TextBlock Text="VELOCIDAD" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                                <!-- Whole timer ticks per colour, reversed so right = faster. The
-                                                     timer only honours multiples of 15.625ms (measured), so a
-                                                     continuous speed slider would promise rates it cannot keep:
-                                                     the old 30/s default really ran at 21.4/s. Every stop here is
-                                                     a rate the timer actually delivers. -->
-                                                <Slider x:Name="RainbowSpeed" Minimum="5" Maximum="360" Value="64" Width="130"
-                                                        IsSnapToTickEnabled="True" TickFrequency="1"
-                                                        VerticalAlignment="Center" ValueChanged="RainbowSpeed_Changed"/>
-                                                <TextBlock x:Name="RainbowSpeedText" Text="" Style="{StaticResource DataText}"
-                                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                            </StackPanel>
-                                            <TextBlock x:Name="RainbowStyleHint" Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,10,0,0"/>
-                                            <!-- Said plainly, because a user who thinks the pad stores the effect will think
-                                                 it broke when it stops. -->
-                                            <TextBlock Text="El efecto lo anima UltraPolling. Al cerrar la app el mando se queda en el ultimo color."
-                                                       Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                        <!-- Una sola fila de iconos. Antes eran una fila de controles mas DOS
+                                             parrafos de ayuda que se leian una vez y estorbaban siempre; ahora
+                                             cada explicacion vive en el ToolTip del control que describe, que
+                                             es donde se busca cuando de verdad hace falta. -->
+                                        <StackPanel Orientation="Horizontal">
+                                            <!-- La casilla no lleva la palabra "Rainbow": lleva el degradado, que
+                                                 dice lo mismo y ademas ENSENA lo que va a hacer el mando. -->
+                                            <CheckBox x:Name="RainbowCheck" VerticalAlignment="Center" Margin="0,0,14,0"
+                                                      AutomationProperties.Name="Efecto arcoiris"
+                                                      ToolTip="Anima el color del mando. Lo mueve UltraPolling: al salir, el mando se queda en el ultimo color que recibio."
+                                                      Checked="Rainbow_Toggled" Unchecked="Rainbow_Toggled">
+                                                <Border Width="18" Height="18" CornerRadius="4"
+                                                        Background="{StaticResource RainbowSwatchBrush}"/>
+                                            </CheckBox>
+
+                                            <!-- El ToolTip lo reescribe RainbowStyle_Changed con la explicacion del
+                                                 estilo elegido; antes eso era un parrafo fijo bajo la fila. -->
+                                            <ComboBox x:Name="RainbowStyleList" Width="118" VerticalAlignment="Center"
+                                                      SelectionChanged="RainbowStyle_Changed"/>
+
+                                            <Rectangle Width="1" Height="22" Margin="16,0"
+                                                       Fill="{StaticResource BorderBrush}" VerticalAlignment="Center"/>
+
+                                            <Path Data="{StaticResource SpeedIconPath}" Stretch="Uniform" Width="15" Height="15"
+                                                  Fill="{StaticResource TextLabelBrush}" VerticalAlignment="Center"
+                                                  Margin="0,0,10,0" ToolTip="Velocidad del efecto"/>
+                                            <!-- Whole timer ticks per colour, reversed so right = faster. The
+                                                 timer only honours multiples of 15.625ms (measured), so a
+                                                 continuous speed slider would promise rates it cannot keep:
+                                                 the old 30/s default really ran at 21.4/s. Every stop here is
+                                                 a rate the timer actually delivers. -->
+                                            <Slider x:Name="RainbowSpeed" Minimum="5" Maximum="360" Value="64" Width="130"
+                                                    IsSnapToTickEnabled="True" TickFrequency="1"
+                                                    VerticalAlignment="Center" ValueChanged="RainbowSpeed_Changed"/>
+
+                                            <!-- De las tres cifras que habia -colores/s, vuelta, y si se ve cada
+                                                 color- se queda la vuelta, que es la unica que se siente mirando
+                                                 el mando. Las otras dos no se pierden: van al ToolTip. -->
+                                            <Path Data="{StaticResource ClockIconPath}" Stretch="Uniform" Width="14" Height="14"
+                                                  Fill="{StaticResource TextLabelBrush}" VerticalAlignment="Center"
+                                                  Margin="14,0,7,0"/>
+                                            <TextBlock x:Name="RainbowSpeedText" Text="" Style="{StaticResource DataText}"
+                                                       VerticalAlignment="Center" MinWidth="46"/>
                                         </StackPanel>
                                     </Border>
 
@@ -1534,11 +1551,18 @@
                                          asi que no puede colgar de una sola de las dos. -->
 
                                     <!-- The controller cannot return to its default without being reconnected, so
-                                         this is the only way back for someone who turned the light off. -->
-                                    <Button Content="RESTAURAR" Style="{StaticResource InstrumentButton}"
+                                         this is the only way back for someone who turned the light off.
+                                         Boton de icono: la flecha circular es "devolver a como estaba". Sin
+                                         etiqueta se parece a un "recargar", asi que el ToolTip dice exactamente
+                                         a que color vuelve - no es opcional aqui, es lo que lo desambigua. -->
+                                    <Button Style="{StaticResource RoundIconButton}"
                                             HorizontalAlignment="Left" Margin="0,20,0,0"
                                             Click="RestoreLight_Click"
-                                            ToolTip="Azul y Player 1, lo que Windows le pone por defecto. El mando no puede volver solo."/>
+                                            AutomationProperties.Name="Restaurar la luz por defecto"
+                                            ToolTip="Restaurar: azul y Player 1, lo que Windows le pone por defecto. El mando no puede volver solo.">
+                                        <Path Data="{StaticResource RefreshIconPath}" Stretch="Uniform" Width="14" Height="14"
+                                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                    </Button>
 
                                     <TextBlock Style="{StaticResource FieldLabel}" Foreground="{StaticResource StatusWarnBrush}"
                                                TextWrapping="Wrap" Margin="0,16,0,0"
