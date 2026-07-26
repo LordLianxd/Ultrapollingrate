@@ -38,10 +38,16 @@ namespace HidusbfModernGui
                 var raw = JsonSerializer.Deserialize<List<string>>(json, Options) ?? new List<string>();
                 // Un archivo editado a mano puede traer basura mezclada. Se queda lo que sea
                 // un color y se tira el resto, en vez de perder la paleta entera por una linea.
+                // TakeLast y no Take: la lista se guarda con el mas viejo primero, asi que quedarse con
+                // los primeros descartaria justo los colores recientes. Un archivo con mas de MaxColours
+                // (editado a mano) se recorta igual que lo haria Add: sobreviven los ultimos.
                 return raw
-                    .Where(s => ColourMath.TryParseHex(s, out _, out _, out _))
-                    .Select(s => { ColourMath.TryParseHex(s, out byte r, out byte g, out byte b); return ColourMath.ToHex(r, g, b); })
-                    .Take(MaxColours)
+                    .Select(s => ColourMath.TryParseHex(s, out byte r, out byte g, out byte b)
+                                 ? ColourMath.ToHex(r, g, b)
+                                 : null)
+                    .Where(h => h != null)
+                    .Select(h => h!)
+                    .TakeLast(MaxColours)
                     .ToList();
             }
             catch (Exception ex)

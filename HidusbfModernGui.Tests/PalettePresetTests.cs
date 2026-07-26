@@ -90,4 +90,22 @@ public class PalettePresetTests : IDisposable
         File.WriteAllText(PaletteStore.Path, "[\"FF0000\",\"zzz\",\"#00FF00\",\"\"]");
         Assert.Equal(new[] { "FF0000", "00FF00" }, PaletteStore.Load());
     }
+
+    // Un palette.json editado a mano con mas colores que el tope se recorta como lo haria Add:
+    // sobreviven los mas RECIENTES. Quedarse con los primeros descartaria justo lo ultimo que
+    // el usuario guardo.
+    [Fact]
+    public void Load_OverTheCap_KeepsTheNewestNotTheOldest()
+    {
+        var muchos = Enumerable.Range(0, PaletteStore.MaxColours + 5)
+                               .Select(i => $"{i:X2}0000");
+        File.WriteAllText(PaletteStore.Path,
+            System.Text.Json.JsonSerializer.Serialize(muchos));
+
+        var cargado = PaletteStore.Load();
+
+        Assert.Equal(PaletteStore.MaxColours, cargado.Count);
+        Assert.Equal($"{PaletteStore.MaxColours + 4:X2}0000", cargado[^1]);
+        Assert.DoesNotContain("000000", cargado);
+    }
 }
