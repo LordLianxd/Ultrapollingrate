@@ -47,13 +47,11 @@ namespace HidusbfModernGui
 
         public string DisplayRate => ResolvedRate is null ? "Default" : $"{ResolvedRate} Hz";
 
-        // El distintivo solo aparece si el dispositivo tiene una tasa puesta: en los que van por
-        // defecto seria una pastilla repitiendo "Default" en cada fila, ruido en toda la lista.
-        public bool HasRate => SelectedRate is not null and not 0;
-
-        // "ACTIVO - 8000 Hz". Se muestra la tasa RESUELTA, no la ranura cruda: en Low/Full Speed
-        // con el driver parcheado la ranura 31 vale 2000 Hz, y ensenar "31 Hz" seria mentir.
-        public string ActiveChipText => HasRate ? $"ACTIVO - {DisplayRate}" : "";
+        // ACTIVO solo cuando el filtro esta activo Y hay tasa resuelta. Con el filtro apagado,
+        // ResolvedRate es null aunque el bInterval siga escrito en el registro: decir ACTIVO ahi
+        // seria afirmar que hidusbf esta interceptando el dispositivo cuando no lo esta, y el
+        // punto gris de al lado ya lo estaria desmintiendo.
+        public string ActiveChipText => ResolvedRate is not null ? $"ACTIVO - {DisplayRate}" : "POR DEFECTO";
 
         public string LatencyText => ResolvedRate is null
             ? "--"

@@ -16,10 +16,6 @@
         Loaded="Window_Loaded">
 
     <Window.Resources>
-        <!-- No existia ningun BooleanToVisibilityConverter en la app (StatusToBrush si,
-             viene de Theme.xaml). Este es el de WPF, sin logica propia que anadir. -->
-        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
-
         <!-- SVG Icon Geometries. Only the ones a live Path still binds to. -->
         <Geometry x:Key="CloseIconPath">M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z</Geometry>
         <Geometry x:Key="MinIconPath">M20,14H4V12H20V14Z</Geometry>
@@ -321,10 +317,10 @@
                                                                        TextTrimming="CharacterEllipsis" Margin="0,3,0,0"
                                                                        ToolTip="{Binding ChildrenSummary}"/>
 
-                                                            <!-- El distintivo solo sale si hay tasa puesta (HasRate): en los que van
-                                                                 por defecto seria una pastilla repitiendo "Default" en cada fila. -->
-                                                            <Border Style="{StaticResource StatusChip}" Margin="0,8,0,0"
-                                                                    Visibility="{Binding HasRate, Converter={StaticResource BoolToVisibility}}">
+                                                            <!-- La pastilla se muestra siempre, en todas las filas: el punto es la
+                                                                 unica senal de StatusLevel.Error/Warn en la lista, y esconderla
+                                                                 cuando no hay tasa puesta tapaba esos dos estados. -->
+                                                            <Border Style="{StaticResource StatusChip}" Margin="0,8,0,0">
                                                                 <StackPanel Orientation="Horizontal">
                                                                     <Ellipse Width="6" Height="6" Margin="0,0,6,0" VerticalAlignment="Center"
                                                                              Fill="{Binding StatusDot, Converter={StaticResource StatusToBrush}}"/>
