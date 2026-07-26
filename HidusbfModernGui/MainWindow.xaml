@@ -777,8 +777,13 @@
                                                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                                                     <!-- Dia/noche de ESTA pagina: la lamina del mando existe en dos versiones y esto
                                                          elige cual se dibuja. No es un tema para toda la app. -->
-                                                    <CheckBox x:Name="DiagramDayCheck" Content="Modo dia" VerticalAlignment="Center"
-                                                              Margin="0,0,14,0" Foreground="{StaticResource TextDataBrush}" FontSize="12"
+                                                    <!-- AutomationProperties.Name porque el control ya no lleva texto: sin el,
+                                                         un lector de pantalla lo anuncia como "casilla" y nada mas. El ToolTip
+                                                         es para quien ve; esto es para quien no. -->
+                                                    <CheckBox x:Name="DiagramDayCheck" Style="{StaticResource DayNightToggle}"
+                                                              VerticalAlignment="Center" Margin="0,0,14,0"
+                                                              AutomationProperties.Name="Modo dia"
+                                                              ToolTip="Dia o noche: cambia la lamina del mando de este diagrama"
                                                               Checked="DiagramDay_Changed" Unchecked="DiagramDay_Changed"/>
                                                     <Button x:Name="BotonesHelpBtn" Style="{StaticResource RoundIconButton}" Click="BotonesHelp_Click" ToolTip="Ayuda">
                                                         <TextBlock Text="?" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextDataBrush}"/>

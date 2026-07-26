@@ -30,6 +30,18 @@
 
     <local:StatusLevelToBrushConverter x:Key="StatusToBrush"/>
 
+    <!-- Sol y luna del interruptor de dia/noche del diagrama. Viven AQUI y no en
+         MainWindow.xaml porque los usa un estilo de este mismo diccionario, y la busqueda de
+         recursos sube (elemento -> ventana -> app), nunca baja: desde aqui no se veria uno
+         declarado en la ventana.
+         Rellenos los dos, sin trazo, para que a 15 px se lean como silueta y no como un
+         garabato de lineas. Son del mismo juego de siluetas que el resto de iconos de esta
+         app (Material Design Icons), que estan dibujadas para leerse pequeñas: la primera
+         version, hecha a mano, daba un sol de rayos sueltos y una luna cuyos destellos se
+         pegaban al creciente y parecia un pato. -->
+    <Geometry x:Key="SunIconPath">M3.55,19.09L4.96,20.5L6.76,18.71L5.34,17.29M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M20,13H23V11H20M17.24,18.71L19.04,20.5L20.45,19.09L18.66,17.29M20.45,5L19.04,3.6L17.24,5.39L18.66,6.81M13,1H11V4H13M6.76,5.39L4.96,3.6L3.55,5L5.34,6.81L6.76,5.39M1,13H4V11H1M13,20H11V23H13</Geometry>
+    <Geometry x:Key="MoonIconPath">M17.75,4.09L15.22,6.03L16.13,9.09L13.5,7.28L10.87,9.09L11.78,6.03L9.25,4.09L12.44,4L13.5,1L14.56,4L17.75,4.09M21.25,11L19.61,12.25L20.2,14.23L18.5,13.06L16.8,14.23L17.39,12.25L15.75,11L17.81,10.95L18.5,9L19.19,10.95L21.25,11M18.97,15.95C19.8,15.87 20.69,17.05 20.16,17.8C19.84,18.25 19.5,18.67 19.08,19.07C15.17,23 8.84,23 4.94,19.07C1.03,15.17 1.03,8.83 4.94,4.93C5.34,4.53 5.76,4.17 6.21,3.85C6.96,3.32 8.14,4.21 8.06,5.04C7.79,7.9 8.75,10.87 10.95,13.06C13.14,15.26 16.1,16.22 18.97,15.95Z</Geometry>
+
     <!-- Cascadia Mono is not guaranteed to be installed; Consolas is. The
          fallback chain is not optional. -->
     <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas, Courier New</FontFamily>
@@ -382,6 +394,81 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Bd" Property="Background" Value="{StaticResource DiagramPillHoverBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Interruptor de dia/noche del diagrama: una pastilla con un pulsador que se desliza.
+         Un CheckBox normal aqui era feo y crudo - la casilla cuadrada no dice nada de lo que
+         hace, y este control cambia un DIBUJO, asi que tiene que enseñarlo.
+         El sol y la luna ocupan posiciones FIJAS (izquierda y derecha) y el pulsador tapa una
+         de las dos: la que se ve es el modo en el que estas. La pastilla se invierte con el
+         modo, igual que el panel que gobierna. Blanco y negro de la paleta, sin colores nuevos.
+         El texto va en el ToolTip y no al lado: sol y luna se entienden solos, y la cabecera
+         de esa pagina ya lleva titulo y boton de ayuda. -->
+    <Style x:Key="DayNightToggle" TargetType="CheckBox">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Width" Value="58"/>
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Border x:Name="Track" CornerRadius="14"
+                            Background="{StaticResource SurfaceAltBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <Grid>
+                            <Path x:Name="Sun" Data="{StaticResource SunIconPath}" Stretch="Uniform"
+                                  Width="15" Height="15" HorizontalAlignment="Left" Margin="7,0,0,0"
+                                  VerticalAlignment="Center" Fill="{StaticResource BgBrush}" Opacity="0"/>
+                            <Path x:Name="Moon" Data="{StaticResource MoonIconPath}" Stretch="Uniform"
+                                  Width="15" Height="15" HorizontalAlignment="Right" Margin="0,0,7,0"
+                                  VerticalAlignment="Center" Fill="{StaticResource TextDataBrush}"/>
+                            <Ellipse x:Name="Knob" Width="22" Height="22" HorizontalAlignment="Left"
+                                     Margin="2,0,0,0" Fill="{StaticResource TextDataBrush}">
+                                <Ellipse.RenderTransform>
+                                    <TranslateTransform x:Name="KnobShift" X="0"/>
+                                </Ellipse.RenderTransform>
+                            </Ellipse>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Track" Property="Background" Value="{StaticResource TextDataBrush}"/>
+                            <Setter TargetName="Knob" Property="Fill" Value="{StaticResource BgBrush}"/>
+                            <Setter TargetName="Sun" Property="Opacity" Value="1"/>
+                            <Setter TargetName="Moon" Property="Opacity" Value="0"/>
+                            <!-- El pulsador se DESLIZA, no salta: 30 px son los que van del tope
+                                 izquierdo al derecho dejando 2 px de aire a cada lado. -->
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="KnobShift" Storyboard.TargetProperty="X"
+                                                         To="30" Duration="0:0:0.18">
+                                            <DoubleAnimation.EasingFunction>
+                                                <CubicEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="KnobShift" Storyboard.TargetProperty="X"
+                                                         To="0" Duration="0:0:0.18">
+                                            <DoubleAnimation.EasingFunction>
+                                                <CubicEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Track" Property="BorderBrush" Value="{StaticResource TextLabelBrush}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
