@@ -503,6 +503,13 @@
                             <Setter TargetName="Seg" Property="BorderBrush" Value="{StaticResource TextLabelBrush}"/>
                             <Setter Property="Foreground" Value="{StaticResource TextDataBrush}"/>
                         </MultiTrigger>
+                        <!-- Atenuado al deshabilitarse: la fila de jugador se apaga cada vez que hay un efecto
+                             de LED activo, y sin esto los seis segmentos seguian pareciendo pulsables. Un
+                             control que se ve vivo y no responde miente sobre lo que puede hacer. -->
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.35"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>

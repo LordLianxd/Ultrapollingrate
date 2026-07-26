@@ -2191,11 +2191,11 @@ namespace HidusbfModernGui
         {
             if (PlayerLedRow.Children.Count > 0) return;
 
-            // Guarded end to end, not just alrededor de las selecciones de abajo: marcar un
-            // segmento dispara PlayerLed_Checked/Brightness_Checked, que llaman a ApplyLightNow()
-            // en cuanto _updatingLight es false. Relying on RefreshPlayStationDevices() happening
-            // to call this before _lightPadId is resolved (so ApplyLightNow()'s null check bails
-            // out) is an accident of call order, not a guarantee.
+            // El guard cubre el bloque ENTERO, no solo alrededor de las asignaciones de abajo:
+            // marcar un segmento dispara PlayerLed_Checked/Brightness_Checked, que llaman a
+            // ApplyLightNow() en cuanto _updatingLight es false. Sin el guard, reflejar la
+            // intencion guardada escribiria al mando en vez de limitarse a restaurar los
+            // controles.
             try
             {
                 _updatingLight = true;
