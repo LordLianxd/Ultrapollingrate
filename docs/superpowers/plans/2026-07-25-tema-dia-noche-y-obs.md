@@ -495,7 +495,158 @@ git commit -m "feat: UiPrefs - el tema y el puerto de OBS, recordados entre sesi
 
 ---
 
-### Task 4: El cambio de tema en vivo, y el diagrama fuera de la paleta
+### ~~Task 4: El cambio de tema en vivo, y el diagrama fuera de la paleta~~ — RETIRADA
+
+**Se hizo, se verificó y se revirtió** (commit `386aa63`). Dos motivos, ambos comprobados:
+
+1. **Era la funcionalidad equivocada.** "Modo día y noche" iba de la **página donde se mapea el mando** —el panel del diagrama—, no de toda la interfaz. La app es oscura y se queda oscura. Lo sustituye la Task 4B.
+2. **El mecanismo tampoco funcionaba.** WPF **sella** (`Freeze`) los `Freezable` de un `ResourceDictionary` cada vez que se leen a través del diccionario, así que los 11 pinceles llegaban con `IsFrozen = true` y `ThemeManager.Apply` los rechazaba enteros. Verificado en ejecución: la app avisaba *"Tema aplicado a medias"* con las 11 claves y no cambiaba un solo color. Sustituirlos por clones mutables en `App.OnStartup` **tampoco vale**: se vuelven a sellar en la siguiente lectura. El camino correcto habría sido `DynamicResource`, medido en **250** referencias más ~25 sitios de code-behind.
+
+Lo que sobrevive de ella y consume la Task 4B: los pinceles fijos `DiagramPaperBrush`/`DiagramInkBrush`, el borde del `DiagramPanel`, y las propiedades `Ink`/`Paper` gobernadas por `_diagramIsLight`.
+
+Se conserva el texto original abajo como registro de lo que se intentó.
+
+---
+
+### Task 4B: Día y noche del diagrama de botones
+
+**Files:**
+- Modify: `HidusbfModernGui/MainWindow.xaml` (cabecera de `PageBotones`)
+- Modify: `HidusbfModernGui/MainWindow.xaml.cs` (`TryLoadDiagramImage`, `BuildButtonDiagram`, handler nuevo)
+- Asset local ya preparado: `%APPDATA%\UltraPolling\skins\ps5\diagram_noche.png`
+
+**Interfaces:**
+- Consumes: `AppTheme { Noche, Dia }` y `UiPrefsStore.Load()/Save()` (Task 3).
+
+**Por qué esto es pequeño:** `_diagramIsLight` ya gobierna en un solo sitio el fondo del panel, el color de las líneas guía y la tinta de las píldoras. Día/noche es **alimentar esa bandera desde una preferencia** en vez de desde "¿hay imagen?", y cargar la lámina que toca. La lámina de noche ya está autorada con el papel a `#0A0A0A` —el mismo `SurfaceBrush` que usa el panel oscuro del respaldo vectorial— precisamente para que **la lógica de pinceles no cambie ni una línea**.
+
+- [ ] **Step 1: Elegir la lámina según el modo.** En `MainWindow.xaml.cs`, cambiar la firma y el nombre de archivo:
+
+```csharp
+// Fondo del diagrama: la lamina del modo elegido, de la carpeta del skin instalado.
+//   Dia   -> diagram.png        (tinta oscura sobre papel blanco)
+//   Noche -> diagram_noche.png  (tinta clara sobre papel #0A0A0A)
+// Vive FUERA del repo por la misma razon que el resto del arte del skin (ver
+// DOCUMENTACION.md), asi que faltar es un caso normal, no un error: entonces se dibuja el
+// mando vectorial. Nunca lanza - una imagen rota jamas puede dejar la pagina en blanco.
+private ImageSource? TryLoadDiagramImage(AppTheme mode)
+{
+    try
+    {
+        var dir = PadSkinLoader.FindFirstSkinDir(PadSkinLoader.DefaultSkinsRoot);
+        if (dir == null) return null;
+
+        string file = mode == AppTheme.Dia ? "diagram.png" : "diagram_noche.png";
+        string path = System.IO.Path.Combine(dir, file);
+        if (!System.IO.File.Exists(path)) return null;
+
+        var bmp = new System.Windows.Media.Imaging.BitmapImage();
+        bmp.BeginInit();
+        bmp.UriSource = new Uri(path, UriKind.Absolute);
+        bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+        bmp.EndInit();
+        bmp.Freeze();
+        return bmp;
+    }
+    catch
+    {
+        return null;
+    }
+}
+```
+
+- [ ] **Step 2: La bandera pasa a depender del modo.** En `BuildButtonDiagram`, sustituir las dos líneas que hoy resuelven el fondo:
+
+```csharp
+var bg = TryLoadDiagramImage(_diagramMode);
+// Claro SOLO en modo dia y con su lamina cargada. En noche el panel es oscuro, igual que
+// con el respaldo vectorial, asi que las tres decisiones de color de abajo no distinguen
+// entre "noche con imagen" y "sin imagen": el papel de la lamina de noche es exactamente
+// el SurfaceBrush del panel.
+_diagramIsLight = bg != null && _diagramMode == AppTheme.Dia;
+```
+
+- [ ] **Step 3: El campo del modo y la reconstrucción.** Junto a `_diagramIsLight`:
+
+```csharp
+// Modo del diagrama, leido de las preferencias la primera vez que se construye.
+private AppTheme _diagramMode = AppTheme.Noche;
+
+// El diagrama se construye una sola vez (_diagramBuilt), asi que cambiar de modo obliga a
+// rehacerlo entero: la lamina, las 16 lineas y las 16 pildoras se crearon con los pinceles
+// del modo anterior y no hay forma de retintarlas sin recorrerlas una a una.
+private void RebuildButtonDiagram()
+{
+    DiagramCanvas.Children.Clear();
+    _pills.Clear();
+    _diagramBuilt = false;
+    BuildButtonDiagram();
+}
+```
+
+Y al principio de `BuildButtonDiagram`, justo después del guard `_diagramBuilt`, leer la preferencia la primera vez:
+
+```csharp
+if (!_diagramModeLoaded)
+{
+    _diagramMode = UiPrefsStore.Load().Theme;
+    _diagramModeLoaded = true;
+    DiagramDayCheck.IsChecked = _diagramMode == AppTheme.Dia;
+}
+```
+
+con su campo `private bool _diagramModeLoaded;`.
+
+- [ ] **Step 4: El interruptor, en la cabecera de la página.** En `MainWindow.xaml`, la columna 2 de la cabecera de `PageBotones` pasa de contener solo el botón de ayuda a contener el interruptor y la ayuda:
+
+```xml
+<StackPanel Grid.Column="2" Orientation="Horizontal">
+    <!-- Dia/noche de ESTA pagina: la lamina del mando existe en dos versiones y esto
+         elige cual se dibuja. No es un tema para toda la app. -->
+    <CheckBox x:Name="DiagramDayCheck" Content="Modo dia" VerticalAlignment="Center"
+              Margin="0,0,14,0" Foreground="{StaticResource TextDataBrush}" FontSize="12"
+              Click="DiagramDay_Click"/>
+    <Button x:Name="BotonesHelpBtn" Style="{StaticResource RoundIconButton}" Click="BotonesHelp_Click" ToolTip="Ayuda">
+        <TextBlock Text="?" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextDataBrush}"/>
+    </Button>
+</StackPanel>
+```
+
+(el `Grid.Column="2"` sale del `Button` y pasa al `StackPanel`).
+
+- [ ] **Step 5: El handler.** En `MainWindow.xaml.cs`:
+
+```csharp
+// Cambiar de modo se aplica al pulsar y se guarda: sin boton "Aplicar", como todo aqui.
+private void DiagramDay_Click(object sender, RoutedEventArgs e)
+{
+    _diagramMode = DiagramDayCheck.IsChecked == true ? AppTheme.Dia : AppTheme.Noche;
+    RebuildButtonDiagram();
+
+    var prefs = UiPrefsStore.Load();
+    prefs.Theme = _diagramMode;
+    UiPrefsStore.Save(prefs);
+
+    // Si la lamina del modo elegido no esta instalada se cae al mando vectorial, y eso hay
+    // que decirlo: el usuario acaba de pulsar algo y veria un dibujo distinto sin motivo.
+    if (!_diagramIsLight && _diagramMode == AppTheme.Dia)
+        LogStatus("Falta diagram.png en la carpeta del skin: se dibuja el mando vectorial.");
+    else
+        LogStatus(_diagramMode == AppTheme.Dia ? "Diagrama en modo dia." : "Diagrama en modo noche.");
+}
+```
+
+- [ ] **Step 6: Verificación** — `dotnet build HidusbfModernGui\HidusbfModernGui.csproj -c Release -v q --nologo` → 0/0; `dotnet test HidusbfModernGui.Tests\HidusbfModernGui.Tests.csproj --nologo -v q` → `Failed: 0, Passed: 377` (esta tarea no añade tests). Manual: entrar en ASIGNACION DE BOTONES, marcar **Modo dia** y comprobar que la lámina, las líneas guía y las 16 etiquetas cambian a la vez; desmarcar y comprobar que vuelven; pasar el ratón por una etiqueta en **los dos** modos y comprobar que el icono sigue viéndose; cerrar y reabrir la app y comprobar que el modo elegido se mantiene.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add -u && git commit -m "feat(ui): dia y noche en la pagina de asignacion de botones"
+```
+
+---
+
+### Task 4 (retirada, texto original): El cambio de tema en vivo, y el diagrama fuera de la paleta
 
 **Files:**
 - Create: `HidusbfModernGui/ThemeManager.cs`
