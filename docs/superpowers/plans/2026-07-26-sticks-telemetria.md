@@ -170,7 +170,10 @@ public class StickTelemetryTests
     {
         var t = new StickTelemetry();
         for (int i = 0; i < 100; i++) t.Push((i / 2) / 100.0, 0);
-        Assert.Equal(500.0, t.NewValuesPerSecond(1000), 25);
+        // 25.0 y no 25: con un literal entero, xUnit resuelve al overload de PRECISION
+        // (decimales, 0..15) en vez de al de TOLERANCIA, y su analizador lo convierte en
+        // error de compilacion (xUnit2016). El punto decimal es lo que elige el overload.
+        Assert.Equal(500.0, t.NewValuesPerSecond(1000), 25.0);
     }
 
     // Una tasa de reportes imposible no puede producir una tasa de valores inventada.
