@@ -2399,28 +2399,47 @@ namespace HidusbfModernGui
             }
         }
 
+        // Guardar y solo entonces adoptar. Las dos operaciones de la paleta mutaban la lista viva
+        // antes de escribir a disco, asi que un fallo al guardar dejaba la pantalla diciendo una
+        // cosa y el archivo otra: el color quitado reaparecia al reabrir, y el anadido fantasma se
+        // colaba en el siguiente guardado con exito. Se trabaja sobre una copia y se adopta solo
+        // si el disco la acepto.
+        private bool TrySavePalette(List<string> propuesta)
+        {
+            var saved = PaletteStore.Save(propuesta);
+            if (!saved.Success)
+            {
+                LogStatus(saved.Error!);
+                return false;
+            }
+            _palette = propuesta;
+            RefreshPalette();
+            return true;
+        }
+
         private void PaletteAdd_Click(object sender, RoutedEventArgs e)
         {
             var c = Picker.SelectedColor;
-            if (!PaletteStore.Add(_palette, ColourMath.ToHex(c.R, c.G, c.B)))
+            var propuesta = new List<string>(_palette);
+            if (!PaletteStore.Add(propuesta, ColourMath.ToHex(c.R, c.G, c.B)))
             {
                 LogStatus("Ese color ya esta en tu paleta.");
                 return;
             }
-            var saved = PaletteStore.Save(_palette);
-            if (!saved.Success) { LogStatus(saved.Error!); return; }
-            RefreshPalette();
+            TrySavePalette(propuesta);
         }
 
         // Clic derecho para quitar: un aspa sobre cada muestra ensuciaria una fila cuyo contenido
-        // ES el color, y borrar un color de la paleta no destruye nada que no se pueda volver a
-        // guardar con el "+".
+        // ES el color, y quitar uno no destruye nada que no se pueda volver a guardar con el "+".
         private void PaletteSwatch_Remove(object sender, MouseButtonEventArgs e)
         {
             if (sender is not Button b || b.Tag is not byte[] rgb) return;
-            _palette.RemoveAll(h => string.Equals(h, ColourMath.ToHex(rgb[0], rgb[1], rgb[2]), StringComparison.OrdinalIgnoreCase));
-            PaletteStore.Save(_palette);
-            RefreshPalette();
+
+            string hex = ColourMath.ToHex(rgb[0], rgb[1], rgb[2]);
+            var propuesta = new List<string>(_palette);
+            if (propuesta.RemoveAll(h => string.Equals(h, hex, StringComparison.OrdinalIgnoreCase)) == 0) return;
+
+            TrySavePalette(propuesta);
         }
 
         private LightState CurrentLight()
