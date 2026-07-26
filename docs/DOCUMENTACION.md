@@ -25,8 +25,8 @@ Todo el código propio vive en `HidusbfModernGui/` (WPF, .NET 9, x64). Núcleo p
 
 | Archivo | Responsabilidad |
 |---|---|
-| `PollingCore.cs` | Aritmética del polling: slots↔Hz según modo del driver y velocidad del bus, latencias, niveles de estado, y `RateSample` (mediana, min/max y percentil 95 de los huecos entre reportes). |
-| `RateStability.cs` | Clasifica el flujo en regular / irregular / sin datos comparando el hueco del percentil 95 con la mediana. p95 y no el máximo —que `RateSample` ya trae—, porque un único pico del planificador dispara el máximo aunque los otros mil huecos sean perfectos. Por debajo de 30 muestras no clasifica: decir "sin datos" es mejor que adivinar. `Classify` también rechaza entradas no finitas (`double.IsFinite`) antes de comparar: en IEEE754 toda comparación con NaN da falso e `Infinity <= Infinity` da **verdadero**, así que un guarda que solo compara números deja pasar una medida corrupta como "Regular", la respuesta más tranquilizadora posible. |
+| `PollingCore.cs` | Aritmética del polling: slots↔Hz según modo del driver y velocidad del bus, latencias, niveles de estado, y `RateSample` (mediana, min/max y percentiles 95 y 99 de los huecos entre reportes). |
+| `RateStability.cs` | Clasifica el flujo en regular / irregular / sin datos con **dos** criterios. El primero cuenta: compara el percentil 95 con la mediana contra `JitterCeiling = 1.35`. p95 y no el máximo —que `RateSample` ya trae—, porque un único pico del planificador dispara el máximo aunque los otros mil huecos sean perfectos. El segundo mide magnitud: el percentil 99 contra `MagnitudeCeiling = 10.0`. Hizo falta porque el p95 es un estadístico de **rango puro** —cuenta cuántos huecos llegan tarde, nunca cuánto—, y con la ventana de 1024 huecos eso dejaba ciegos a los 51 peores: un flujo con un 5 % de huecos de un segundo, que entregaba 19,7 Hz reales, se mostraba como `MEDIDA 1000.0 Hz` con la pastilla verde. Por debajo de 30 muestras no clasifica: decir "sin datos" es mejor que adivinar. `Classify` también rechaza entradas no finitas (`double.IsFinite`) antes de comparar: en IEEE754 toda comparación con NaN da falso e `Infinity <= Infinity` da **verdadero**, así que un guarda que solo compara números deja pasar una medida corrupta como "Regular", la respuesta más tranquilizadora posible. |
 | `ColourMath.cs` / `ColourRamp.cs` / `RainbowWalker.cs` | Color en OKLab, rampas y el arcoíris por pasos (velocidad en colores/s con avance fraccional). |
 | `PlayerLedWalker.cs` | Animaciones de los LEDs de jugador (Carga, Estrellas, Respiración). |
 | `LightIntent.cs` / `LightProfile.cs` | La "intención" de luz del usuario (qué color/efecto/velocidades quiere) y los perfiles con nombre. |
@@ -81,7 +81,9 @@ Un botón hace todo: activa el filtro hidusbf del dispositivo → escribe la tas
 - **La pastilla de estado de cada fila** (`ActiveChipText`) se muestra siempre, en todas las filas de la lista: dice `ACTIVO - <tasa>` solo cuando `ResolvedRate` no es `null`, y `POR DEFECTO` en cualquier otro caso — filtro apagado, velocidad desconocida o sin tasa puesta. Se mantiene visible aunque no haya tasa porque el punto de color de al lado es la única señal en la lista de un `StatusLevel.Warn`/`Error`; ocultar la pastilla entera habría tapado también esos dos estados.
 - **La tarjeta MEDIDA** muestra el número grande (lo que el dispositivo hace de verdad) y, debajo, **PEDIDA** con un punto que compara ambas tasas; si no coinciden aparece un aviso ámbar explicando que la tasa se escribió pero no se aplicó (falta un RECONECTAR). El distintivo de regularidad (`REGULAR`/`IRREGULAR`/`SIN DATOS`, vía `RateStability.Classify`) contesta una pregunta distinta — cómo de regular llega el flujo — y por eso vive junto al rótulo MEDIDA, no junto a PEDIDA.
 - **ENTRE REPORTES no es LATENCIA** — ver la explicación completa en el [README](../README.md). En corto: el reporte 0x01 del DualSense no trae marca de tiempo de origen, así que el instante del movimiento físico no es un dato que la app tenga; ENTRE REPORTES es el hueco medido entre llegadas consecutivas, no el retardo mando→pantalla.
-- **El percentil 95** (`PollingCore.cs`) usa rango más cercano sobre el mismo array ya ordenado de la mediana: `índice = techo(n × 0.95) − 1`, acotado al último índice. No trunca porque con 100 muestras `100 × 0.95` da exactamente `95.0` en IEEE754, y truncar (`(int)(n * 0.95)` sin el techo) cae en el índice 95 — la primera muestra *mala* de las cinco peores, en vez del índice 94, la última *buena*.
+- **Los percentiles 95 y 99** (`PollingCore.cs`) usan rango más cercano sobre el mismo array ya ordenado de la mediana: `índice = techo(n × p) − 1`, acotado al último índice. No truncan porque con 100 muestras `100 × 0.95` da exactamente `95.0` en IEEE754, y truncar (`(int)(n * 0.95)` sin el techo) cae en el índice 95 — la primera muestra *mala* de las cinco peores, en vez del índice 94, la última *buena*.
+- **Qué afirma exactamente `REGULAR`, y qué no.** Afirma que como mucho un 5 % de los reportes llegó más de un 35 % tarde **y** que el 1 % peor no pasó de 10 intervalos. Medido sobre el código real, la frontera está en 11 huecos malos de 1024 (1,07 %) con más de 10× la mediana, y en ese punto la pérdida real de caudal ya es del 8,8 % como mínimo — o sea, el tope de magnitud no salta en flujos que sí están entregando su tasa. Un flujo limpio a 8000 Hz mide p99/mediana = 1,00, y la captura real documentada del DualSense (huecos de 0,007 a 2,627 ms sobre una mediana de 0,998) mide 2,36: las dos con holgura de sobra.
+  **El límite que queda:** siguen siendo estadísticos de rango, así que **hasta 10 huecos catastróficos en 1024 no se ven**. Un flujo con 10 huecos de un segundo entrega 93 Hz reales y se sigue mostrando como `MEDIDA 1000.0 Hz` con la pastilla verde. Es coherente con lo que la pantalla dice ser —`MEDIDA` es una **mediana**, y la mediana de ese flujo sí es 1 ms—, pero conviene saberlo. Cerrarlo del todo pediría una medida de caudal (tiempo total contra reportes recibidos), no otro percentil; `RateSample.MaxGapMs` ya se calcula y nadie lo consume, así que la puerta está abierta.
 
 ### 3.2 Luces
 
@@ -198,6 +200,21 @@ El paquete es un exe self-contained de un solo archivo + la carpeta `DRIVER` (ve
 - **L12 — En monocromo, la jerarquía es contraste.** La maqueta usaba morado para la fila
   seleccionada y el botón de aplicar. Se resolvió con borde blanco + fondo más claro, y con
   un botón invertido: más fuerte que el color, y sin gastar un color de estado en decorar.
+- **L13 — Un estadístico de rango cuenta, no mide.** El percentil 95 responde "¿cuántos
+  llegan tarde?" y nunca "¿cuánto?". Con la ventana de 1024 huecos eso dejaba invisibles a
+  los 51 peores: un flujo con un 5 % de huecos de **un segundo**, entregando 19,7 Hz reales,
+  salía como `MEDIDA 1000.0 Hz` con la pastilla verde. El p95 seguía siendo la elección
+  correcta —protege de que un solo pico del planificador tumbe el veredicto—, pero le faltaba
+  un tope de magnitud al lado, no un reemplazo. Se añadió el p99 contra 10×.
+- **L14 — Parar un proceso no limpia lo que quedó en pantalla.** `APLICAR CAMBIOS` paraba el
+  medidor con `_meter.Stop()` y su temporizador, pero la pastilla solo se oculta dentro de
+  `UpdateMeasuredReadout`, que ya no se ejecutaba. Durante los ~2,8 s del replug la pantalla
+  mostraba la tasa vieja y un `REGULAR` verde de un dispositivo **físicamente desconectado
+  del bus**. Una auditoría anterior había listado correctamente los cuatro sitios que
+  escriben `MeasuredText` y aun así falló, porque estos dos manejadores paran el medidor
+  **sin escribir** ese texto. Al retirar una fuente de datos hay que limpiar sus consumidores
+  en el mismo sitio; buscar por "quién escribe la etiqueta" no encuentra a "quién apaga el
+  origen".
 
 ## 7. Seguridad y límites deliberados
 
