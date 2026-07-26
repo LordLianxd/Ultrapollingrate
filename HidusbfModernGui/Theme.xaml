@@ -344,6 +344,44 @@
         <Setter Property="Foreground" Value="{StaticResource TextLabelBrush}"/>
     </Style>
 
+    <!-- Accion primaria de una pagina, invertida: fondo blanco, letra negra. Es el mayor
+         enfasis que permite una paleta monocroma, y no gasta un color de estado para
+         decorar. Solo debe haber UNA visible a la vez: si dos botones gritan igual,
+         ninguno destaca.
+         Plantilla propia, no BasedOn de InstrumentButton: su IsMouseOver fija el fondo
+         de "Bd" a BorderBrush (casi negro) sin tocar el Foreground, asi que sobre este
+         boton invertido el hover dejaria letra negra sobre fondo casi negro. Igual que
+         el hover de SegmentButton, que a proposito NO aclara su pastilla activa porque ya
+         esta en el maximo contraste de la paleta: aqui tampoco hay adonde aclarar el
+         fondo sin inventar un gris nuevo, asi que el hover no toca el fondo. -->
+    <Style x:Key="PrimaryButton" TargetType="Button">
+        <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource BgBrush}"/>
+        <Setter Property="Background" Value="{StaticResource TextDataBrush}"/>
+        <Setter Property="Padding" Value="14,8"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Pildora de etiqueta del diagrama de botones (Task BT2), modelo "PlayStation
          Accessories": una excepcion deliberada a "sin pildoras redondeadas" de arriba,
          porque aqui la pildora ES la etiqueta flotante junto a su linea guia, no un
@@ -918,6 +956,39 @@
                 <Setter Property="Foreground" Value="{StaticResource TextDataBrush}"/>
             </Trigger>
         </Style.Triggers>
+    </Style>
+
+    <!-- Tarjeta de la lista de dispositivos (Task DP3), la fila de flat-row de antes
+         pasada a tarjeta. Seleccionada se marca con borde blanco y fondo un punto mas
+         claro, ninguno de los dos cambia el grosor: ver el comentario de BorderThickness
+         mas abajo. Nada consume este estilo todavia -lo hacen las Tasks DP4 y DP5-. -->
+    <Style x:Key="DeviceCard" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <!-- Grosor constante 1 a proposito. Engordar el borde al seleccionar moveria el
+             contenido 1 px cada vez que cambias de fila; la seleccion se marca con el COLOR
+             del borde y el fondo, no con el grosor. -->
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="Padding" Value="14,12"/>
+        <Setter Property="Margin" Value="0,0,0,8"/>
+    </Style>
+
+    <!-- Pastilla de estado: punto de color + texto corto. El punto lleva el color del
+         estado -verde, ambar o gris-; el fondo y el borde son neutros, para que el unico
+         color de la pastilla siga significando exactamente una cosa. -->
+    <Style x:Key="StatusChip" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="9"/>
+        <Setter Property="Padding" Value="8,3"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+    </Style>
+
+    <Style x:Key="ChipText" TargetType="TextBlock" BasedOn="{StaticResource DataText}">
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
 </ResourceDictionary>
