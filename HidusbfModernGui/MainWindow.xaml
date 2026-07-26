@@ -1128,29 +1128,17 @@
                                                 <Button x:Name="SticksHelpBtn" Grid.Column="2" Style="{StaticResource RoundIconButton}" Click="SticksHelp_Click" ToolTip="Ayuda">
                                                     <TextBlock Text="?" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextDataBrush}"/>
                                                 </Button>
+                                                <!-- El contenido de la vieja guia "COMO FUNCIONA" (un boton aparte,
+                                                     ahora eliminado) vive aqui: mismo patron que GatillosHelpBtn/
+                                                     GatillosHelpPopup en la pagina de gatillos. MaxWidth 280 igual
+                                                     que ese popup para que envuelva en vez de estirarse. -->
                                                 <Popup x:Name="SticksHelpPopup" Grid.Column="2" PlacementTarget="{Binding ElementName=SticksHelpBtn}"
                                                        Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="None"
                                                        Opened="AnimatePopupOpen">
                                                     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
                                                             BorderThickness="1" Padding="14" MaxWidth="280">
-                                                        <TextBlock Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Foreground="{StaticResource TextDataBrush}"
-                                                                   Text="Zona muerta, respuesta y curva por stick. El boton COMO FUNCIONA de abajo explica los tres puntos de la curva."/>
-                                                    </Border>
-                                                </Popup>
-                                            </Grid>
-                                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                                <!-- MaxWidth+Left: sin esto, en una ventana ultrawide el contenido se
-                                                     estira sin limite porque el StackPanel hereda el ancho completo
-                                                     del ScrollViewer. -->
-                                                <StackPanel Margin="24" MaxWidth="1400" HorizontalAlignment="Left">
-                                                    <Button x:Name="HelpToggleBtn" Content="¿CÓMO FUNCIONA?" Style="{StaticResource InstrumentButton}"
-                                                            HorizontalAlignment="Left" Margin="0,0,0,12" Click="ToggleHelpPanel_Click"/>
-
-                                                    <Border x:Name="HelpPanel" Visibility="Collapsed" Background="{StaticResource BgBrush}"
-                                                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8"
-                                                            Padding="16" Margin="0,0,0,16">
                                                         <StackPanel>
-                                                            <TextBlock Text="GUÍA DE CURVAS DE RESPUESTA" Style="{StaticResource SectionHeading}" Foreground="{StaticResource TextDataBrush}" Margin="0,0,0,12"/>
+                                                            <TextBlock Text="GUÍA DE CURVAS DE RESPUESTA" Style="{StaticResource SectionHeading}" Foreground="{StaticResource TextDataBrush}" Margin="0,0,0,10"/>
                                                             <TextBlock TextWrapping="Wrap" Style="{StaticResource FieldLabel}" Foreground="{StaticResource TextDataBrush}" Margin="0,0,0,8"
                                                                        Text="La curva de respuesta define cómo se traduce la inclinación física de tu stick (entrada) al movimiento en el juego (salida)."/>
 
@@ -1170,7 +1158,7 @@
                                                                            Text="Punto Ámbar (Zona Media): Transición suave entre precisión y giros rápidos. Define la progresividad general de la respuesta."/>
                                                             </BulletDecorator>
 
-                                                            <BulletDecorator Margin="0,4,0,12">
+                                                            <BulletDecorator Margin="0,4,0,10">
                                                                 <BulletDecorator.Bullet>
                                                                     <Ellipse Width="8" Height="8" Fill="#EF5350" Stroke="White" StrokeThickness="1" Margin="0,3,8,0"/>
                                                                 </BulletDecorator.Bullet>
@@ -1182,27 +1170,24 @@
                                                                        Text="CONSEJO: En modo 'Lineal', la entrada equivale directamente a la salida. En modo 'Editor', arrastra los puntos con el ratón directamente en el gráfico para diseñar tu propia curva personalizada (por ejemplo, con una zona central plana para mejor precisión)."/>
                                                         </StackPanel>
                                                     </Border>
-
-                                                    <!-- Pestanas STICK IZQUIERDO / STICK DERECHO (Task 4): un solo stick a
-                                                         la vez, con todo el ancho. El segmento inicial NO se marca aqui -
-                                                         mismo riesgo que ConfigTabBtn: un IsChecked="True" en XAML dispara
-                                                         Checked durante el parseo, antes de que BuildRemapControls()
-                                                         haya corrido y con _remap posiblemente sin sanear. Se marca en
-                                                         Window_Loaded. -->
-                                                    <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Left" Margin="0,0,0,14">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <RadioButton x:Name="StickLeftTabBtn" GroupName="StickSideNav" Checked="ShowLeftStick"
-                                                                         Style="{StaticResource SegmentButton}" Content="STICK IZQUIERDO"/>
-                                                            <RadioButton x:Name="StickRightTabBtn" GroupName="StickSideNav" Checked="ShowRightStick"
-                                                                         Style="{StaticResource SegmentButton}" Content="STICK DERECHO"/>
-                                                        </StackPanel>
-                                                    </Border>
-
-                                                    <!-- Sincronizar L/R: con el interruptor puesto, cualquier cambio en el
-                                                         stick visible se copia al otro. Al ACTIVARLO copia de una vez del
-                                                         visible al otro y lo dice en la barra de estado (SyncSticksToggle_Changed):
-                                                         sincronizar en silencio seria un borrado encubierto de los ajustes
-                                                         del otro stick. -->
+                                                </Popup>
+                                            </Grid>
+                                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                                <!-- MaxWidth+Left: sin esto, en una ventana ultrawide el contenido se
+                                                     estira sin limite porque el StackPanel hereda el ancho completo
+                                                     del ScrollViewer. 1800 (antes 1400): con los dos sticks a la vez
+                                                     ya no hay pestanas que se turnen el ancho - cada mitad necesita
+                                                     su propia tarjeta de ajustes (420) + su propia tarjeta de
+                                                     telemetria (~400), y las dos mitades ya no caben en 1400. -->
+                                                <StackPanel Margin="24" MaxWidth="1800" HorizontalAlignment="Left">
+                                                    <!-- Sincronizar L/R: con el interruptor puesto, cualquier cambio de
+                                                         ajuste en un stick se copia al otro Y refresca sus controles -
+                                                         con los dos sticks visibles a la vez (ya no hay pestanas) el
+                                                         reflejo tiene que verse en el acto, no recien al cambiar de
+                                                         pestana. Al ACTIVARLO copia de una vez del izquierdo al derecho
+                                                         y lo dice en la barra de estado (SyncSticksToggle_Changed):
+                                                         sincronizar en silencio seria un borrado encubierto de los
+                                                         ajustes del derecho. -->
                                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
                                                         <CheckBox x:Name="SyncSticksToggle" Style="{StaticResource SwitchToggle}"
                                                                   VerticalAlignment="Center"
@@ -1211,156 +1196,303 @@
                                                                    VerticalAlignment="Center" Margin="10,0,0,0"/>
                                                     </StackPanel>
 
-                                                    <!-- Dos columnas: ajustes+biblioteca a la izquierda, telemetria+monitor
-                                                         a la derecha. Un SOLO juego de controles (StickDeadzoneSlider,
-                                                         StickCurveList, etc.): las pestanas de arriba cambian a QUE stick
-                                                         apuntan (_activeStickIsLeft), no los duplican. Duplicarlos es de
-                                                         donde salen los bugs de "cambie uno y se movio el otro". -->
+                                                    <!-- Los dos sticks a la vez, mitad y mitad (antes eran pestanas
+                                                         que retargeteaban un unico juego de controles - con ~1850px
+                                                         de ancho disponible ya no hace falta turnarse). Cada mitad
+                                                         repite el mismo par de tarjetas (ajustes | telemetria) que
+                                                         ya cabia en ~900px de ancho, asi que "al lado" (no apilado)
+                                                         sigue entrando en cada mitad sin apretar. -->
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
-                                                            <!-- 420 le alcanza de sobra a un slider, un combo y la fila
-                                                                 MIS CURVAS; el resto del ancho es del telemetria/monitor,
-                                                                 que es el centro de la pagina. -->
-                                                            <ColumnDefinition Width="420"/>
-                                                            <ColumnDefinition Width="16"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="24"/>
                                                             <ColumnDefinition Width="*"/>
                                                         </Grid.ColumnDefinitions>
 
-                                                    <!-- VerticalAlignment=Top en las dos tarjetas: sin esto, un Grid sin
-                                                         RowDefinitions estira ambas columnas a la altura de la mas alta
-                                                         (Stretch es el default), y la tarjeta de ajustes -mas corta que
-                                                         la de telemetria- quedaba con un hueco vacio enorme abajo. -->
-                                                    <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                            BorderThickness="1" CornerRadius="10" Padding="18" VerticalAlignment="Top">
-                                                        <StackPanel>
-                                                            <TextBlock Text="AJUSTES Y BIBLIOTECA DE CURVAS" Style="{StaticResource SectionHeading}"/>
+                                                        <Border Grid.Column="1" Width="1" Background="{StaticResource BorderBrush}" Margin="0,4"/>
 
-                                                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                                                <TextBlock Text="ZONA MUERTA" Style="{StaticResource FieldLabel}"
-                                                                           VerticalAlignment="Center" Width="100"/>
-                                                                <Slider x:Name="StickDeadzoneSlider" Minimum="0" Maximum="30" Value="0" Width="160"
-                                                                        IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
-                                                                        ValueChanged="StickDeadzone_Changed"/>
-                                                                <TextBlock x:Name="StickDeadzoneText" Text="0%" Style="{StaticResource DataText}"
-                                                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                                            </StackPanel>
+                                                        <!-- ===== STICK IZQUIERDO ===== -->
+                                                        <StackPanel Grid.Column="0">
+                                                            <TextBlock Text="STICK IZQUIERDO" Style="{StaticResource SectionHeading}" Margin="0,0,0,14"/>
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <!-- 420 le alcanza de sobra a un slider, un combo y la
+                                                                         fila MIS CURVAS; el resto de la mitad es de la
+                                                                         telemetria/monitor. -->
+                                                                    <ColumnDefinition Width="420"/>
+                                                                    <ColumnDefinition Width="16"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                </Grid.ColumnDefinitions>
 
-                                                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                                                <TextBlock Text="RESPUESTA" Style="{StaticResource FieldLabel}"
-                                                                           VerticalAlignment="Center" Width="100"/>
-                                                                <ComboBox x:Name="StickCurveList" Width="190"
-                                                                          SelectionChanged="StickCurve_Changed"/>
-                                                            </StackPanel>
+                                                                <!-- VerticalAlignment=Top: sin esto, un Grid sin
+                                                                     RowDefinitions estira ambas columnas a la altura de
+                                                                     la mas alta (Stretch es el default), y la tarjeta de
+                                                                     ajustes -mas corta que la de telemetria- quedaba con
+                                                                     un hueco vacio enorme abajo. -->
+                                                                <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                        BorderThickness="1" CornerRadius="10" Padding="18" VerticalAlignment="Top">
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="AJUSTES Y BIBLIOTECA DE CURVAS" Style="{StaticResource SectionHeading}"/>
 
-                                                            <TextBlock Text="MIS CURVAS" Style="{StaticResource FieldLabel}" Margin="0,16,0,6"/>
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <ComboBox x:Name="StickSavedCurveList" Width="140" DisplayMemberPath="Name" Margin="0,0,8,0"/>
-                                                                <Button Content="CARGAR" Style="{StaticResource InstrumentButton}" Click="LoadStickCurve_Click" Margin="0,0,8,0"/>
-                                                                <Button Content="BORRAR" Style="{StaticResource InstrumentButton}" Click="DeleteStickCurve_Click"/>
-                                                            </StackPanel>
-                                                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                                                <TextBox x:Name="StickCurveName" Width="140" Background="{StaticResource SurfaceAltBrush}"
-                                                                         Foreground="{StaticResource TextDataBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                         BorderThickness="1" Padding="6,4" FontFamily="{StaticResource UiFont}" Margin="0,0,8,0"/>
-                                                                <Button Content="GUARDAR CURVA" Style="{StaticResource InstrumentButton}" Click="SaveStickCurve_Click"/>
-                                                            </StackPanel>
-
-                                                            <Button x:Name="StickAdvancedToggle" Content="AVANZADO" Style="{StaticResource InstrumentButton}"
-                                                                    HorizontalAlignment="Left" Margin="0,16,0,0" Click="ToggleStickAdvanced"/>
-                                                            <StackPanel x:Name="StickAdvancedPanel" Visibility="Collapsed" Margin="0,10,0,0">
-                                                                <StackPanel Orientation="Horizontal">
-                                                                    <TextBlock Text="ALCANCE" Style="{StaticResource FieldLabel}"
-                                                                               VerticalAlignment="Center" Width="100"/>
-                                                                    <Slider x:Name="StickReachSlider" Minimum="70" Maximum="100" Value="100" Width="160"
-                                                                            IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
-                                                                            ValueChanged="StickReach_Changed"/>
-                                                                    <TextBlock x:Name="StickReachText" Text="100%" Style="{StaticResource DataText}"
-                                                                               VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                                                </StackPanel>
-                                                            </StackPanel>
-                                                        </StackPanel>
-                                                    </Border>
-
-                                                    <Border Grid.Column="2" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                            BorderThickness="1" CornerRadius="10" Padding="18" VerticalAlignment="Top">
-                                                        <StackPanel>
-                                                            <TextBlock Text="TELEMETRÍA Y MONITOR 2D EN VIVO" Style="{StaticResource SectionHeading}"/>
-
-                                                            <!-- Monitor 2D (Task 2, StickMonitor): dueno de su propio
-                                                                 StickTelemetry. InnerDeadzone/OuterReach/Drift se fijan
-                                                                 desde el codigo detras cada vez que se retarget al otro
-                                                                 stick o cambia un ajuste.
-                                                                 340: es el centro visual de la pagina, no un adorno chico
-                                                                 al lado de la tarjeta de ajustes - 220 lo dejaba mas chico
-                                                                 que la propia tarjeta que lo contenia. Sigue envuelto en
-                                                                 el Viewbox interno de StickMonitor (no lo saques de ahi:
-                                                                 este proyecto ya tuvo que arreglar dos veces un control de
-                                                                 tamano fijo metido en una columna elastica). -->
-                                                            <local:StickMonitor x:Name="StickMonitorView" Width="340" Height="340"
-                                                                                 HorizontalAlignment="Left" Margin="0,12,0,0"/>
-
-                                                            <TextBlock Text="CURVA (entrada -&gt; salida)" Style="{StaticResource FieldLabel}" Margin="0,16,0,6"/>
-                                                            <!-- Mismo ancho que el monitor de arriba (340) para que la
-                                                                 columna se lea como una sola pila, no como tres cajas
-                                                                 sueltas. -->
-                                                            <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                    BorderThickness="1" Width="340" Height="100" HorizontalAlignment="Left">
-                                                                <Canvas x:Name="StickCurveCanvas" Width="340" Height="100" ClipToBounds="True"
-                                                                        Background="Transparent"
-                                                                        MouseLeftButtonDown="StickCurveCanvas_MouseDown"
-                                                                        MouseMove="StickCurveCanvas_MouseMove"
-                                                                        MouseLeftButtonUp="StickCurveCanvas_MouseUp">
-                                                                    <Line x:Name="StickCurveRef" X1="0" Y1="100" X2="340" Y2="0"
-                                                                          Stroke="{StaticResource BorderBrush}" StrokeThickness="1" StrokeDashArray="3 3" Opacity="0.5"/>
-                                                                    <Polyline x:Name="StickCurveLine" Stroke="{StaticResource TextDataBrush}" StrokeThickness="1.5"/>
-                                                                    <Ellipse x:Name="StickCurveLiveDot" Width="7" Height="7" Fill="White" Visibility="Collapsed"/>
-                                                                </Canvas>
-                                                            </Border>
-                                                            <TextBlock x:Name="StickCurveLiveLabel" Style="{StaticResource FieldLabel}"
-                                                                       FontFamily="{StaticResource MonoFont}" Margin="0,6,0,0" Visibility="Collapsed"/>
-
-                                                            <!-- Metricas medidas (Task 4 S5), nombres honestos: nunca
-                                                                 "Latencia" (la app marca LLEGADA de reportes, no el
-                                                                 instante fisico - leccion L11) y sin "Error" (no hay
-                                                                 posicion "verdadera" contra la que comparar). -->
-                                                            <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                    BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,18,0,0">
-                                                                <StackPanel>
-                                                                    <Grid>
-                                                                        <Grid.ColumnDefinitions>
-                                                                            <ColumnDefinition Width="*"/>
-                                                                            <ColumnDefinition Width="*"/>
-                                                                        </Grid.ColumnDefinitions>
-                                                                        <StackPanel Grid.Column="0">
-                                                                            <TextBlock Text="TASA" Style="{StaticResource FieldLabel}"/>
-                                                                            <TextBlock x:Name="StickRateText" Text="SIN DATOS" Style="{StaticResource DataText}" Margin="0,4,0,0"/>
+                                                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                                                            <TextBlock Text="ZONA MUERTA" Style="{StaticResource FieldLabel}"
+                                                                                       VerticalAlignment="Center" Width="100"/>
+                                                                            <Slider x:Name="LeftStickDeadzoneSlider" Minimum="0" Maximum="30" Value="0" Width="160"
+                                                                                    IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
+                                                                                    ValueChanged="LeftStickDeadzone_Changed"/>
+                                                                            <TextBlock x:Name="LeftStickDeadzoneText" Text="0%" Style="{StaticResource DataText}"
+                                                                                       VerticalAlignment="Center" Margin="8,0,0,0"/>
                                                                         </StackPanel>
-                                                                        <StackPanel Grid.Column="1">
-                                                                            <TextBlock Text="ENTRE REPORTES" Style="{StaticResource FieldLabel}"/>
-                                                                            <TextBlock x:Name="StickGapText" Text="SIN DATOS" Style="{StaticResource DataText}" Margin="0,4,0,0"/>
+
+                                                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                                                            <TextBlock Text="RESPUESTA" Style="{StaticResource FieldLabel}"
+                                                                                       VerticalAlignment="Center" Width="100"/>
+                                                                            <ComboBox x:Name="LeftStickCurveList" Width="190"
+                                                                                      SelectionChanged="LeftStickCurve_Changed"/>
                                                                         </StackPanel>
-                                                                    </Grid>
-                                                                    <Grid Margin="0,14,0,0">
-                                                                        <Grid.ColumnDefinitions>
-                                                                            <ColumnDefinition Width="*"/>
-                                                                            <ColumnDefinition Width="*"/>
-                                                                        </Grid.ColumnDefinitions>
-                                                                        <StackPanel Grid.Column="0">
-                                                                            <TextBlock Text="VALORES NUEVOS" Style="{StaticResource FieldLabel}"/>
-                                                                            <TextBlock x:Name="StickNewValuesText" Text="SIN DATOS" Style="{StaticResource DataText}" Margin="0,4,0,0"/>
+
+                                                                        <TextBlock Text="MIS CURVAS" Style="{StaticResource FieldLabel}" Margin="0,16,0,6"/>
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <ComboBox x:Name="LeftStickSavedCurveList" Width="140" DisplayMemberPath="Name" Margin="0,0,8,0"/>
+                                                                            <Button Content="CARGAR" Style="{StaticResource InstrumentButton}" Click="LoadLeftStickCurve_Click" Margin="0,0,8,0"/>
+                                                                            <Button Content="BORRAR" Style="{StaticResource InstrumentButton}" Click="DeleteLeftStickCurve_Click"/>
                                                                         </StackPanel>
-                                                                        <StackPanel Grid.Column="1">
-                                                                            <TextBlock Text="DERIVA" Style="{StaticResource FieldLabel}"/>
-                                                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                                                                <Ellipse x:Name="StickDriftDot" Style="{StaticResource StatusDot}" Margin="0,0,6,0"/>
-                                                                                <TextBlock x:Name="StickDriftText" Text="SIN DATOS" Style="{StaticResource DataText}"/>
+                                                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                                                            <TextBox x:Name="LeftStickCurveName" Width="140" Background="{StaticResource SurfaceAltBrush}"
+                                                                                     Foreground="{StaticResource TextDataBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                                     BorderThickness="1" Padding="6,4" FontFamily="{StaticResource UiFont}" Margin="0,0,8,0"/>
+                                                                            <Button Content="GUARDAR CURVA" Style="{StaticResource InstrumentButton}" Click="SaveLeftStickCurve_Click"/>
+                                                                        </StackPanel>
+
+                                                                        <Button x:Name="LeftStickAdvancedToggle" Content="AVANZADO" Style="{StaticResource InstrumentButton}"
+                                                                                HorizontalAlignment="Left" Margin="0,16,0,0" Click="ToggleLeftStickAdvanced"/>
+                                                                        <StackPanel x:Name="LeftStickAdvancedPanel" Visibility="Collapsed" Margin="0,10,0,0">
+                                                                            <StackPanel Orientation="Horizontal">
+                                                                                <TextBlock Text="ALCANCE" Style="{StaticResource FieldLabel}"
+                                                                                           VerticalAlignment="Center" Width="100"/>
+                                                                                <Slider x:Name="LeftStickReachSlider" Minimum="70" Maximum="100" Value="100" Width="160"
+                                                                                        IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
+                                                                                        ValueChanged="LeftStickReach_Changed"/>
+                                                                                <TextBlock x:Name="LeftStickReachText" Text="100%" Style="{StaticResource DataText}"
+                                                                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
                                                                             </StackPanel>
                                                                         </StackPanel>
-                                                                    </Grid>
-                                                                </StackPanel>
-                                                            </Border>
+                                                                    </StackPanel>
+                                                                </Border>
+
+                                                                <Border Grid.Column="2" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                        BorderThickness="1" CornerRadius="10" Padding="18" VerticalAlignment="Top">
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="TELEMETRÍA Y MONITOR 2D EN VIVO" Style="{StaticResource SectionHeading}"/>
+
+                                                                        <!-- Monitor 2D (StickMonitor): dueno de su propio
+                                                                             StickTelemetry. Con los dos sticks visibles a la
+                                                                             vez cada mitad tiene el SUYO (antes habia uno
+                                                                             solo que se re-apuntaba al cambiar de pestana) -
+                                                                             InnerDeadzone/OuterReach se fijan desde el codigo
+                                                                             detras cada vez que cambia un ajuste de este lado.
+                                                                             340: es el centro visual de la mitad, no un
+                                                                             adorno chico. Sigue envuelto en el Viewbox interno
+                                                                             de StickMonitor (no lo saques de ahi: este
+                                                                             proyecto ya tuvo que arreglar dos veces un control
+                                                                             de tamano fijo metido en una columna elastica). -->
+                                                                        <local:StickMonitor x:Name="LeftStickMonitorView" Width="340" Height="340"
+                                                                                             HorizontalAlignment="Left" Margin="0,12,0,0"/>
+
+                                                                        <TextBlock Text="CURVA (entrada -&gt; salida)" Style="{StaticResource FieldLabel}" Margin="0,16,0,6"/>
+                                                                        <!-- Mismo ancho que el monitor de arriba (340) para
+                                                                             que la columna se lea como una sola pila. -->
+                                                                        <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                                BorderThickness="1" Width="340" Height="100" HorizontalAlignment="Left">
+                                                                            <Canvas x:Name="LeftStickCurveCanvas" Width="340" Height="100" ClipToBounds="True"
+                                                                                    Background="Transparent"
+                                                                                    MouseLeftButtonDown="LeftStickCurveCanvas_MouseDown"
+                                                                                    MouseMove="LeftStickCurveCanvas_MouseMove"
+                                                                                    MouseLeftButtonUp="LeftStickCurveCanvas_MouseUp">
+                                                                                <Line X1="0" Y1="100" X2="340" Y2="0"
+                                                                                      Stroke="{StaticResource BorderBrush}" StrokeThickness="1" StrokeDashArray="3 3" Opacity="0.5"/>
+                                                                                <Polyline x:Name="LeftStickCurveLine" Stroke="{StaticResource TextDataBrush}" StrokeThickness="1.5"/>
+                                                                                <Ellipse x:Name="LeftStickCurveLiveDot" Width="7" Height="7" Fill="White" Visibility="Collapsed"/>
+                                                                            </Canvas>
+                                                                        </Border>
+                                                                        <TextBlock x:Name="LeftStickCurveLiveLabel" Style="{StaticResource FieldLabel}"
+                                                                                   FontFamily="{StaticResource MonoFont}" Margin="0,6,0,0" Visibility="Collapsed"/>
+
+                                                                        <!-- Metricas medidas, nombres honestos: nunca
+                                                                             "Latencia" (la app marca LLEGADA de reportes, no
+                                                                             el instante fisico - leccion L11) y sin "Error"
+                                                                             (no hay posicion "verdadera" contra la que
+                                                                             comparar). TASA/ENTRE REPORTES salen del mismo
+                                                                             medidor que el lado derecho (describen el pad,
+                                                                             no el stick) - VALORES NUEVOS y DERIVA son de
+                                                                             este stick y pueden diferir del otro lado. -->
+                                                                        <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                                BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,18,0,0">
+                                                                            <StackPanel>
+                                                                                <Grid>
+                                                                                    <Grid.ColumnDefinitions>
+                                                                                        <ColumnDefinition Width="*"/>
+                                                                                        <ColumnDefinition Width="*"/>
+                                                                                    </Grid.ColumnDefinitions>
+                                                                                    <StackPanel Grid.Column="0">
+                                                                                        <TextBlock Text="TASA" Style="{StaticResource FieldLabel}"/>
+                                                                                        <TextBlock x:Name="LeftStickRateText" Text="SIN DATOS" Style="{StaticResource DataText}" Margin="0,4,0,0"/>
+                                                                                    </StackPanel>
+                                                                                    <StackPanel Grid.Column="1">
+                                                                                        <TextBlock Text="ENTRE REPORTES" Style="{StaticResource FieldLabel}"/>
+                                                                                        <TextBlock x:Name="LeftStickGapText" Text="SIN DATOS" Style="{StaticResource DataText}" Margin="0,4,0,0"/>
+                                                                                    </StackPanel>
+                                                                                </Grid>
+                                                                                <Grid Margin="0,14,0,0">
+                                                                                    <Grid.ColumnDefinitions>
+                                                                                        <ColumnDefinition Width="*"/>
+                                                                                        <ColumnDefinition Width="*"/>
+                                                                                    </Grid.ColumnDefinitions>
+                                                                                    <StackPanel Grid.Column="0">
+                                                                                        <TextBlock Text="VALORES NUEVOS" Style="{StaticResource FieldLabel}"/>
+                                                                                        <TextBlock x:Name="LeftStickNewValuesText" Text="SIN DATOS" Style="{StaticResource DataText}" Margin="0,4,0,0"/>
+                                                                                    </StackPanel>
+                                                                                    <StackPanel Grid.Column="1">
+                                                                                        <TextBlock Text="DERIVA" Style="{StaticResource FieldLabel}"/>
+                                                                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                                                            <Ellipse x:Name="LeftStickDriftDot" Style="{StaticResource StatusDot}" Margin="0,0,6,0"/>
+                                                                                            <TextBlock x:Name="LeftStickDriftText" Text="SIN DATOS" Style="{StaticResource DataText}"/>
+                                                                                        </StackPanel>
+                                                                                    </StackPanel>
+                                                                                </Grid>
+                                                                            </StackPanel>
+                                                                        </Border>
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </Grid>
                                                         </StackPanel>
-                                                    </Border>
+
+                                                        <!-- ===== STICK DERECHO ===== -->
+                                                        <StackPanel Grid.Column="2">
+                                                            <TextBlock Text="STICK DERECHO" Style="{StaticResource SectionHeading}" Margin="0,0,0,14"/>
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="420"/>
+                                                                    <ColumnDefinition Width="16"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                        BorderThickness="1" CornerRadius="10" Padding="18" VerticalAlignment="Top">
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="AJUSTES Y BIBLIOTECA DE CURVAS" Style="{StaticResource SectionHeading}"/>
+
+                                                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                                                            <TextBlock Text="ZONA MUERTA" Style="{StaticResource FieldLabel}"
+                                                                                       VerticalAlignment="Center" Width="100"/>
+                                                                            <Slider x:Name="RightStickDeadzoneSlider" Minimum="0" Maximum="30" Value="0" Width="160"
+                                                                                    IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
+                                                                                    ValueChanged="RightStickDeadzone_Changed"/>
+                                                                            <TextBlock x:Name="RightStickDeadzoneText" Text="0%" Style="{StaticResource DataText}"
+                                                                                       VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                                        </StackPanel>
+
+                                                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                                                            <TextBlock Text="RESPUESTA" Style="{StaticResource FieldLabel}"
+                                                                                       VerticalAlignment="Center" Width="100"/>
+                                                                            <ComboBox x:Name="RightStickCurveList" Width="190"
+                                                                                      SelectionChanged="RightStickCurve_Changed"/>
+                                                                        </StackPanel>
+
+                                                                        <TextBlock Text="MIS CURVAS" Style="{StaticResource FieldLabel}" Margin="0,16,0,6"/>
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <ComboBox x:Name="RightStickSavedCurveList" Width="140" DisplayMemberPath="Name" Margin="0,0,8,0"/>
+                                                                            <Button Content="CARGAR" Style="{StaticResource InstrumentButton}" Click="LoadRightStickCurve_Click" Margin="0,0,8,0"/>
+                                                                            <Button Content="BORRAR" Style="{StaticResource InstrumentButton}" Click="DeleteRightStickCurve_Click"/>
+                                                                        </StackPanel>
+                                                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                                                            <TextBox x:Name="RightStickCurveName" Width="140" Background="{StaticResource SurfaceAltBrush}"
+                                                                                     Foreground="{StaticResource TextDataBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                                     BorderThickness="1" Padding="6,4" FontFamily="{StaticResource UiFont}" Margin="0,0,8,0"/>
+                                                                            <Button Content="GUARDAR CURVA" Style="{StaticResource InstrumentButton}" Click="SaveRightStickCurve_Click"/>
+                                                                        </StackPanel>
+
+                                                                        <Button x:Name="RightStickAdvancedToggle" Content="AVANZADO" Style="{StaticResource InstrumentButton}"
+                                                                                HorizontalAlignment="Left" Margin="0,16,0,0" Click="ToggleRightStickAdvanced"/>
+                                                                        <StackPanel x:Name="RightStickAdvancedPanel" Visibility="Collapsed" Margin="0,10,0,0">
+                                                                            <StackPanel Orientation="Horizontal">
+                                                                                <TextBlock Text="ALCANCE" Style="{StaticResource FieldLabel}"
+                                                                                           VerticalAlignment="Center" Width="100"/>
+                                                                                <Slider x:Name="RightStickReachSlider" Minimum="70" Maximum="100" Value="100" Width="160"
+                                                                                        IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"
+                                                                                        ValueChanged="RightStickReach_Changed"/>
+                                                                                <TextBlock x:Name="RightStickReachText" Text="100%" Style="{StaticResource DataText}"
+                                                                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                                            </StackPanel>
+                                                                        </StackPanel>
+                                                                    </StackPanel>
+                                                                </Border>
+
+                                                                <Border Grid.Column="2" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                        BorderThickness="1" CornerRadius="10" Padding="18" VerticalAlignment="Top">
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="TELEMETRÍA Y MONITOR 2D EN VIVO" Style="{StaticResource SectionHeading}"/>
+
+                                                                        <local:StickMonitor x:Name="RightStickMonitorView" Width="340" Height="340"
+                                                                                             HorizontalAlignment="Left" Margin="0,12,0,0"/>
+
+                                                                        <TextBlock Text="CURVA (entrada -&gt; salida)" Style="{StaticResource FieldLabel}" Margin="0,16,0,6"/>
+                                                                        <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                                BorderThickness="1" Width="340" Height="100" HorizontalAlignment="Left">
+                                                                            <Canvas x:Name="RightStickCurveCanvas" Width="340" Height="100" ClipToBounds="True"
+                                                                                    Background="Transparent"
+                                                                                    MouseLeftButtonDown="RightStickCurveCanvas_MouseDown"
+                                                                                    MouseMove="RightStickCurveCanvas_MouseMove"
+                                                                                    MouseLeftButtonUp="RightStickCurveCanvas_MouseUp">
+                                                                                <Line X1="0" Y1="100" X2="340" Y2="0"
+                                                                                      Stroke="{StaticResource BorderBrush}" StrokeThickness="1" StrokeDashArray="3 3" Opacity="0.5"/>
+                                                                                <Polyline x:Name="RightStickCurveLine" Stroke="{StaticResource TextDataBrush}" StrokeThickness="1.5"/>
+                                                                                <Ellipse x:Name="RightStickCurveLiveDot" Width="7" Height="7" Fill="White" Visibility="Collapsed"/>
+                                                                            </Canvas>
+                                                                        </Border>
+                                                                        <TextBlock x:Name="RightStickCurveLiveLabel" Style="{StaticResource FieldLabel}"
+                                                                                   FontFamily="{StaticResource MonoFont}" Margin="0,6,0,0" Visibility="Collapsed"/>
+
+                                                                        <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                                                BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,18,0,0">
+                                                                            <StackPanel>
+                                                                                <Grid>
+                                                                                    <Grid.ColumnDefinitions>
+                                                                                        <ColumnDefinition Width="*"/>
+                                                                                        <ColumnDefinition Width="*"/>
+                                                                                    </Grid.ColumnDefinitions>
+                                                                                    <StackPanel Grid.Column="0">
+                                                                                        <TextBlock Text="TASA" Style="{StaticResource FieldLabel}"/>
+                                                                                        <TextBlock x:Name="RightStickRateText" Text="SIN DATOS" Style="{StaticResource DataText}" Margin="0,4,0,0"/>
+                                                                                    </StackPanel>
+                                                                                    <StackPanel Grid.Column="1">
+                                                                                        <TextBlock Text="ENTRE REPORTES" Style="{StaticResource FieldLabel}"/>
+                                                                                        <TextBlock x:Name="RightStickGapText" Text="SIN DATOS" Style="{StaticResource DataText}" Margin="0,4,0,0"/>
+                                                                                    </StackPanel>
+                                                                                </Grid>
+                                                                                <Grid Margin="0,14,0,0">
+                                                                                    <Grid.ColumnDefinitions>
+                                                                                        <ColumnDefinition Width="*"/>
+                                                                                        <ColumnDefinition Width="*"/>
+                                                                                    </Grid.ColumnDefinitions>
+                                                                                    <StackPanel Grid.Column="0">
+                                                                                        <TextBlock Text="VALORES NUEVOS" Style="{StaticResource FieldLabel}"/>
+                                                                                        <TextBlock x:Name="RightStickNewValuesText" Text="SIN DATOS" Style="{StaticResource DataText}" Margin="0,4,0,0"/>
+                                                                                    </StackPanel>
+                                                                                    <StackPanel Grid.Column="1">
+                                                                                        <TextBlock Text="DERIVA" Style="{StaticResource FieldLabel}"/>
+                                                                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                                                            <Ellipse x:Name="RightStickDriftDot" Style="{StaticResource StatusDot}" Margin="0,0,6,0"/>
+                                                                                            <TextBlock x:Name="RightStickDriftText" Text="SIN DATOS" Style="{StaticResource DataText}"/>
+                                                                                        </StackPanel>
+                                                                                    </StackPanel>
+                                                                                </Grid>
+                                                                            </StackPanel>
+                                                                        </Border>
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </Grid>
+                                                        </StackPanel>
                                                     </Grid>
                                                 </StackPanel>
                                             </ScrollViewer>

@@ -91,10 +91,6 @@ namespace HidusbfModernGui
             // el parseo, con los paneles hermanos aun sin crear.
             ConfigTabBtn.IsChecked = true;
 
-            // Mismo riesgo con las pestanas STICK IZQUIERDO/DERECHO (Task 4): se marca aqui,
-            // con BuildRemapControls() ya corrido y _remap saneado.
-            StickLeftTabBtn.IsChecked = true;
-
             _isInitializing = false;
         }
 
@@ -1330,6 +1326,7 @@ namespace HidusbfModernGui
             _remapControlsBuilt = true;
 
             BuildTouchZoneCombos();
+            BuildStickSides();
             BuildCurveLists();
             RefreshCurveLibraryLists();
 
@@ -1792,9 +1789,10 @@ namespace HidusbfModernGui
             ("Editor", ResponseCurve.Propia),
         };
 
-        // El mini-icono de "Editor" no puede muestrear ActiveCurvePoints (el combo es unico
-        // para los dos sticks): usa una forma de ejemplo fija solo para que el icono no salga
-        // identico al de "Lineal" (que confundiria al usuario).
+        // El mini-icono de "Editor" no puede muestrear los puntos reales de cada stick (los
+        // dos combos se llenan con la misma lista de presets antes de saber que curva tiene
+        // cada lado): usa una forma de ejemplo fija solo para que el icono no salga identico
+        // al de "Lineal" (que confundiria al usuario).
         private static readonly CurvePoint[] IconPropiaPoints =
             { new(0, 0), new(0.3, 0.55), new(0.7, 0.6), new(1, 1) };
 
@@ -1804,15 +1802,19 @@ namespace HidusbfModernGui
 
         private void BuildCurveLists()
         {
-            StickCurveList.Items.Clear();
-            foreach (var (label, curve) in CurvePresets)
-                AddCurveItem(StickCurveList, label, curve);
+            foreach (var list in new[] { LeftStickCurveList, RightStickCurveList })
+            {
+                list.Items.Clear();
+                foreach (var (label, curve) in CurvePresets)
+                    AddCurveItem(list, label, curve);
+            }
         }
 
         // Un ComboBoxItem con el mini-icono de la curva (Canvas+Polyline muestreando Shape a
         // curvatura neutra 50 - el icono no cambia con el slider de Curvatura) + su nombre.
-        // Tag = el ResponseCurve, que es lo que lee StickCurve_Changed y SelectComboByTag (ya
-        // usado por los combos de remapeo de botones/touchpad).
+        // Tag = el ResponseCurve, que es lo que lee StickCurveChanged (via los wrappers
+        // Left/RightStickCurve_Changed) y SelectComboByTag (ya usado por los combos de
+        // remapeo de botones/touchpad).
         private void AddCurveItem(ComboBox combo, string label, ResponseCurve curve)
         {
             const double w = 48, h = 24;
@@ -1848,122 +1850,148 @@ namespace HidusbfModernGui
             combo.Items.Add(new ComboBoxItem { Content = panel, Tag = curve });
         }
 
-        // ===== Un stick activo, no dos juegos de controles (Task 4 S3) =====
+        // ===== Los dos sticks a la vez, no uno activo (antes Task 4 S3 los turnaba con
+        // pestanas; el usuario pidio verlos ambos al mismo tiempo dado el ancho disponible)
+        // =====
         //
-        // Las pestanas STICK IZQUIERDO/DERECHO cambian A QUE MITAD de _remap apuntan estos
-        // mismos controles. Nada mas lee/escribe LeftXxx/RightXxx directamente fuera de aqui
-        // (salvo CopyStickSettings, que existe justamente para el otro lado): un unico punto
-        // de indireccion es lo que evita que un handler nuevo se le olvide mirar el lado activo.
-        private bool _activeStickIsLeft = true;
-
-        private int ActiveDeadzonePct
+        // StickSide agrupa los controles con nombre de UNA mitad de la pagina (slider, combo,
+        // monitor, canvas de curva, metricas...). Los metodos de mas abajo son genericos sobre
+        // StickSide y leen/escriben _remap.LeftXxx o _remap.RightXxx segun StickSide.IsLeft: un
+        // unico cuerpo de codigo para las dos mitades, en vez de duplicar cada handler.
+        private sealed class StickSide
         {
-            get => _activeStickIsLeft ? _remap.LeftDeadzonePct : _remap.RightDeadzonePct;
-            set { if (_activeStickIsLeft) _remap.LeftDeadzonePct = value; else _remap.RightDeadzonePct = value; }
-        }
-        private int ActiveReachPct
-        {
-            get => _activeStickIsLeft ? _remap.LeftReachPct : _remap.RightReachPct;
-            set { if (_activeStickIsLeft) _remap.LeftReachPct = value; else _remap.RightReachPct = value; }
-        }
-        private ResponseCurve ActiveCurve
-        {
-            get => _activeStickIsLeft ? _remap.LeftCurve : _remap.RightCurve;
-            set { if (_activeStickIsLeft) _remap.LeftCurve = value; else _remap.RightCurve = value; }
-        }
-        private int ActiveCurvaturePct => _activeStickIsLeft ? _remap.LeftCurvaturePct : _remap.RightCurvaturePct;
-        private List<CurvePoint> ActiveCurvePoints
-        {
-            get => _activeStickIsLeft ? _remap.LeftCurvePoints : _remap.RightCurvePoints;
-            set { if (_activeStickIsLeft) _remap.LeftCurvePoints = value; else _remap.RightCurvePoints = value; }
-        }
-        private double ActiveInnerDeadzone => _activeStickIsLeft ? _remap.LeftInnerDeadzone : _remap.RightInnerDeadzone;
-        private double ActiveOuterDeadzone => _activeStickIsLeft ? _remap.LeftOuterDeadzone : _remap.RightOuterDeadzone;
-
-        // Handlers de Checked de las pestanas: mismo riesgo de arranque que PanelsReady
-        // (ShowConfigPanel/ShowLucesPanel) - un Checked puede en teoria llegar antes de que
-        // los controles de esta pagina existan, asi que se comprueba antes de tocarlos.
-        private bool StickPanelsReady => StickDeadzoneSlider != null && StickCurveList != null && StickMonitorView != null;
-
-        private void ShowLeftStick(object sender, RoutedEventArgs e)
-        {
-            if (!StickPanelsReady) return;
-            _activeStickIsLeft = true;
-            RetargetActiveStick();
+            public required bool IsLeft;
+            public required Slider DeadzoneSlider;
+            public required TextBlock DeadzoneText;
+            public required Slider ReachSlider;
+            public required TextBlock ReachText;
+            public required ComboBox CurveList;
+            public required ComboBox SavedCurveList;
+            public required TextBox CurveName;
+            public required Button AdvancedToggle;
+            public required StackPanel AdvancedPanel;
+            public required StickMonitor Monitor;
+            public required Canvas CurveCanvas;
+            public required Polyline CurveLine;
+            public required Ellipse CurveLiveDot;
+            public required TextBlock CurveLiveLabel;
+            public required TextBlock RateText;
+            public required TextBlock GapText;
+            public required TextBlock NewValuesText;
+            public required TextBlock DriftText;
+            public required Ellipse DriftDot;
+            public readonly List<System.Windows.Shapes.Ellipse> CurveDots = new();
+            public int DragIndex = -1;
         }
 
-        private void ShowRightStick(object sender, RoutedEventArgs e)
-        {
-            if (!StickPanelsReady) return;
-            _activeStickIsLeft = false;
-            RetargetActiveStick();
-        }
+        // null hasta BuildRemapControls (llamada desde Window_Loaded, despues de
+        // InitializeComponent): los handlers de mas abajo se guardan contra null por el mismo
+        // riesgo que StickPanelsReady cubria antes - un Slider cuyo Value en XAML difiere del
+        // default dispara ValueChanged durante el parseo, antes de que exista nada aqui.
+        private StickSide? _leftStick;
+        private StickSide? _rightStick;
 
-        private void RetargetActiveStick()
+        private void BuildStickSides()
         {
-            try
+            _leftStick = new StickSide
             {
-                _updatingRemap = true;
-                ApplyActiveStickToControls();
-            }
-            finally { _updatingRemap = false; }
-
-            // Stick fisico distinto: el rastro y la deriva del monitor pertenecian al stick que
-            // se estaba mirando antes. Conservarlos ensenaria movimiento (o una deriva) que no
-            // es la de este stick - StickMonitorView.Reset() empieza limpio, igual que al
-            // arrancar la app.
-            StickMonitorView.Reset();
+                IsLeft = true,
+                DeadzoneSlider = LeftStickDeadzoneSlider, DeadzoneText = LeftStickDeadzoneText,
+                ReachSlider = LeftStickReachSlider, ReachText = LeftStickReachText,
+                CurveList = LeftStickCurveList, SavedCurveList = LeftStickSavedCurveList,
+                CurveName = LeftStickCurveName,
+                AdvancedToggle = LeftStickAdvancedToggle, AdvancedPanel = LeftStickAdvancedPanel,
+                Monitor = LeftStickMonitorView, CurveCanvas = LeftStickCurveCanvas,
+                CurveLine = LeftStickCurveLine, CurveLiveDot = LeftStickCurveLiveDot,
+                CurveLiveLabel = LeftStickCurveLiveLabel,
+                RateText = LeftStickRateText, GapText = LeftStickGapText,
+                NewValuesText = LeftStickNewValuesText,
+                DriftText = LeftStickDriftText, DriftDot = LeftStickDriftDot,
+            };
+            _rightStick = new StickSide
+            {
+                IsLeft = false,
+                DeadzoneSlider = RightStickDeadzoneSlider, DeadzoneText = RightStickDeadzoneText,
+                ReachSlider = RightStickReachSlider, ReachText = RightStickReachText,
+                CurveList = RightStickCurveList, SavedCurveList = RightStickSavedCurveList,
+                CurveName = RightStickCurveName,
+                AdvancedToggle = RightStickAdvancedToggle, AdvancedPanel = RightStickAdvancedPanel,
+                Monitor = RightStickMonitorView, CurveCanvas = RightStickCurveCanvas,
+                CurveLine = RightStickCurveLine, CurveLiveDot = RightStickCurveLiveDot,
+                CurveLiveLabel = RightStickCurveLiveLabel,
+                RateText = RightStickRateText, GapText = RightStickGapText,
+                NewValuesText = RightStickNewValuesText,
+                DriftText = RightStickDriftText, DriftDot = RightStickDriftDot,
+            };
         }
 
-        private void RetargetStickMonitorRings()
+        private int GetDeadzonePct(StickSide s) => s.IsLeft ? _remap.LeftDeadzonePct : _remap.RightDeadzonePct;
+        private void SetDeadzonePct(StickSide s, int v) { if (s.IsLeft) _remap.LeftDeadzonePct = v; else _remap.RightDeadzonePct = v; }
+        private int GetReachPct(StickSide s) => s.IsLeft ? _remap.LeftReachPct : _remap.RightReachPct;
+        private void SetReachPct(StickSide s, int v) { if (s.IsLeft) _remap.LeftReachPct = v; else _remap.RightReachPct = v; }
+        private ResponseCurve GetCurve(StickSide s) => s.IsLeft ? _remap.LeftCurve : _remap.RightCurve;
+        private void SetCurve(StickSide s, ResponseCurve v) { if (s.IsLeft) _remap.LeftCurve = v; else _remap.RightCurve = v; }
+        private int GetCurvaturePct(StickSide s) => s.IsLeft ? _remap.LeftCurvaturePct : _remap.RightCurvaturePct;
+        private List<CurvePoint> GetCurvePoints(StickSide s) => s.IsLeft ? _remap.LeftCurvePoints : _remap.RightCurvePoints;
+        private void SetCurvePoints(StickSide s, List<CurvePoint> v) { if (s.IsLeft) _remap.LeftCurvePoints = v; else _remap.RightCurvePoints = v; }
+        private double GetInnerDeadzone(StickSide s) => s.IsLeft ? _remap.LeftInnerDeadzone : _remap.RightInnerDeadzone;
+        private double GetOuterDeadzone(StickSide s) => s.IsLeft ? _remap.LeftOuterDeadzone : _remap.RightOuterDeadzone;
+
+        private void RetargetStickMonitorRings(StickSide s)
         {
-            if (StickMonitorView == null) return;
-            StickMonitorView.InnerDeadzone = ActiveInnerDeadzone;
-            StickMonitorView.OuterReach = ActiveOuterDeadzone;
+            s.Monitor.InnerDeadzone = GetInnerDeadzone(s);
+            s.Monitor.OuterReach = GetOuterDeadzone(s);
         }
 
-        // Refleja el stick activo en los controles compartidos. Se llama al construir la UI,
-        // tras CARGAR un perfil/curva y al cambiar de pestana.
-        private void ApplyActiveStickToControls()
+        // Refleja _remap.LeftXxx/RightXxx en los controles de una mitad. Se llama al construir
+        // la UI, tras CARGAR un perfil/curva de biblioteca y al sincronizar L/R.
+        private void ApplyStickToControls(StickSide s)
         {
-            StickDeadzoneSlider.Value = ActiveDeadzonePct;
-            StickReachSlider.Value = ActiveReachPct;
-            SelectComboByTag(StickCurveList, ActiveCurve);
+            s.DeadzoneSlider.Value = GetDeadzonePct(s);
+            s.ReachSlider.Value = GetReachPct(s);
+            SelectComboByTag(s.CurveList, GetCurve(s));
 
             // Slider.ValueChanged y ComboBox.SelectionChanged no se disparan cuando el valor
-            // asignado es igual al que ya tenian (p.ej. los dos sticks con el mismo ajuste),
-            // asi que el texto y la curva se refrescan aqui explicitamente en vez de confiar
-            // solo en los handlers de arriba.
-            UpdateDeadzoneReachText();
-            RedrawStickCurve();
-            RetargetStickMonitorRings();
+            // asignado es igual al que ya tenian, asi que el texto y la curva se refrescan aqui
+            // explicitamente en vez de confiar solo en los handlers de arriba.
+            UpdateDeadzoneReachText(s);
+            RedrawStickCurve(s);
+            RetargetStickMonitorRings(s);
         }
 
-        // ===== Sincronizar L/R (Task 4 S4) =====
+        // ===== Sincronizar L/R =====
         //
-        // Con el interruptor puesto, cualquier cambio de ajuste en el stick visible se copia al
-        // otro (MirrorActiveStickIfSyncing, llamada desde cada handler que edita _remap). Al
-        // ACTIVARLO se copia de una vez del stick visible al otro, y se avisa en la barra de
-        // estado: sincronizar en silencio dejaria al usuario sin enterarse de que acaba de
-        // perder los ajustes que tenia en el otro stick - un borrado encubierto.
+        // Con el interruptor puesto, cualquier cambio de ajuste en un stick se copia al otro Y
+        // refresca sus controles (MirrorStickIfSyncing, llamada desde cada handler que edita
+        // _remap): con los dos sticks visibles a la vez el reflejo tiene que verse en el acto,
+        // no recien "al cambiar de pestana" como antes. Al ACTIVARLO se copia de una vez del
+        // izquierdo al derecho (dejo de haber un "stick visible" del que copiar - con las
+        // pestanas fuera, izquierdo->derecho es la unica direccion sin ambiguedad) y se avisa
+        // en la barra de estado: sincronizar en silencio dejaria al usuario sin enterarse de
+        // que acaba de perder los ajustes que tenia en el derecho - un borrado encubierto.
         private bool _syncSticks;
 
         private void SyncSticksToggle_Changed(object sender, RoutedEventArgs e)
         {
-            if (SyncSticksToggle == null) return;
+            if (SyncSticksToggle == null || _leftStick == null || _rightStick == null) return;
             _syncSticks = SyncSticksToggle.IsChecked == true;
             if (!_syncSticks) return;
 
-            CopyStickSettings(fromLeft: _activeStickIsLeft);
+            CopyStickSettings(fromLeft: true);
+            try
+            {
+                _updatingRemap = true;
+                ApplyStickToControls(_rightStick);
+            }
+            finally { _updatingRemap = false; }
             RememberRemap();
-            LogStatus($"Sincronizado: ajustes del stick {(_activeStickIsLeft ? "izquierdo" : "derecho")} " +
-                      $"copiados al {(_activeStickIsLeft ? "derecho" : "izquierdo")}.");
+            LogStatus("Sincronizado: ajustes del stick izquierdo copiados al derecho.");
         }
 
         // Copia zona muerta, alcance, curva y los 5 puntos del editor de un lado a otro.
         // CurvePoints se clona (nunca comparte instancia): el arrastre del editor muta la lista
         // in-place, y compartirla haria que arrastrar un lado moviera el otro sin pasar por
-        // MirrorActiveStickIfSyncing.
+        // MirrorStickIfSyncing.
         private void CopyStickSettings(bool fromLeft)
         {
             if (fromLeft)
@@ -1984,14 +2012,22 @@ namespace HidusbfModernGui
             }
         }
 
-        // Llamada desde cada handler que edita el stick activo. _updatingRemap tambien la
-        // desactiva: un CARGAR o un cambio de pestana no es una edicion del usuario, y
-        // copiarla ahi duplicaria trabajo que RetargetActiveStick/LoadCurveGeneric ya hacen
-        // a su manera.
-        private void MirrorActiveStickIfSyncing()
+        // Llamada desde cada handler que edita un stick. _updatingRemap tambien la desactiva:
+        // un CARGAR o un SINCRONIZAR L/R no es una edicion nueva del usuario, y copiarla ahi
+        // duplicaria trabajo que esos sitios ya hacen a su manera. Ademas de copiar el dato en
+        // _remap, refresca los controles del OTRO lado: con los dos sticks visibles a la vez el
+        // reflejo tiene que verse ahi mismo.
+        private void MirrorStickIfSyncing(StickSide edited)
         {
-            if (!_syncSticks || _updatingRemap) return;
-            CopyStickSettings(fromLeft: _activeStickIsLeft);
+            if (!_syncSticks || _updatingRemap || _leftStick == null || _rightStick == null) return;
+            CopyStickSettings(fromLeft: edited.IsLeft);
+            var other = edited.IsLeft ? _rightStick : _leftStick;
+            try
+            {
+                _updatingRemap = true;
+                ApplyStickToControls(other);
+            }
+            finally { _updatingRemap = false; }
         }
 
         // Refleja _remap entero en los controles. Usado al construir la UI y tras CARGAR.
@@ -1999,7 +2035,8 @@ namespace HidusbfModernGui
         // dispara escriba de vuelta en _remap ni programe un guardado.
         private void ApplyRemapSettingsToControls()
         {
-            ApplyActiveStickToControls();
+            if (_leftStick != null) ApplyStickToControls(_leftStick);
+            if (_rightStick != null) ApplyStickToControls(_rightStick);
 
             L2PointSlider.Value = _remap.L2PointPct;
             R2PointSlider.Value = _remap.R2PointPct;
@@ -2012,21 +2049,11 @@ namespace HidusbfModernGui
             UpdateTriggerText();
         }
 
-        // Null-guarded like UpdateRainbowHint/UpdatePlayerSpeedText: a Slider whose XAML Value
-        // differs from the RangeBase default (0) raises ValueChanged the moment
-        // InitializeComponent assigns its Minimum/Maximum/Value, while later-declared siblings
-        // in the same XAML tree do not exist yet. Without this guard that is a
-        // NullReferenceException at startup, not just a theoretical race - StickReachSlider's
-        // Value="100" hit it on first launch (back when it was LeftReachSlider).
-        private void UpdateDeadzoneReachText()
+        private void UpdateDeadzoneReachText(StickSide s)
         {
-            if (StickDeadzoneText == null || StickReachText == null) return;
-
-            StickDeadzoneText.Text = $"{StickDeadzoneSlider.Value:0}%";
-            StickReachText.Text = $"{StickReachSlider.Value:0}%";
+            s.DeadzoneText.Text = $"{s.DeadzoneSlider.Value:0}%";
+            s.ReachText.Text = $"{s.ReachSlider.Value:0}%";
         }
-
-
 
         private void UpdateTriggerText()
         {
@@ -2039,26 +2066,49 @@ namespace HidusbfModernGui
             R2PointBar.Width = 220 * (R2PointSlider.Value / 100.0);
         }
 
-        private void StickDeadzone_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        // Cuerpo compartido de ValueChanged de zona muerta/alcance, invocado por los cuatro
+        // wrappers de abajo (uno por slider por lado). Cada wrapper se guarda contra
+        // _leftStick/_rightStick == null: mismo riesgo de arranque que StickPanelsReady cubria
+        // antes - LeftStickReachSlider/RightStickReachSlider tienen Value="100" en XAML, que
+        // difiere del default (0) y dispara ValueChanged durante el parseo de InitializeComponent,
+        // bastante antes de que BuildStickSides haya corrido.
+        private void StickDeadzoneChanged(StickSide s, RoutedPropertyChangedEventArgs<double> e)
         {
-            UpdateDeadzoneReachText();
+            UpdateDeadzoneReachText(s);
             if (_updatingRemap) return;
-            ActiveDeadzonePct = (int)Math.Round(StickDeadzoneSlider.Value);
-            RedrawStickCurve();
-            RetargetStickMonitorRings();
-            MirrorActiveStickIfSyncing();
+            SetDeadzonePct(s, (int)Math.Round(s.DeadzoneSlider.Value));
+            RedrawStickCurve(s);
+            RetargetStickMonitorRings(s);
+            MirrorStickIfSyncing(s);
             RememberRemap();
         }
 
-        private void StickReach_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        private void StickReachChanged(StickSide s, RoutedPropertyChangedEventArgs<double> e)
         {
-            UpdateDeadzoneReachText();
+            UpdateDeadzoneReachText(s);
             if (_updatingRemap) return;
-            ActiveReachPct = (int)Math.Round(StickReachSlider.Value);
-            RedrawStickCurve();
-            RetargetStickMonitorRings();
-            MirrorActiveStickIfSyncing();
+            SetReachPct(s, (int)Math.Round(s.ReachSlider.Value));
+            RedrawStickCurve(s);
+            RetargetStickMonitorRings(s);
+            MirrorStickIfSyncing(s);
             RememberRemap();
+        }
+
+        private void LeftStickDeadzone_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_leftStick != null) StickDeadzoneChanged(_leftStick, e);
+        }
+        private void RightStickDeadzone_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_rightStick != null) StickDeadzoneChanged(_rightStick, e);
+        }
+        private void LeftStickReach_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_leftStick != null) StickReachChanged(_leftStick, e);
+        }
+        private void RightStickReach_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_rightStick != null) StickReachChanged(_rightStick, e);
         }
 
         // ===== Arcos de los gatillos =====
@@ -2192,54 +2242,61 @@ namespace HidusbfModernGui
 
         private void StickPageTick(object? sender, EventArgs e)
         {
+            if (_leftStick == null || _rightStick == null) return;   // pagina aun no construida
+
             // Misma fuente que TriggerArcTick: el lector del motor si esta activo, si no el
-            // propio del visualizador.
+            // propio del visualizador. UN snapshot para los dos sticks: LX/LY y RX/RY del mismo
+            // reporte, no dos lecturas separadas que podrian venir de instantes distintos.
             var raw = _engineRunning ? _padReader?.Snapshot() : _visualFeed.PhysicalSnapshot();
             if (raw != null)
             {
                 var outState = RemapEngine.Transform(raw, _remap);
-                var rawStick = _activeStickIsLeft ? raw.Left : raw.Right;
-                var outStick = _activeStickIsLeft ? outState.Left : outState.Right;
-                PlaceLiveDot(StickCurveCanvas, StickCurveLiveDot, StickCurveLiveLabel, rawStick, outStick,
-                    ActiveInnerDeadzone, ActiveOuterDeadzone);
-                StickMonitorView.Push(rawStick.X, rawStick.Y);
+
+                PlaceLiveDot(_leftStick.CurveCanvas, _leftStick.CurveLiveDot, _leftStick.CurveLiveLabel,
+                    raw.Left, outState.Left, GetInnerDeadzone(_leftStick), GetOuterDeadzone(_leftStick));
+                _leftStick.Monitor.Push(raw.Left.X, raw.Left.Y);
+
+                PlaceLiveDot(_rightStick.CurveCanvas, _rightStick.CurveLiveDot, _rightStick.CurveLiveLabel,
+                    raw.Right, outState.Right, GetInnerDeadzone(_rightStick), GetOuterDeadzone(_rightStick));
+                _rightStick.Monitor.Push(raw.Right.X, raw.Right.Y);
             }
 
-            UpdateStickMetrics();
+            UpdateStickMetrics(_leftStick);
+            UpdateStickMetrics(_rightStick);
         }
 
-        // Metricas con nombres honestos (Task 4 S5): TASA/ENTRE REPORTES salen de un
-        // PollingMeter real (nunca "Latencia": la app marca LLEGADA de reportes, no el
-        // instante fisico - leccion L11). VALORES NUEVOS sale de StickTelemetry via el
-        // StickMonitor activo. DERIVA tambien. No hay "Error": no existe una posicion
-        // "verdadera" del stick contra la que comparar la reportada.
-        private void UpdateStickMetrics()
+        // Metricas con nombres honestos: TASA/ENTRE REPORTES salen de un PollingMeter real
+        // (nunca "Latencia": la app marca LLEGADA de reportes, no el instante fisico - leccion
+        // L11), y son las mismas en los dos lados a proposito - describen el PAD (un unico
+        // canal de reportes), no un stick en particular. VALORES NUEVOS y DERIVA salen de
+        // StickTelemetry via el StickMonitor de ESTE lado, y si difieren entre lados. No hay
+        // "Error": no existe una posicion "verdadera" del stick contra la que comparar la
+        // reportada.
+        private void UpdateStickMetrics(StickSide s)
         {
-            if (StickRateText == null) return;   // pagina aun no construida
-
             var sample = _stickMeter.Snapshot();
             if (sample == null)
             {
-                StickRateText.Text = "SIN DATOS";
-                StickGapText.Text = "SIN DATOS";
-                StickNewValuesText.Text = "SIN DATOS";
+                s.RateText.Text = "SIN DATOS";
+                s.GapText.Text = "SIN DATOS";
+                s.NewValuesText.Text = "SIN DATOS";
             }
             else
             {
                 double hz = sample.Value.MedianHz;
-                StickRateText.Text = $"{hz:0.#} Hz";
-                StickGapText.Text = $"{sample.Value.MedianGapMs:0.###} ms";
-                StickNewValuesText.Text = $"{StickMonitorView.NewValuesPerSecond(hz):0.#}/s";
+                s.RateText.Text = $"{hz:0.#} Hz";
+                s.GapText.Text = $"{sample.Value.MedianGapMs:0.###} ms";
+                s.NewValuesText.Text = $"{s.Monitor.NewValuesPerSecond(hz):0.#}/s";
             }
 
-            (StickDriftText.Text, var driftLevel) = StickMonitorView.Drift switch
+            (s.DriftText.Text, var driftLevel) = s.Monitor.Drift switch
             {
                 DriftLevel.Ok   => ("OK",   StatusLevel.Ok),
                 DriftLevel.Leve => ("LEVE", StatusLevel.Warn),
                 DriftLevel.Alta => ("ALTA", StatusLevel.Error),
                 _               => ("SIN DATOS", StatusLevel.Idle),
             };
-            StickDriftDot.Fill = StatusBrush(driftLevel);
+            s.DriftDot.Fill = StatusBrush(driftLevel);
         }
 
         private void L2Point_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -2260,25 +2317,34 @@ namespace HidusbfModernGui
             RememberRemap();
         }
 
-        private void StickCurve_Changed(object sender, SelectionChangedEventArgs e)
+        private void StickCurveChanged(StickSide s, SelectionChangedEventArgs e)
         {
-            if (StickCurveList.SelectedItem is not ComboBoxItem { Tag: ResponseCurve curve }) return;
+            if (s.CurveList.SelectedItem is not ComboBoxItem { Tag: ResponseCurve curve }) return;
             if (_updatingRemap) return;
-            ActiveCurve = curve;
-            RedrawStickCurve();
-            MirrorActiveStickIfSyncing();
+            SetCurve(s, curve);
+            RedrawStickCurve(s);
+            MirrorStickIfSyncing(s);
             RememberRemap();
         }
 
-        private void ToggleStickAdvanced(object sender, RoutedEventArgs e)
+        private void LeftStickCurve_Changed(object sender, SelectionChangedEventArgs e)
         {
-            StickAdvancedPanel.Visibility = StickAdvancedPanel.Visibility == Visibility.Visible
+            if (_leftStick != null) StickCurveChanged(_leftStick, e);
+        }
+        private void RightStickCurve_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_rightStick != null) StickCurveChanged(_rightStick, e);
+        }
+
+        private void ToggleLeftStickAdvanced(object sender, RoutedEventArgs e)
+        {
+            LeftStickAdvancedPanel.Visibility = LeftStickAdvancedPanel.Visibility == Visibility.Visible
                 ? Visibility.Collapsed : Visibility.Visible;
         }
 
-        private void ToggleHelpPanel_Click(object sender, RoutedEventArgs e)
+        private void ToggleRightStickAdvanced(object sender, RoutedEventArgs e)
         {
-            HelpPanel.Visibility = HelpPanel.Visibility == Visibility.Visible
+            RightStickAdvancedPanel.Visibility = RightStickAdvancedPanel.Visibility == Visibility.Visible
                 ? Visibility.Collapsed : Visibility.Visible;
         }
 
@@ -2316,20 +2382,15 @@ namespace HidusbfModernGui
             line.Points = samples;
         }
 
-        // Same XAML-parse-time hazard as UpdateDeadzoneReachText: StickCurveCanvas is declared
-        // after StickDeadzoneSlider in the tree, so a ValueChanged raised while parsing the
-        // deadzone slider would otherwise hit it before it exists.
-        //
-        // Dibuja SIEMPRE el stick activo (_activeStickIsLeft): un solo canvas, retargeteado
-        // por las pestanas STICK IZQUIERDO/DERECHO en vez de duplicado (Task 4 S3).
-        private void RedrawStickCurve()
+        // Redibuja UNA mitad (antes redibujaba "el stick activo" - Task 4 S3 turnaba un solo
+        // canvas con pestanas; ahora cada lado tiene el suyo y se le pasa explicitamente).
+        private void RedrawStickCurve(StickSide s)
         {
-            if (StickCurveLine == null || StickCurveCanvas == null) return;
-            DrawCurve(StickCurveLine, ActiveInnerDeadzone, ActiveOuterDeadzone,
-                ActiveCurve, ActiveCurvaturePct, StickCurveCanvas.Width, StickCurveCanvas.Height,
-                ActiveCurvePoints);
-            RefreshCurveDots(StickCurveCanvas, _stickCurveDots, ActiveCurvePoints, ActiveCurve,
-                ActiveInnerDeadzone, ActiveOuterDeadzone);
+            DrawCurve(s.CurveLine, GetInnerDeadzone(s), GetOuterDeadzone(s),
+                GetCurve(s), GetCurvaturePct(s), s.CurveCanvas.Width, s.CurveCanvas.Height,
+                GetCurvePoints(s));
+            RefreshCurveDots(s.CurveCanvas, s.CurveDots, GetCurvePoints(s), GetCurve(s),
+                GetInnerDeadzone(s), GetOuterDeadzone(s));
         }
 
         // ===== Editor de curva (ResponseCurve.Propia): 3 puntos interiores arrastrables =====
@@ -2360,9 +2421,6 @@ namespace HidusbfModernGui
             Color.FromRgb(0xFF, 0xCA, 0x28),
             Color.FromRgb(0xEF, 0x53, 0x50),
         };
-
-        private readonly List<System.Windows.Shapes.Ellipse> _stickCurveDots = new();
-        private int _dragIndex = -1;
 
         private void EnsureCurveDots(Canvas canvas, List<System.Windows.Shapes.Ellipse> dots)
         {
@@ -2399,10 +2457,17 @@ namespace HidusbfModernGui
             }
         }
 
-        private void CurveCanvas_Down(Canvas canvas, List<CurvePoint> pts, ResponseCurve curve,
-                                      double inner, double outer, MouseButtonEventArgs e)
+        // side.DragIndex (no un campo compartido): con los dos canvas visibles a la vez, cada
+        // uno arrastra sus propios puntos de forma independiente. En la practica el usuario
+        // solo puede arrastrar uno con el mouse a la vez, pero guardar el indice por lado es lo
+        // que hace que eso sea una consecuencia del mouse y no una casualidad del codigo.
+        private void CurveCanvas_Down(StickSide s, MouseButtonEventArgs e)
         {
+            var curve = GetCurve(s);
             if (curve != ResponseCurve.Propia) return;
+            var canvas = s.CurveCanvas;
+            var pts = GetCurvePoints(s);
+            double inner = GetInnerDeadzone(s), outer = GetOuterDeadzone(s);
             var pos = e.GetPosition(canvas);
 
             // Prueba en espacio de PIXELES (no en el 0..1 normalizado): un radio fijo en pixeles
@@ -2418,44 +2483,64 @@ namespace HidusbfModernGui
                 if (d < bestDist) { bestDist = d; best = i; }
             }
             if (best < 0) return;
-            _dragIndex = best;
+            s.DragIndex = best;
             canvas.CaptureMouse();
             e.Handled = true;
         }
 
-        private void CurveCanvas_Move(Canvas canvas, List<CurvePoint> pts, double inner, double outer, MouseEventArgs e)
+        private void CurveCanvas_Move(StickSide s, MouseEventArgs e)
         {
-            if (_dragIndex < 0 || e.LeftButton != MouseButtonState.Pressed) return;
+            if (s.DragIndex < 0 || e.LeftButton != MouseButtonState.Pressed) return;
+            var canvas = s.CurveCanvas;
+            var pts = GetCurvePoints(s);
+            double inner = GetInnerDeadzone(s), outer = GetOuterDeadzone(s);
             var pos = e.GetPosition(canvas);
             // X acotada entre los vecinos (con margen, en el dominio post-deadzone) para que la
             // curva siga siendo una funcion; Y libre en 0..1. La posicion cruda del mouse se
             // convierte al dominio con RawToDomain antes de acotar/guardar.
-            double minX = pts[_dragIndex - 1].X + 0.03, maxX = pts[_dragIndex + 1].X - 0.03;
+            double minX = pts[s.DragIndex - 1].X + 0.03, maxX = pts[s.DragIndex + 1].X - 0.03;
             double x = Math.Clamp(RawToDomain(pos.X / canvas.Width, inner, outer), minX, maxX);
             double y = Math.Clamp(1 - pos.Y / canvas.Height, 0.0, 1.0);
-            pts[_dragIndex] = new CurvePoint(x, y);
-            RedrawStickCurve();
+            pts[s.DragIndex] = new CurvePoint(x, y);
+            RedrawStickCurve(s);
         }
 
-        private void CurveCanvas_Up(Canvas canvas)
+        private void CurveCanvas_Up(StickSide s)
         {
-            if (_dragIndex < 0) return;
-            _dragIndex = -1;
-            canvas.ReleaseMouseCapture();
-            MirrorActiveStickIfSyncing();
+            if (s.DragIndex < 0) return;
+            s.DragIndex = -1;
+            s.CurveCanvas.ReleaseMouseCapture();
+            MirrorStickIfSyncing(s);
             RememberRemap();   // persiste el dibujo (debounced, como todo _remap)
         }
 
-        // Un solo canvas, retargeteado al stick activo (Task 4 S3). Pasan inner/outer leidos de
-        // _remap en cada llamada (no cacheados): si el usuario mueve el slider de zona muerta/
-        // alcance a mitad de un arrastre, la conversion sigue consistente en el siguiente evento.
-        private void StickCurveCanvas_MouseDown(object sender, MouseButtonEventArgs e)
-            => CurveCanvas_Down(StickCurveCanvas, ActiveCurvePoints, ActiveCurve,
-                ActiveInnerDeadzone, ActiveOuterDeadzone, e);
-        private void StickCurveCanvas_MouseMove(object sender, MouseEventArgs e)
-            => CurveCanvas_Move(StickCurveCanvas, ActiveCurvePoints, ActiveInnerDeadzone, ActiveOuterDeadzone, e);
-        private void StickCurveCanvas_MouseUp(object sender, MouseButtonEventArgs e)
-            => CurveCanvas_Up(StickCurveCanvas);
+        // Pasan por GetInnerDeadzone/GetOuterDeadzone leidos de _remap en cada llamada (no
+        // cacheados): si el usuario mueve el slider de zona muerta/alcance a mitad de un
+        // arrastre, la conversion sigue consistente en el siguiente evento.
+        private void LeftStickCurveCanvas_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (_leftStick != null) CurveCanvas_Down(_leftStick, e);
+        }
+        private void LeftStickCurveCanvas_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_leftStick != null) CurveCanvas_Move(_leftStick, e);
+        }
+        private void LeftStickCurveCanvas_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_leftStick != null) CurveCanvas_Up(_leftStick);
+        }
+        private void RightStickCurveCanvas_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (_rightStick != null) CurveCanvas_Down(_rightStick, e);
+        }
+        private void RightStickCurveCanvas_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_rightStick != null) CurveCanvas_Move(_rightStick, e);
+        }
+        private void RightStickCurveCanvas_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_rightStick != null) CurveCanvas_Up(_rightStick);
+        }
 
         // Copia profunda: RemapProfile.Settings no debe compartir instancia con _remap, o
         // seguir editando despues de GUARDAR reescribiria en silencio el perfil ya guardado
@@ -4195,22 +4280,26 @@ namespace HidusbfModernGui
             RestartAllBtn.IsEnabled = true;
         }
 
-        // ===== BIBLIOTECA "MIS CURVAS" (Task 4) =====
+        // ===== BIBLIOTECA "MIS CURVAS" =====
         //
-        // Un solo combo (StickSavedCurveList): la biblioteca de curvas no es "de" un stick, es
-        // compartida - CARGAR la aplica al stick activo, no a uno fijo.
+        // Los datos son compartidos (un solo archivo via CurveLibraryStore), pero ahora hay DOS
+        // combos visibles a la vez (uno por lado) en vez de uno solo retargeteado por pestanas -
+        // los dos se refrescan aqui, cada uno conservando su propia seleccion.
         private void RefreshCurveLibraryLists()
         {
             _savedCurves = CurveLibraryStore.Load();
 
-            var sel = StickSavedCurveList.SelectedItem as SavedCurve;
-            StickSavedCurveList.ItemsSource = null;
-            StickSavedCurveList.ItemsSource = _savedCurves;
-            if (sel != null)
-                StickSavedCurveList.SelectedItem = _savedCurves.FirstOrDefault(c => c.Name == sel.Name);
+            foreach (var combo in new[] { LeftStickSavedCurveList, RightStickSavedCurveList })
+            {
+                var sel = combo.SelectedItem as SavedCurve;
+                combo.ItemsSource = null;
+                combo.ItemsSource = _savedCurves;
+                if (sel != null)
+                    combo.SelectedItem = _savedCurves.FirstOrDefault(c => c.Name == sel.Name);
+            }
         }
 
-        private void SaveCurveGeneric(string name, List<CurvePoint> points)
+        private void SaveCurveGeneric(StickSide s, string name)
         {
             if (string.IsNullOrWhiteSpace(name))
             {
@@ -4224,6 +4313,7 @@ namespace HidusbfModernGui
                 return;
             }
 
+            var points = GetCurvePoints(s);
             var existing = _savedCurves.FirstOrDefault(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
             if (existing != null)
             {
@@ -4242,12 +4332,12 @@ namespace HidusbfModernGui
             }
 
             RefreshCurveLibraryLists();
-            StickCurveName.Text = "";
-            StickSavedCurveList.SelectedItem = _savedCurves.FirstOrDefault(c => c.Name == name);
+            s.CurveName.Text = "";
+            s.SavedCurveList.SelectedItem = _savedCurves.FirstOrDefault(c => c.Name == name);
             LogStatus($"Curva '{name}' guardada en la biblioteca.");
         }
 
-        private void LoadCurveGeneric(SavedCurve? curve)
+        private void LoadCurveGeneric(StickSide s, SavedCurve? curve)
         {
             if (curve == null)
             {
@@ -4258,19 +4348,19 @@ namespace HidusbfModernGui
             try
             {
                 _updatingRemap = true;
-                ActiveCurve = ResponseCurve.Propia;
-                ActiveCurvePoints = new List<CurvePoint>(curve.Points);
-                SelectComboByTag(StickCurveList, ResponseCurve.Propia);
-                RedrawStickCurve();
+                SetCurve(s, ResponseCurve.Propia);
+                SetCurvePoints(s, new List<CurvePoint>(curve.Points));
+                SelectComboByTag(s.CurveList, ResponseCurve.Propia);
+                RedrawStickCurve(s);
             }
             finally
             {
                 _updatingRemap = false;
             }
 
-            MirrorActiveStickIfSyncing();
+            MirrorStickIfSyncing(s);
             RememberRemap();
-            LogStatus($"Curva '{curve.Name}' aplicada al stick {(_activeStickIsLeft ? "izquierdo" : "derecho")}.");
+            LogStatus($"Curva '{curve.Name}' aplicada al stick {(s.IsLeft ? "izquierdo" : "derecho")}.");
         }
 
         private void DeleteCurveGeneric(SavedCurve? curve)
@@ -4293,14 +4383,28 @@ namespace HidusbfModernGui
             LogStatus($"Curva '{curve.Name}' eliminada de la biblioteca.");
         }
 
-        private void LoadStickCurve_Click(object sender, RoutedEventArgs e)
-            => LoadCurveGeneric(StickSavedCurveList.SelectedItem as SavedCurve);
+        private void LoadLeftStickCurve_Click(object sender, RoutedEventArgs e)
+        {
+            if (_leftStick != null) LoadCurveGeneric(_leftStick, LeftStickSavedCurveList.SelectedItem as SavedCurve);
+        }
+        private void LoadRightStickCurve_Click(object sender, RoutedEventArgs e)
+        {
+            if (_rightStick != null) LoadCurveGeneric(_rightStick, RightStickSavedCurveList.SelectedItem as SavedCurve);
+        }
 
-        private void DeleteStickCurve_Click(object sender, RoutedEventArgs e)
-            => DeleteCurveGeneric(StickSavedCurveList.SelectedItem as SavedCurve);
+        private void DeleteLeftStickCurve_Click(object sender, RoutedEventArgs e)
+            => DeleteCurveGeneric(LeftStickSavedCurveList.SelectedItem as SavedCurve);
+        private void DeleteRightStickCurve_Click(object sender, RoutedEventArgs e)
+            => DeleteCurveGeneric(RightStickSavedCurveList.SelectedItem as SavedCurve);
 
-        private void SaveStickCurve_Click(object sender, RoutedEventArgs e)
-            => SaveCurveGeneric(StickCurveName.Text, ActiveCurvePoints);
+        private void SaveLeftStickCurve_Click(object sender, RoutedEventArgs e)
+        {
+            if (_leftStick != null) SaveCurveGeneric(_leftStick, LeftStickCurveName.Text);
+        }
+        private void SaveRightStickCurve_Click(object sender, RoutedEventArgs e)
+        {
+            if (_rightStick != null) SaveCurveGeneric(_rightStick, RightStickCurveName.Text);
+        }
 
         // Deja de ser static: AppDialog necesita un Owner para centrarse sobre la ventana y no
         // quedarse detras de ella. Todas las llamadas son de instancia, asi que no cuesta nada.
