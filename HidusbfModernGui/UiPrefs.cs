@@ -5,11 +5,18 @@ using System.Text.Json;
 
 namespace HidusbfModernGui
 {
+    // Los dos modos del DIAGRAMA de asignacion de botones: el panel donde se mapea el mando.
+    // No es un tema para toda la app: la app es oscura y se queda oscura. Aqui la lamina del
+    // mando existe en dos versiones (tinta oscura sobre papel blanco, y al reves), y esto
+    // dice cual se dibuja.
+    public enum AppTheme { Noche, Dia }
+
     // Preferencias de la INTERFAZ, separadas del estado del mando a proposito: borrar la
-    // intencion de luz (active.json) es un caso normal y no puede llevarse por delante el
-    // tema que el usuario eligio.
+    // intencion de luz (active.json) es un caso normal y no puede llevarse por delante lo
+    // que el usuario eligio aqui.
     public sealed class UiPrefs
     {
+        // Modo del diagrama de botones. Noche es el de siempre.
         public AppTheme Theme { get; set; } = AppTheme.Noche;
         public int ObsPort { get; set; } = UiPrefsStore.DefaultObsPort;
     }

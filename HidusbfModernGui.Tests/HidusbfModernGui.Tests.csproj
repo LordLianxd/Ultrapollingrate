@@ -39,7 +39,6 @@
     <Compile Include="..\HidusbfModernGui\PadDiagram.cs" Link="PadDiagram.cs" />
     <Compile Include="..\HidusbfModernGui\GameProfile.cs" Link="GameProfile.cs" />
     <Compile Include="..\HidusbfModernGui\PadIcons.cs" Link="PadIcons.cs" />
-    <Compile Include="..\HidusbfModernGui\ThemePalette.cs" Link="ThemePalette.cs" />
     <Compile Include="..\HidusbfModernGui\UiPrefs.cs" Link="UiPrefs.cs" />
   </ItemGroup>
 

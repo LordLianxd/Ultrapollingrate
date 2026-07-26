@@ -44,12 +44,6 @@ namespace HidusbfModernGui
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            // El tema, antes que nada: aplicarlo despues de construir la cabecera haria que la
-            // ventana parpadease del tema viejo al nuevo delante del usuario.
-            var uiPrefs = UiPrefsStore.Load();
-            ThemeManager.Apply(uiPrefs.Theme);
-            DayThemeCheck.IsChecked = uiPrefs.Theme == AppTheme.Dia;
-
             // Guard de arranque (Task 6/14): si un run anterior murio con el DualSense
             // oculto por HidHide, re-mostrarlo ahora para no dejar el mando "desaparecido".
             // Best-effort y silencioso: nunca debe impedir que la app abra.
@@ -3178,21 +3172,6 @@ namespace HidusbfModernGui
                     RefreshDevicesList();
                 });
             });
-        }
-
-        // El tema se aplica al pulsar y se guarda: sin boton "Aplicar", como todo en esta app.
-        private void DayTheme_Click(object sender, RoutedEventArgs e)
-        {
-            var theme = DayThemeCheck.IsChecked == true ? AppTheme.Dia : AppTheme.Noche;
-            var failed = ThemeManager.Apply(theme);
-            if (failed.Count > 0)
-                LogStatus($"Tema aplicado a medias: {string.Join(", ", failed)} no se pudieron cambiar.");
-            else
-                LogStatus(theme == AppTheme.Dia ? "Modo dia." : "Modo noche.");
-
-            var prefs = UiPrefsStore.Load();
-            prefs.Theme = theme;
-            UiPrefsStore.Save(prefs);
         }
 
         // Event: Click Install Service button
