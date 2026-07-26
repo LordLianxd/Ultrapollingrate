@@ -401,6 +401,59 @@
         </Setter>
     </Style>
 
+    <!-- Control segmentado: una pastilla que contiene varias pestañas y en la que solo una
+         esta activa. La activa es una pastilla clara con texto oscuro; las demas son texto
+         gris sobre el fondo del grupo.
+         Son RadioButton y no Button a proposito: "solo uno a la vez" es exactamente lo que un
+         RadioButton con GroupName hace de serie. Con botones normales habria que apagar los
+         otros dos a mano en cada handler, y el dia que se anada un cuarto alguien se olvidara.
+         El contenedor es SegmentGroup, que va justo debajo. -->
+    <Style x:Key="SegmentButton" TargetType="RadioButton">
+        <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{StaticResource TextLabelBrush}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Padding" Value="20,9"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Seg" Background="Transparent" CornerRadius="16"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Seg" Property="Background" Value="{StaticResource TextDataBrush}"/>
+                            <Setter Property="Foreground" Value="{StaticResource BgBrush}"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                        </Trigger>
+                        <!-- El hover solo aclara las INACTIVAS: sobre la activa (pastilla clara,
+                             texto oscuro) aclarar el texto lo haria desaparecer. -->
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                                <Condition Property="IsChecked" Value="False"/>
+                            </MultiTrigger.Conditions>
+                            <Setter Property="Foreground" Value="{StaticResource TextDataBrush}"/>
+                        </MultiTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- La pastilla que agrupa los segmentos. El radio (22) es la mitad del alto que resulta
+         del padding de los segmentos mas el suyo, para que los extremos queden semicirculares
+         y no como un rectangulo con las esquinas limadas. -->
+    <Style x:Key="SegmentGroup" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="22"/>
+        <Setter Property="Padding" Value="4"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+    </Style>
+
     <!-- Interruptor de opcion: pastilla lisa con pulsador deslizante, para las filas
          "etiqueta a la izquierda, interruptor a la derecha" del panel de opciones del mando
          en vivo. Es el mismo lenguaje que DayNightToggle pero sin iconos: aqui lo que se

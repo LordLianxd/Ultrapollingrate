@@ -573,14 +573,21 @@
                                 <!-- Sub-nav del hub "Mando": Configurar el mando (por defecto) | Luces del mando |
                                      Perfiles. PERFILES sube aqui, al mismo nivel que las otras dos, porque un
                                      perfil ya no pertenece a una de ellas: guarda las dos a la vez. -->
-                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="24,16,24,0">
-                                    <Button x:Name="ConfigTabBtn" Content="CONFIGURAR EL MANDO" Style="{StaticResource InstrumentButton}"
-                                            Click="ShowConfigPanel" Margin="0,0,10,0"/>
-                                    <Button x:Name="LucesTabBtn" Content="LUCES DEL MANDO" Style="{StaticResource InstrumentButton}"
-                                            Click="ShowLucesPanel" Margin="0,0,10,0"/>
-                                    <Button x:Name="PerfilesTabBtn" Content="PERFILES" Style="{StaticResource InstrumentButton}"
-                                            Click="ShowPerfilesPanel"/>
-                                </StackPanel>
+                                <Border Grid.Row="0" Style="{StaticResource SegmentGroup}" Margin="24,16,24,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <!-- OJO: el segmento inicial NO se marca aqui. Un IsChecked="True" en XAML
+                                                 dispara Checked mientras se PARSEA, antes de que existan los paneles
+                                                 hermanos que el handler toca, y la app se cae al arrancar. Se marca en
+                                                 Window_Loaded, cuando el arbol ya esta entero. -->
+                                        <RadioButton x:Name="ConfigTabBtn" Content="CONFIGURAR EL MANDO" GroupName="MandoNav"
+                                                     Style="{StaticResource SegmentButton}"
+                                                     Checked="ShowConfigPanel"/>
+                                        <RadioButton x:Name="LucesTabBtn" Content="LUCES DEL MANDO" GroupName="MandoNav"
+                                                     Style="{StaticResource SegmentButton}" Checked="ShowLucesPanel"/>
+                                        <RadioButton x:Name="PerfilesTabBtn" Content="PERFILES" GroupName="MandoNav"
+                                                     Style="{StaticResource SegmentButton}" Checked="ShowPerfilesPanel"/>
+                                    </StackPanel>
+                                </Border>
 
                                 <Grid Grid.Row="1">
                                     <!-- Configurador del mando: hub de tarjetas + sub-paginas (Task PS3),

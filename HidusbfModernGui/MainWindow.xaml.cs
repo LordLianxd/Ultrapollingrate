@@ -61,6 +61,11 @@ namespace HidusbfModernGui
 
             RefreshDevicesList();
             BuildRemapControls();
+
+            // El segmento inicial se marca AQUI y no en el XAML: alli el Checked llega durante
+            // el parseo, con los paneles hermanos aun sin crear.
+            ConfigTabBtn.IsChecked = true;
+
             _isInitializing = false;
         }
 
@@ -471,6 +476,11 @@ namespace HidusbfModernGui
         private void LightNavBtn_Click(object sender, RoutedEventArgs e)
         {
             MainTabControl.SelectedIndex = 2;
+            // Marcar el segmento dispara Checked -> ShowConfigPanel, pero solo si CAMBIA: si
+            // ya estaba marcado no salta nada, asi que la llamada directa va detras. Las dos
+            // juntas son idempotentes (solo alternan visibilidades) y dejan el segmento y el
+            // panel siempre de acuerdo.
+            ConfigTabBtn.IsChecked = true;
             ShowConfigPanel(this, null!);
         }
 
@@ -492,8 +502,15 @@ namespace HidusbfModernGui
         }
 
         // Sub-nav del hub "Mando": Configurar el mando (por defecto) | Luces del mando | Perfiles.
+        //
+        // Los tres empiezan comprobando que los paneles existen. Son handlers de Checked de un
+        // RadioButton, y ese evento puede llegar durante el parseo del XAML - antes de que los
+        // paneles hermanos esten creados. Ya tumbo la app una vez.
+        private bool PanelsReady => ConfigPanel != null && LucesPanel != null && PerfilesPanel != null;
+
         private void ShowConfigPanel(object sender, RoutedEventArgs e)
         {
+            if (!PanelsReady) return;
             ConfigPanel.Visibility = Visibility.Visible;
             LucesPanel.Visibility = Visibility.Collapsed;
             PerfilesPanel.Visibility = Visibility.Collapsed;
@@ -501,6 +518,7 @@ namespace HidusbfModernGui
 
         private void ShowLucesPanel(object sender, RoutedEventArgs e)
         {
+            if (!PanelsReady) return;
             ConfigPanel.Visibility = Visibility.Collapsed;
             LucesPanel.Visibility = Visibility.Visible;
             PerfilesPanel.Visibility = Visibility.Collapsed;
@@ -509,6 +527,7 @@ namespace HidusbfModernGui
 
         private void ShowPerfilesPanel(object sender, RoutedEventArgs e)
         {
+            if (!PanelsReady) return;
             ConfigPanel.Visibility = Visibility.Collapsed;
             LucesPanel.Visibility = Visibility.Collapsed;
             PerfilesPanel.Visibility = Visibility.Visible;
