@@ -353,7 +353,8 @@
          boton invertido el hover dejaria letra negra sobre fondo casi negro. Igual que
          el hover de SegmentButton, que a proposito NO aclara su pastilla activa porque ya
          esta en el maximo contraste de la paleta: aqui tampoco hay adonde aclarar el
-         fondo sin inventar un gris nuevo, asi que el hover no toca el fondo. -->
+         fondo sin inventar un gris nuevo, asi que el hover NO aclara el fondo: baja la
+         opacidad. Ver el trigger de IsMouseOver mas abajo. -->
     <Style x:Key="PrimaryButton" TargetType="Button">
         <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
         <Setter Property="FontSize" Value="11"/>
@@ -373,6 +374,15 @@
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <!-- Opacidad, no un gris nuevo. Este boton ya esta en blanco puro:
+                             no existe un blanco mas claro al que ir, y anadir un gris solo
+                             para el hover gastaria un color en decorar. Bajar la opacidad
+                             no cuesta pincel y deja al boton primario con respuesta al
+                             puntero, que siendo la accion principal de la pagina no puede
+                             quedarse en solo el cambio de cursor. -->
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+                        </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
                         </Trigger>
