@@ -659,32 +659,28 @@
                                                                        Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="None"
                                                                        Opened="AnimatePopupOpen">
                                                                     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                                                            BorderThickness="1" Padding="16" MinWidth="260">
+                                                                            BorderThickness="1" Padding="16" MinWidth="300">
                                                                         <StackPanel>
                                                                             <!-- Estado del skin (Task SK3): que se esta dibujando (skin instalado o el
                                                                                  vectorial) y control para recargar tras instalar/actualizar uno. -->
-                                                                            <TextBlock x:Name="SkinStatusText" Style="{StaticResource FieldLabel}"/>
-                                                                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                                                                <Button Content="RECARGAR SKIN" Style="{StaticResource InstrumentButton}"
-                                                                                        Click="ReloadSkin_Click"/>
-                                                                                <CheckBox x:Name="CalibrationCheck" Content="Modo calibracion"
-                                                                                          VerticalAlignment="Center" Margin="12,0,0,0"
-                                                                                          Foreground="{StaticResource TextDataBrush}"
-                                                                                          Click="Calibration_Click"/>
-                                                                            </StackPanel>
-                                                                            <!-- Fila de modo streamer: overlay transparente para OBS, ver StreamerWindow. -->
-                                                                            <StackPanel x:Name="StreamerRow" Orientation="Horizontal" Margin="0,10,0,0">
-                                                                                <Button x:Name="StreamerToggle" Content="MODO STREAMER" Style="{StaticResource InstrumentButton}"
-                                                                                        Click="StreamerToggle_Click"/>
-                                                                                <!-- Apaga el pasa-clic del overlay sin destruirlo: una vez ON desde la barra
-                                                                                     del propio streamer, el raton lo atraviesa entero y su ToggleButton deja
-                                                                                     de ser alcanzable, asi que esta ventana (nunca click-through) es el unico
-                                                                                     camino de vuelta. Solo usable con el streamer abierto. -->
-                                                                                <CheckBox x:Name="StreamerClickThrough" Content="Overlay atraviesa clic"
-                                                                                          VerticalAlignment="Center" Margin="12,0,0,0" IsEnabled="False"
-                                                                                          Foreground="{StaticResource TextDataBrush}"
-                                                                                          Click="StreamerClickThrough_Click"/>
-                                                                            </StackPanel>
+                                                                            <TextBlock x:Name="SkinStatusText" Style="{StaticResource FieldLabel}" TextWrapping="Wrap"/>
+                                                                            <Button Content="RECARGAR SKIN" Style="{StaticResource InstrumentButton}"
+                                                                                    HorizontalAlignment="Stretch" Margin="0,12,0,0" Click="ReloadSkin_Click"/>
+                                                                            <CheckBox x:Name="CalibrationCheck" Content="Modo calibracion" Margin="0,12,0,0"
+                                                                                      Foreground="{StaticResource TextDataBrush}" Click="Calibration_Click"/>
+
+                                                                            <Border Height="1" Background="{StaticResource BorderBrush}" Margin="0,16,0,0"/>
+
+                                                                            <!-- Modo streamer: overlay transparente para capturar por ventana, ver StreamerWindow. -->
+                                                                            <Button x:Name="StreamerToggle" Content="MODO STREAMER" Style="{StaticResource InstrumentButton}"
+                                                                                    HorizontalAlignment="Stretch" Margin="0,16,0,0" Click="StreamerToggle_Click"/>
+                                                                            <!-- Apaga el pasa-clic del overlay sin destruirlo: una vez ON desde la barra del
+                                                                                 propio streamer, el raton lo atraviesa entero y su ToggleButton deja de ser
+                                                                                 alcanzable, asi que esta ventana (nunca click-through) es el unico camino de
+                                                                                 vuelta. Solo usable con el streamer abierto. -->
+                                                                            <CheckBox x:Name="StreamerClickThrough" Content="Overlay atraviesa clic" Margin="0,12,0,0"
+                                                                                      IsEnabled="False" Foreground="{StaticResource TextDataBrush}"
+                                                                                      Click="StreamerClickThrough_Click"/>
                                                                         </StackPanel>
                                                                     </Border>
                                                                 </Popup>
