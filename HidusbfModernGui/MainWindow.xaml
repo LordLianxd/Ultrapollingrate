@@ -1374,37 +1374,56 @@
 
                                     <!-- Right column: everything that acts on the colour. -->
                                     <StackPanel Grid.Row="1" Grid.Column="1">
-                                    <TextBlock Text="LED DE JUGADOR" Style="{StaticResource SectionHeading}"/>
                                     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
-                                            BorderThickness="1" Padding="18" Margin="0,8,0,0">
+                                            BorderThickness="1" CornerRadius="10" Padding="16,14" Margin="0,8,0,0">
                                         <StackPanel>
-                                            <TextBlock Text="Las 5 luces bajo el touchpad. El patron es simetrico, como en la consola."
-                                                       Style="{StaticResource FieldLabel}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                                            <!-- Fila 1: Player + BRILLO. Fila 2: EFECTO + VELOCIDAD. En una sola
-                                                 fila los cuatro controles se salian del borde derecho de la tarjeta
-                                                 y la barra de velocidad quedaba fuera de vista. -->
-                                            <StackPanel Orientation="Horizontal">
-                                                <ComboBox x:Name="PlayerLedList" Width="150" HorizontalAlignment="Left" Margin="0,0,14,0"
-                                                          SelectionChanged="LightCombo_Changed"/>
-                                                <TextBlock Text="BRILLO" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                                <ComboBox x:Name="BrightnessList" Width="110" HorizontalAlignment="Left"
-                                                          SelectionChanged="LightCombo_Changed"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                                <Path Data="{StaticResource ProfileIconPath}" Stretch="Uniform" Width="16" Height="16"
+                                                      VerticalAlignment="Center" Margin="0,0,10,0" Fill="{StaticResource TextDataBrush}"/>
+                                                <TextBlock Text="LUCES DE JUGADOR" Style="{StaticResource SectionHeading}"
+                                                           FontSize="12" VerticalAlignment="Center"/>
                                             </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                                <TextBlock Text="EFECTO" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                                <ComboBox x:Name="PlayerEffectList" Width="120" HorizontalAlignment="Left" Margin="0,0,14,0"
-                                                          SelectionChanged="PlayerEffect_Changed"/>
-                                                <TextBlock Text="VELOCIDAD" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                                <Slider x:Name="PlayerSpeed" Minimum="2" Maximum="20" Value="6" Width="110"
-                                                        IsSnapToTickEnabled="True" TickFrequency="1"
-                                                        VerticalAlignment="Center" ValueChanged="PlayerSpeed_Changed"/>
-                                                <TextBlock x:Name="PlayerSpeedText" Text="" Style="{StaticResource DataText}"
-                                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+
+                                            <!-- Jugador y brillo, construidos en code-behind: son seis y tres segmentos que
+                                                 cargan cada uno su valor del enum, y escribirlos a mano aqui invitaria a que
+                                                 la lista y el enum se separasen. -->
+                                            <StackPanel Orientation="Horizontal">
+                                                <StackPanel x:Name="PlayerLedRow" Orientation="Horizontal" VerticalAlignment="Center"/>
+                                                <Border Width="1" Background="{StaticResource BorderBrush}" Margin="10,2,16,2"/>
+                                                <StackPanel x:Name="BrightnessRow" Orientation="Horizontal" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>
 
-                                    <TextBlock Text="EFECTO" Style="{StaticResource SectionHeading}" Margin="0,20,0,0"/>
+                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                            BorderThickness="1" CornerRadius="10" Padding="16,14" Margin="0,12,0,0">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,14,0">
+                                                <Path Data="{StaticResource StarIconPath}" Stretch="Uniform" Width="16" Height="16"
+                                                      VerticalAlignment="Center" Margin="0,0,10,0" Fill="{StaticResource TextDataBrush}"/>
+                                                <!-- "DE LOS LED", no "PRINCIPAL": mas abajo hay otra tarjeta de efecto, la del
+                                                     COLOR. Dos rotulos casi iguales gobernando cosas distintas confunden mas
+                                                     que un rotulo largo. -->
+                                                <TextBlock Text="EFECTO DE LOS LED" Style="{StaticResource SectionHeading}"
+                                                           FontSize="12" VerticalAlignment="Center"/>
+                                            </StackPanel>
+
+                                            <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                                <ComboBox x:Name="PlayerEffectList" Width="150" VerticalAlignment="Center"
+                                                          SelectionChanged="PlayerEffect_Changed"/>
+                                                <Path Data="{StaticResource ClockIconPath}" Stretch="Uniform" Width="15" Height="15"
+                                                      VerticalAlignment="Center" Margin="18,0,10,0" Fill="{StaticResource TextLabelBrush}"/>
+                                                <Slider x:Name="PlayerSpeed" Minimum="2" Maximum="20" Value="6" Width="140"
+                                                        IsSnapToTickEnabled="True" TickFrequency="1"
+                                                        VerticalAlignment="Center" ValueChanged="PlayerSpeed_Changed"
+                                                        AutomationProperties.Name="Velocidad del efecto de los LED"/>
+                                                <TextBlock x:Name="PlayerSpeedText" Text="" Style="{StaticResource DataText}"
+                                                           VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Text="EFECTO DEL COLOR" Style="{StaticResource SectionHeading}" Margin="0,20,0,0"/>
                                     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
                                             BorderThickness="1" Padding="18" Margin="0,8,0,0">
                                         <StackPanel>

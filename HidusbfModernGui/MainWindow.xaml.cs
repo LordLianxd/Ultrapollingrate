@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -2188,37 +2189,65 @@ namespace HidusbfModernGui
         // parsing a label back into meaning.
         private void BuildLightControls()
         {
-            if (PlayerLedList.Items.Count > 0) return;
+            if (PlayerLedRow.Children.Count > 0) return;
 
-            // Guarded end to end, not just around the two SelectedIndex assignments below:
-            // both of them fire LightCombo_Changed, which calls ApplyLightNow() the moment
-            // _updatingLight is false. Relying on RefreshPlayStationDevices() happening to
-            // call this before _lightPadId is resolved (so ApplyLightNow()'s null check bails
+            // Guarded end to end, not just alrededor de las selecciones de abajo: marcar un
+            // segmento dispara PlayerLed_Checked/Brightness_Checked, que llaman a ApplyLightNow()
+            // en cuanto _updatingLight es false. Relying on RefreshPlayStationDevices() happening
+            // to call this before _lightPadId is resolved (so ApplyLightNow()'s null check bails
             // out) is an accident of call order, not a guarantee.
             try
             {
                 _updatingLight = true;
 
-                foreach (var (label, value) in new (string, PlayerLeds)[]
+                // Seis segmentos, no cinco: PlayerLeds trae Off, cuatro jugadores y All. El ultimo
+                // lleva el icono de las cinco barras y no un "5", porque un jugador 5 no existe en
+                // el mando.
+                foreach (var (contenido, valor, nombre) in new (object, PlayerLeds, string)[]
                          {
-                             ("Apagados", PlayerLeds.Off),
-                             ("Player 1", PlayerLeds.Player1),
-                             ("Player 2", PlayerLeds.Player2),
-                             ("Player 3", PlayerLeds.Player3),
-                             ("Player 4", PlayerLeds.Player4),
-                             ("Todas", PlayerLeds.All),
+                             (Icono("ProfileIconPath"), PlayerLeds.Off,    "Ninguna"),
+                             ("1", PlayerLeds.Player1, "Jugador 1"),
+                             ("2", PlayerLeds.Player2, "Jugador 2"),
+                             ("3", PlayerLeds.Player3, "Jugador 3"),
+                             ("4", PlayerLeds.Player4, "Jugador 4"),
+                             (Icono("AllLedsIconPath"), PlayerLeds.All, "Todas encendidas"),
                          })
-                    PlayerLedList.Items.Add(new ComboBoxItem { Content = label, Tag = value });
-                PlayerLedList.SelectedIndex = 1;   // Player 1, what Windows shows
+                {
+                    var seg = new RadioButton
+                    {
+                        Style = (Style)FindResource("MiniSegment"),
+                        GroupName = "PlayerLed",
+                        Content = contenido,
+                        Tag = valor,
+                        IsChecked = valor == PlayerLeds.Player1,   // Player 1, lo que Windows muestra
+                    };
+                    System.Windows.Automation.AutomationProperties.SetName(seg, nombre);
+                    seg.ToolTip = nombre;
+                    seg.Checked += PlayerLed_Checked;
+                    PlayerLedRow.Children.Add(seg);
+                }
 
-                foreach (var (label, value) in new (string, LedBrightness)[]
+                // Tres niveles, no cuatro: LedBrightness es High/Medium/Low. El sol crece con el nivel.
+                foreach (var (tamano, valor, nombre) in new (double, LedBrightness, string)[]
                          {
-                             ("Alto", LedBrightness.High),
-                             ("Medio", LedBrightness.Medium),
-                             ("Bajo", LedBrightness.Low),
+                             (11, LedBrightness.Low,    "Brillo bajo"),
+                             (14, LedBrightness.Medium, "Brillo medio"),
+                             (17, LedBrightness.High,   "Brillo alto"),
                          })
-                    BrightnessList.Items.Add(new ComboBoxItem { Content = label, Tag = value });
-                BrightnessList.SelectedIndex = 0;
+                {
+                    var seg = new RadioButton
+                    {
+                        Style = (Style)FindResource("MiniSegment"),
+                        GroupName = "LedBrightness",
+                        Content = Icono("SunIconPath", tamano),
+                        Tag = valor,
+                        IsChecked = valor == LedBrightness.High,   // Alto, la seleccion de antes
+                    };
+                    System.Windows.Automation.AutomationProperties.SetName(seg, nombre);
+                    seg.ToolTip = nombre;
+                    seg.Checked += Brightness_Checked;
+                    BrightnessRow.Children.Add(seg);
+                }
 
                 foreach (var (label, value) in new (string, RainbowStyle)[]
                          {
@@ -2252,8 +2281,8 @@ namespace HidusbfModernGui
                 {
                     Picker.SelectedColor = Color.FromRgb(saved.R, saved.G, saved.B);
                     UpdateSwatch();
-                    SelectComboByTag(PlayerLedList, saved.Player);
-                    SelectComboByTag(BrightnessList, saved.Brightness);
+                    SelectSegmentByTag(PlayerLedRow, saved.Player);
+                    SelectSegmentByTag(BrightnessRow, saved.Brightness);
                     SelectComboByTag(RainbowStyleList, saved.Style);
                     RainbowSpeed.Value = Math.Clamp(saved.RainbowColoursPerSecond,
                         (int)RainbowWalker.MinColoursPerSecond, (int)RainbowWalker.MaxColoursPerSecond);
@@ -2263,7 +2292,7 @@ namespace HidusbfModernGui
                 // Con o sin intencion guardada (p.ej. primer arranque), la barra de velocidad y la
                 // seleccion fija de Player dependen solo de si hay un efecto de LED activo.
                 PlayerSpeed.IsEnabled = PlayerEffectOn;
-                PlayerLedList.IsEnabled = !PlayerEffectOn;
+                PlayerLedRow.IsEnabled = !PlayerEffectOn;
 
                 // Presets cover the common case in one click. "Apagado" belongs here: turning the
                 // light off is a preference, not an error state.
@@ -2323,6 +2352,42 @@ namespace HidusbfModernGui
             UpdatePlayerSpeedText();
         }
 
+        // El Fill se ata al Foreground del segmento: un Path no lo hereda, y sin esto el icono del
+        // segmento activo se quedaria gris sobre la pastilla clara (la leccion L7, otra vez).
+        private System.Windows.Shapes.Path Icono(string clave, double tamano = 15)
+        {
+            var p = new System.Windows.Shapes.Path
+            {
+                Data = (Geometry)FindResource(clave),
+                Stretch = Stretch.Uniform,
+                Width = tamano,
+                Height = tamano,
+            };
+            p.SetBinding(System.Windows.Shapes.Shape.FillProperty,
+                new Binding("Foreground") { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(RadioButton), 1) });
+            return p;
+        }
+
+        private void PlayerLed_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_updatingLight) return;
+            ApplyLightNow();
+        }
+
+        private void Brightness_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_updatingLight) return;
+            ApplyLightNow();
+        }
+
+        // null si aun no se ha construido la fila (el arranque llama a esto antes de tiempo por
+        // varios caminos); los llamadores ya saben salirse cuando no hay valor.
+        private PlayerLeds? CurrentPlayerLed()
+            => PlayerLedRow.Children.OfType<RadioButton>().FirstOrDefault(r => r.IsChecked == true)?.Tag as PlayerLeds?;
+
+        private LedBrightness? CurrentBrightness()
+            => BrightnessRow.Children.OfType<RadioButton>().FirstOrDefault(r => r.IsChecked == true)?.Tag as LedBrightness?;
+
         // Selecciona en un ComboBox el item cuyo Tag es igual a value (los items se construyen
         // con Tag = el enum). Sin match, deja la seleccion actual.
         private static void SelectComboByTag(ComboBox combo, object value)
@@ -2330,6 +2395,18 @@ namespace HidusbfModernGui
             foreach (ComboBoxItem item in combo.Items)
             {
                 if (Equals(item.Tag, value)) { combo.SelectedItem = item; return; }
+            }
+        }
+
+        // Equivalente de SelectComboByTag para las filas de segmentos (PlayerLedRow,
+        // BrightnessRow): marca el RadioButton cuyo Tag es igual a value. Sin match, deja la
+        // seleccion actual. Los llamadores lo envuelven en _updatingLight para que restaurar la
+        // intencion guardada no escriba al mando.
+        private static void SelectSegmentByTag(System.Windows.Controls.Panel row, object value)
+        {
+            foreach (var seg in row.Children.OfType<RadioButton>())
+            {
+                if (Equals(seg.Tag, value)) { seg.IsChecked = true; return; }
             }
         }
 
@@ -2446,15 +2523,8 @@ namespace HidusbfModernGui
         {
             var c = Picker.SelectedColor;
             return new LightState(c.R, c.G, c.B,
-                (PlayerLeds)((ComboBoxItem)PlayerLedList.SelectedItem).Tag,
-                (LedBrightness)((ComboBoxItem)BrightnessList.SelectedItem).Tag);
-        }
-
-        // A combo box is a discrete choice, not a drag: apply it immediately.
-        private void LightCombo_Changed(object sender, SelectionChangedEventArgs e)
-        {
-            if (_updatingLight || ColourSwatch == null) return;
-            ApplyLightNow();
+                CurrentPlayerLed() ?? PlayerLeds.Off,
+                CurrentBrightness() ?? LedBrightness.Low);
         }
 
         private void LightDebounce_Tick(object? sender, EventArgs e)
@@ -2480,7 +2550,7 @@ namespace HidusbfModernGui
             _lightDebounce?.Stop();
 
             if (_lightPadId == null) return;
-            if (PlayerLedList.SelectedItem == null || BrightnessList.SelectedItem == null) return;
+            if (CurrentPlayerLed() == null || CurrentBrightness() == null) return;
 
             var result = DualSenseLight.Apply(_lightPadId, CurrentLight());
             if (!result.Success) LogStatus($"No se pudo cambiar la luz: {result.Error}");
@@ -2492,10 +2562,7 @@ namespace HidusbfModernGui
         // autoguardado de abajo y GUARDAR de la seccion PERFILES: la misma foto de la luz.
         private LightIntent? BuildCurrentIntent()
         {
-            if (PlayerLedList?.SelectedItem == null || BrightnessList?.SelectedItem == null) return null;
-
-            var player = (PlayerLeds)((ComboBoxItem)PlayerLedList.SelectedItem).Tag;
-            var brightness = (LedBrightness)((ComboBoxItem)BrightnessList.SelectedItem).Tag;
+            if (CurrentPlayerLed() is not { } player || CurrentBrightness() is not { } brightness) return null;
 
             LightIntent intent;
             if (RainbowOn)
@@ -2548,8 +2615,8 @@ namespace HidusbfModernGui
                 if (RainbowCheck.IsChecked == true) RainbowCheck.IsChecked = false;
 
                 Picker.SelectedColor = Color.FromRgb(0, 0, 255);
-                PlayerLedList.SelectedIndex = 1;   // Player 1
-                BrightnessList.SelectedIndex = 0;  // High
+                SelectSegmentByTag(PlayerLedRow, PlayerLeds.Player1);
+                SelectSegmentByTag(BrightnessRow, LedBrightness.High);
             }
             finally
             {
@@ -2557,7 +2624,7 @@ namespace HidusbfModernGui
             }
 
             // Outside the _updatingLight guard so PlayerEffect_Changed actually runs: it stops
-            // the effect timer (via UpdateEffectDriver), re-enables PlayerLedList, and - now
+            // the effect timer (via UpdateEffectDriver), re-enables PlayerLedRow, and - now
             // that nothing is animating - re-applies the restored static colour/player itself.
             PlayerEffectList.SelectedIndex = 0;   // Ninguno
 
@@ -2664,7 +2731,7 @@ namespace HidusbfModernGui
         private void Effect_Tick(object? sender, EventArgs e)
         {
             if (_lightPadId == null) return;
-            if (PlayerLedList.SelectedItem == null || BrightnessList.SelectedItem == null) return;
+            if (CurrentPlayerLed() == null || CurrentBrightness() == null) return;
 
             byte r, g, b;
             if (RainbowOn)
@@ -2698,10 +2765,10 @@ namespace HidusbfModernGui
             }
             else
             {
-                player = (PlayerLeds)((ComboBoxItem)PlayerLedList.SelectedItem).Tag;
+                player = CurrentPlayerLed()!.Value;
             }
 
-            var brightness = (LedBrightness)((ComboBoxItem)BrightnessList.SelectedItem).Tag;
+            var brightness = CurrentBrightness()!.Value;
             DualSenseLight.Apply(_lightPadId, new LightState(r, g, b, player, brightness));
         }
 
@@ -2728,7 +2795,7 @@ namespace HidusbfModernGui
             if (_updatingLight) return;
             if (PlayerEffectOn) { _playerWalker = new PlayerLedWalker(CurrentPlayerEffect); _playerFrameIndex = 0; _playerFrameAccumMs = 0; }
             // Con un efecto de LED activo, la seleccion fija de Player la maneja el efecto.
-            if (PlayerLedList != null) PlayerLedList.IsEnabled = !PlayerEffectOn;
+            if (PlayerLedRow != null) PlayerLedRow.IsEnabled = !PlayerEffectOn;
             if (PlayerSpeed != null) PlayerSpeed.IsEnabled = PlayerEffectOn;
             UpdateEffectDriver();
             if (!PlayerEffectOn && !RainbowOn)
@@ -2957,8 +3024,8 @@ namespace HidusbfModernGui
             try
             {
                 Picker.SelectedColor = Color.FromRgb(li.R, li.G, li.B);
-                SelectComboByTag(PlayerLedList, li.Player);
-                SelectComboByTag(BrightnessList, li.Brightness);
+                SelectSegmentByTag(PlayerLedRow, li.Player);
+                SelectSegmentByTag(BrightnessRow, li.Brightness);
                 SelectComboByTag(RainbowStyleList, li.Style);
                 RainbowSpeed.Value = Math.Clamp(li.RainbowColoursPerSecond,
                     (int)RainbowWalker.MinColoursPerSecond, (int)RainbowWalker.MaxColoursPerSecond);
@@ -2978,7 +3045,7 @@ namespace HidusbfModernGui
                 _playerFrameAccumMs = 0;
             }
             PlayerSpeed.IsEnabled = PlayerEffectOn;
-            PlayerLedList.IsEnabled = !PlayerEffectOn;
+            PlayerLedRow.IsEnabled = !PlayerEffectOn;
 
             // Fuera del guard: marcar el check dispara Rainbow_Toggled, que arranca o para el
             // motor de efectos con todo lo de arriba ya puesto.

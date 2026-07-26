@@ -48,6 +48,14 @@
     <!-- Icono de copiar, para el boton junto al hex del selector de color. -->
     <Geometry x:Key="CopyIconPath">M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z</Geometry>
 
+    <!-- Las cinco barras del LED de jugador todas encendidas: el sexto valor de PlayerLeds
+         (All), que NO es un "jugador 5". -->
+    <Geometry x:Key="AllLedsIconPath">M3,10H5V14H3V10M7,10H9V14H7V10M11,10H13V14H11V10M15,10H17V14H15V10M19,10H21V14H19V10Z</Geometry>
+    <!-- Brillo: tres soles con el nucleo cada vez mayor. El rayo lo pone el mismo path; lo que
+         cambia entre niveles es el tamano al que se dibuja, no la silueta. -->
+    <Geometry x:Key="StarIconPath">M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z</Geometry>
+    <Geometry x:Key="ClockIconPath">M12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12.5,7H11V13L15.75,15.85L16.5,14.62L12.5,12.25V7Z</Geometry>
+
     <Geometry x:Key="MoonIconPath">M17.75,4.09L15.22,6.03L16.13,9.09L13.5,7.28L10.87,9.09L11.78,6.03L9.25,4.09L12.44,4L13.5,1L14.56,4L17.75,4.09M21.25,11L19.61,12.25L20.2,14.23L18.5,13.06L16.8,14.23L17.39,12.25L15.75,11L17.81,10.95L18.5,9L19.19,10.95L21.25,11M18.97,15.95C19.8,15.87 20.69,17.05 20.16,17.8C19.84,18.25 19.5,18.67 19.08,19.07C15.17,23 8.84,23 4.94,19.07C1.03,15.17 1.03,8.83 4.94,4.93C5.34,4.53 5.76,4.17 6.21,3.85C6.96,3.32 8.14,4.21 8.06,5.04C7.79,7.9 8.75,10.87 10.95,13.06C13.14,15.26 16.1,16.22 18.97,15.95Z</Geometry>
 
     <!-- Cascadia Mono is not guaranteed to be installed; Consolas is. The
@@ -460,6 +468,45 @@
         <Setter Property="CornerRadius" Value="22"/>
         <Setter Property="Padding" Value="4"/>
         <Setter Property="HorizontalAlignment" Value="Left"/>
+    </Style>
+
+    <!-- Segmento cuadrado para un numero o un icono suelto: el mismo lenguaje que
+         SegmentButton (activo = pastilla clara con tinta oscura) pero al tamano de una casilla.
+         Se usa para elegir jugador y brillo, donde la etiqueta es un simbolo y no una palabra. -->
+    <Style x:Key="MiniSegment" TargetType="RadioButton">
+        <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{StaticResource TextLabelBrush}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Width" Value="34"/>
+        <Setter Property="Height" Value="30"/>
+        <Setter Property="Margin" Value="0,0,6,0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Seg" CornerRadius="7" Background="{StaticResource SurfaceAltBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Seg" Property="Background" Value="{StaticResource TextDataBrush}"/>
+                            <Setter TargetName="Seg" Property="BorderBrush" Value="{StaticResource TextDataBrush}"/>
+                            <Setter Property="Foreground" Value="{StaticResource BgBrush}"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                                <Condition Property="IsChecked" Value="False"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Seg" Property="BorderBrush" Value="{StaticResource TextLabelBrush}"/>
+                            <Setter Property="Foreground" Value="{StaticResource TextDataBrush}"/>
+                        </MultiTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- Interruptor de opcion: pastilla lisa con pulsador deslizante, para las filas
