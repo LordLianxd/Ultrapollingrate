@@ -3,6 +3,14 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
+    <!-- La version del producto. Sin esto el exe reportaba 1.0.0 en las propiedades de
+         Windows aunque el zip publicado dijera otra cosa: un usuario que mirara el archivo
+         no podia saber que tenia. Se sube AQUI y en el nombre del zip a la vez. -->
+    <Version>2.5.0</Version>
+    <AssemblyVersion>2.5.0.0</AssemblyVersion>
+    <FileVersion>2.5.0.0</FileVersion>
+    <Product>UltraPolling</Product>
+    <Company>UltraPolling</Company>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>

@@ -59,7 +59,7 @@ Interfaz moderna y gratuita para el driver [hidusbf](https://github.com/LordOfMi
 
 ## Descarga y uso
 
-1. Descarga `UltraPolling-v1.0-beta-win-x64.zip` desde [Releases](../../releases).
+1. Descarga `UltraPolling-v2.5-win-x64.zip` desde [Releases](../../releases).
 2. Extrae el ZIP completo. **La carpeta `DRIVER` debe quedarse al lado de `UltraPolling.exe`**: la app la usa para identificar (por hash) qué driver tienes instalado y para copiar el `.sys` al cambiar de modo. Sin ella, la app arranca pero no puede instalar ni identificar nada.
 3. Ejecuta `UltraPolling.exe`.
 4. En la pestaña Sistema, instala el servicio si no está instalado y elige el modo del driver.
