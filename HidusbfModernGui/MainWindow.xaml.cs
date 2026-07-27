@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -137,10 +138,12 @@ namespace HidusbfModernGui
                 if (_engineTimer != null)
                 {
                     _engineTimer.Stop();
-                    _engineTimer.Tick -= EngineTick;
+                    _engineTimer.Tick -= EngineStatusTick;
                     _engineTimer = null;
                 }
                 _engineRunning = false;
+                // RevertEngineDevices desengancha el sumidero del lector antes de parar el
+                // hilo y desconectar el mando virtual (Task 8) - mismo camino que StopEngine.
                 try { RevertEngineDevices(); } catch { }
                 CleanupEngine();
             }
@@ -857,6 +860,13 @@ namespace HidusbfModernGui
         private int _engineTick;
         private string? _hideError;
 
+        // Cadencia del timer que queda (Task 8): ya no empuja al mando virtual -eso corre en
+        // el hilo lector via DualSenseReader.SetSink-, solo refresca la linea de estado. 250ms
+        // sobra de sobra para un texto que lee un humano. UpdateEngineStatus deriva su umbral
+        // de "sin reportes" de esta constante en vez de un numero de ticks aparte, para que no
+        // vuelva a quedar desincronizado si el intervalo cambia otra vez.
+        private const int EngineStatusIntervalMs = 250;
+
         // True while Start/StopEngine's background thread is doing the heavy device work
         // (HidHide hide/revert, which includes a PnP devnode remove+re-enumerate). That
         // restart raises our own WM_DEVICECHANGE, which the debounced handler above would
@@ -940,14 +950,33 @@ namespace HidusbfModernGui
             _engineRunning = true;
             _engineTick = 0;
 
-            // El DispatcherTimer se crea/arranca en el hilo de UI (no es seguro entre
-            // hilos; construirlo desde el hilo de fondo lo asociaria a un dispatcher ad-hoc
-            // de ese hilo, que nunca bombea, y el passthrough nunca avanzaria).
+            // El paso a mando virtual YA NO vive en un timer de UI (Task 8: retraso de
+            // entrada). Antes un DispatcherTimer de 8ms resampleaba _padReader.Snapshot(): un
+            // DualSense a 8000Hz entrega un reporte cada 0.125ms, asi que ese timer solo veia
+            // 1 de cada ~64 y sumaba hasta 8ms propios de retraso -mas de lo que el overclock
+            // ahorra-, ademas de compartir el hilo de UI con el visualizador, el rainbow y los
+            // monitores de stick. Ahora el propio hilo lector empuja en cuanto le llega el
+            // reporte (DualSenseReader.SetSink corre DENTRO de ReadLoop), leyendo _remapLive
+            // -la copia inmutable que PublishRemapSnapshot mantiene al dia- en vez de _remap
+            // (que solo es seguro leer desde el hilo de UI, que es quien lo edita).
+            //
+            // virt se captura en una variable local, no en el campo _padVirtual: el lambda
+            // cierra sobre esta variable, asi que aunque CleanupEngine ponga el campo a null
+            // mas tarde, la instancia que el sumidero empuja sigue siendo la misma que
+            // RevertEngineDevices desconecta (y ese Disconnect() no corre hasta despues de
+            // desenganchar el sumidero y hacer Join sobre el hilo lector - ver
+            // RevertEngineDevices).
+            var virt = _padVirtual!;
+            _padReader!.SetSink(phys => virt.Push(RemapEngine.Transform(phys, Volatile.Read(ref _remapLive))));
+
+            // Lo unico que le queda a este timer es refrescar la linea de estado (fisico
+            // oculto / virtual activo / sin reportes), asi que se le baja el ritmo a algo
+            // razonable para un texto - no hay motivo para que siga al ritmo del passthrough.
             _engineTimer = new DispatcherTimer(DispatcherPriority.Render)
             {
-                Interval = TimeSpan.FromMilliseconds(8)
+                Interval = TimeSpan.FromMilliseconds(EngineStatusIntervalMs)
             };
-            _engineTimer.Tick += EngineTick;
+            _engineTimer.Tick += EngineStatusTick;
             _engineTimer.Start();
             UpdateEngineStatus();
             SetEngineBusyVisual(false);
@@ -991,17 +1020,14 @@ namespace HidusbfModernGui
             return (true, null, null, hideError);
         }
 
-        private void EngineTick(object? sender, EventArgs e)
+        // Ya no hace passthrough (Task 8: ver StartEngine). Lo unico que queda es refrescar la
+        // linea de estado, al ritmo de EngineStatusIntervalMs - no hace falta ningun modulo
+        // para espaciarlo mas, el propio intervalo del timer ya es el espaciado.
+        private void EngineStatusTick(object? sender, EventArgs e)
         {
-            var reader = _padReader;
-            var virt = _padVirtual;
-            if (!_engineRunning || reader == null || virt == null) return;
-            // Aplica los ajustes de la UI (deadzone/curvas/gatillos/remapeo/touchpad) en vivo:
-            // _remap es el MISMO objeto que editan los controles del configurador, y tanto la
-            // edicion como este tick corren en el hilo de UI, asi que leerlo aqui es seguro y
-            // cualquier cambio de slider se refleja en el mando virtual en el acto.
-            virt.Push(RemapEngine.Transform(reader.Snapshot(), _remap));
-            if (++_engineTick % 15 == 0) UpdateEngineStatus();
+            if (!_engineRunning) return;
+            _engineTick++;
+            UpdateEngineStatus();
         }
 
         // Con el motor CORRIENDO BIEN esto se calla: el interruptor ya dice que esta
@@ -1023,7 +1049,10 @@ namespace HidusbfModernGui
 
             // Los reportes tardan unos cuadros en arrancar; solo se considera un fallo tras
             // ~1 s corriendo, para no acusar de congelado a un motor que acaba de encenderse.
-            bool sinReportes = reportes == 0 && _engineTick > 60;
+            // Derivado de EngineStatusIntervalMs (antes era un "60" fijo que asumia el timer
+            // de 8ms viejo; con el timer a otro ritmo ese numero habria dejado de significar
+            // 1 segundo sin que nada avisara).
+            bool sinReportes = reportes == 0 && _engineTick * EngineStatusIntervalMs > 1000;
 
             if (oculto && conectado && !sinReportes && _hideError == null)
             {
@@ -1048,6 +1077,15 @@ namespace HidusbfModernGui
         // normal).
         private string? RevertEngineDevices()
         {
+            // Desengancha el sumidero ANTES de tocar nada mas (Task 8): asi ninguna invocacion
+            // NUEVA puede arrancar despues de este punto. _padReader.Stop() mas abajo hace
+            // Join sobre el hilo lector antes de que Disconnect() destruya el pad virtual, asi
+            // que en el camino normal eso ya alcanza para que Disconnect() nunca corra en
+            // paralelo con una invocacion en curso; desenganchar aqui es una segunda red por
+            // si ese Join alguna vez agota su plazo de 1500ms sin que el hilo haya terminado
+            // (tiene timeout a proposito, ver DualSenseReader.Stop).
+            try { _padReader?.SetSink(null); } catch { }
+
             string? revertErr = null;
             try { revertErr = _padHidHide?.Revert().Error; }
             catch (Exception ex) { revertErr = ex.Message; }
@@ -1063,12 +1101,14 @@ namespace HidusbfModernGui
             // las dos operaciones porque las dos hacen esperar.
             SetEngineBusyVisual(true);
 
-            // El timer del passthrough vive y muere en el hilo de UI; pararlo aqui, antes
-            // del trabajo pesado de fondo, deja de empujar reportes al virtual de inmediato.
+            // El timer de estado vive y muere en el hilo de UI; pararlo aqui es solo higiene -
+            // el passthrough YA NO pasa por el (Task 8), asi que esto no es lo que lo corta.
+            // Lo que de verdad lo corta es RevertEngineDevices desenganchando el sumidero del
+            // lector, abajo.
             if (_engineTimer != null)
             {
                 _engineTimer.Stop();
-                _engineTimer.Tick -= EngineTick;
+                _engineTimer.Tick -= EngineStatusTick;
                 _engineTimer = null;
             }
             _engineRunning = false;
@@ -1235,12 +1275,24 @@ namespace HidusbfModernGui
 
         // ===== Configurador del mando: edita _remap y persiste via perfiles (Task 4) =====
         //
-        // _remap es el objeto vivo: EngineTick lo lee en cada frame cuando el mando virtual
-        // esta activo, asi que cualquier cambio aqui (slider, combo, CARGAR un perfil) se
+        // _remap es el objeto vivo que editan los sliders/combos/CARGAR de esta pagina, y
+        // solo el hilo de UI lo toca. El paso a mando virtual YA NO lo lee directo (Task 8):
+        // el sumidero del lector corre en el hilo lector, no en el de UI, asi que leer
+        // _remap ahi seria un objeto mutable compartido sin proteccion. En su lugar cada
+        // edicion publica una copia inmutable en _remapLive (ver PublishRemapSnapshot), y
+        // el sumidero lee esa copia. El resultado es el mismo: cualquier cambio aqui se
         // aplica al juego en el acto, sin boton de "aplicar".
 
         // El estado que edita toda la pestana STICKS/GATILLOS/BOTONES/TOUCHPAD.
         private RemapSettings _remap = new();
+
+        // Copia inmutable de _remap para el sumidero del lector (hilo lector). Publicada con
+        // Volatile.Write tras CADA edicion de _remap (ver PublishRemapSnapshot) y leida con
+        // Volatile.Read desde el sumidero. CloneRemapSettings ya copia en profundidad los dos
+        // diccionarios y las dos listas de puntos de curva -el unico estado mutable dentro de
+        // RemapSettings-, asi que el hilo lector nunca puede ver una coleccion a medio editar
+        // mientras el usuario arrastra un punto de la curva o teclea un remapeo.
+        private RemapSettings _remapLive = new();
 
         // Igual que _updatingLight: true mientras el codigo (CARGAR, o el build inicial)
         // mueve los controles, para que esos cambios programaticos no se interpreten como
@@ -1334,6 +1386,10 @@ namespace HidusbfModernGui
             var last = _remapProfiles.FirstOrDefault(p => p.Name == LastUsedProfileName);
             if (last != null) _remap = CloneRemapSettings(last.Settings);
             _remap.Sanitize();   // perfiles viejos con presets retirados -> Lineal (ver RemapSettings)
+            // Publica ANTES de que el motor pueda arrancar: si el usuario enciende el
+            // interruptor sin tocar ningun control primero, el sumidero debe leer el perfil
+            // recien cargado, no el RemapSettings por defecto con el que arranca _remapLive.
+            PublishRemapSnapshot();
 
             try
             {
@@ -2502,6 +2558,10 @@ namespace HidusbfModernGui
             double x = Math.Clamp(RawToDomain(pos.X / canvas.Width, inner, outer), minX, maxX);
             double y = Math.Clamp(1 - pos.Y / canvas.Height, 0.0, 1.0);
             pts[s.DragIndex] = new CurvePoint(x, y);
+            // Muta la lista de _remap en cada movimiento de mouse, no solo al soltar (eso lo
+            // hace CurveCanvas_Up via RememberRemap) - asi que republica aqui tambien, o el
+            // mando virtual seguiria la curva vieja durante todo el arrastre.
+            PublishRemapSnapshot();
             RedrawStickCurve(s);
         }
 
@@ -2563,13 +2623,29 @@ namespace HidusbfModernGui
             RightCurvePoints = new List<CurvePoint>(s.RightCurvePoints),
         };
 
+        // Republica _remapLive para el sumidero del lector (Task 8). Se llama en el hilo de
+        // UI, siempre inmediatamente despues de mutar _remap (nunca detras del guardado
+        // debounced de 750ms: eso seria reintroducir el mismo retraso que este cambio quita).
+        // Reusa CloneRemapSettings -que ya existe para GUARDAR/CARGAR perfiles- en vez de un
+        // segundo camino de copia.
+        private void PublishRemapSnapshot() => Volatile.Write(ref _remapLive, CloneRemapSettings(_remap));
+
         // Guarda el estado activo bajo el nombre reservado, agrupando rafagas de arrastre
         // (igual que RememberLight/_intentSave para la luz) en una sola escritura a disco.
         private DispatcherTimer? _remapSave;
 
+        // Punto de paso unico: casi todo handler que edita _remap termina llamando aqui (grep
+        // "RememberRemap()" para verlo). Por eso ademas de programar el guardado a disco
+        // (debounced, 750ms) republica _remapLive DE INMEDIATO -eso no puede esperar los
+        // 750ms o el mando virtual jugaria varios frames con el ajuste viejo. El unico sitio
+        // que muta _remap sin pasar por aqui es CurveCanvas_Move (arrastra la lista de puntos
+        // en cada movimiento de mouse, no solo al soltar), que publica por su cuenta; y las
+        // dos reasignaciones completas de _remap (carga inicial y CARGAR perfil), que tambien
+        // publican aparte porque ninguna es "una edicion" que deba pasar por _updatingRemap.
         private void RememberRemap()
         {
             if (_updatingRemap) return;
+            PublishRemapSnapshot();
 
             _remapSave ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(750) };
             _remapSave.Stop();
@@ -3524,6 +3600,11 @@ namespace HidusbfModernGui
                 }
                 finally { _updatingRemap = false; }
 
+                // No pasa por RememberRemap (eso es para ediciones del usuario, y esto es
+                // "aplicar un perfil"), asi que republica aqui a mano: si el motor ya esta
+                // corriendo, el mando virtual debe pasar al perfil recien aplicado en el
+                // acto, no seguir con el anterior hasta la proxima edicion de un slider.
+                PublishRemapSnapshot();
                 PersistLastUsedRemap();   // el recien aplicado pasa a ser el "ultimo usado"
                 notes.Add("mando");
             }

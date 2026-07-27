@@ -6,9 +6,14 @@ using Nefarius.ViGEm.Client.Targets.DualShock4;
 namespace HidusbfModernGui
 {
     // A virtual DualShock4 created through ViGEm (the ViGEmBus driver). Push(state) maps
-    // a parsed ControllerState onto the virtual pad and submits one report. The engine
-    // loop (EngineTick) feeds it RemapEngine.Transform's output, so what lands here is
-    // the already-transformed state, never the raw physical read.
+    // a parsed ControllerState onto the virtual pad and submits one report.
+    //
+    // Nota (Task 8): quien llama a Push() ya no es un timer de UI (EngineTick fue renombrado
+    // a EngineStatusTick y perdio el passthrough) sino el sumidero de DualSenseReader, que
+    // corre en el hilo lector. Sigue siendo RemapEngine.Transform's output el que llega aqui
+    // -jamas la lectura fisica cruda- solo que ahora el hilo que hace la transformacion es
+    // otro. Push() en si no cambio: solo lo llama un unico hilo (el lector) a la vez, nunca
+    // el de UI en simultaneo con el, asi que sigue sin necesitar su propio candado.
     public sealed class VirtualPad
     {
         private ViGEmClient? _client;

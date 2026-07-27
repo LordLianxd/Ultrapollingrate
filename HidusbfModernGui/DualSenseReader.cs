@@ -45,6 +45,19 @@ namespace HidusbfModernGui
         private ControllerState _latest = new();
         private long _reports;
 
+        // Enganchado por el motor (Task 8: retraso de entrada). Se invoca EN ESTE HILO, justo
+        // tras guardar cada estado nuevo bajo _gate - asi el paso a mando virtual corre donde
+        // llega el reporte, en vez de un DispatcherTimer de UI resampleando a una tasa mucho
+        // menor (a 8ms el timer solo veia 1 de cada ~64 reportes de un mando a 8000Hz, y sumaba
+        // hasta 8ms propios de retraso). El motor lo pone a null ANTES de desconectar el mando
+        // virtual: una invocacion que ya estuviera en vuelo no debe terminar llamando a un pad
+        // ya destruido.
+        private volatile Action<ControllerState>? _sink;
+
+        // Engancha o desengancha (con null) el sumidero. Llamable desde cualquier hilo: solo
+        // reasigna una referencia.
+        public void SetSink(Action<ControllerState>? sink) => _sink = sink;
+
         // True while the read thread has an open, live stream. Flips back to false when
         // Stop() closes it or the device is unplugged and the read loop ends.
         public bool Connected { get; private set; }
@@ -180,6 +193,11 @@ namespace HidusbfModernGui
                     {
                         var s = Parse(buf);
                         lock (_gate) { _latest = s; }
+                        // El sumidero puede tirar (p.ej. una carrera contra la desconexion del
+                        // mando virtual que SetSink(null) no alcanzo a evitar): no debe tirar
+                        // abajo este hilo, o el passthrough entero muere en silencio. El proximo
+                        // reporte simplemente lo vuelve a intentar.
+                        try { _sink?.Invoke(s); } catch { }
                         Interlocked.Increment(ref _reports);
                     }
                 }
