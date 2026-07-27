@@ -39,3 +39,10 @@ skins/
 **/skins/
 *.skin.json
 scraped_controller_assets/
+
+# Cuaderno de trabajo con Claude: planes, specs y el registro de progreso.
+# Son notas internas de como se construyo esto, no parte del producto, y no
+# tienen por que salir publicadas en GitHub. Los archivos SIGUEN en disco:
+# esto solo deja de rastrearlos.
+/docs/superpowers/
+/.superpowers/
